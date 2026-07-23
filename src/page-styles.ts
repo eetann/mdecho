@@ -125,7 +125,7 @@ export const pageStyles = `
   }
 
   .markdown-body pre {
-    padding: 1em;
+    padding: 1em 1em 1em 3.4em;
     overflow-x: auto;
     border: 1px solid #d1d9e0;
     border-radius: 6px;
@@ -141,6 +141,7 @@ export const pageStyles = `
   .markdown-body pre .line {
     display: inline-block;
     width: 100%;
+    position: relative;
   }
 
   .markdown-body [data-mdecho-cursor] {
@@ -246,6 +247,22 @@ export const pageStyles = `
     margin-right: 0.3em;
   }
 
+  .mdecho-comment-line-ref {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 0.75em;
+    color: #59636e;
+    margin-bottom: 0.4em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .mdecho-comment-line-ref::after {
+    content: "";
+    flex: 1;
+    border-top: 1px dashed #d1d9e0;
+  }
+
   .mdecho-comment-row td {
     padding: 0.75em;
   }
@@ -292,6 +309,40 @@ export const pageStyles = `
     left: -1.6em;
     opacity: 0.5;
     font-size: 0.9em;
+  }
+
+  .mdecho-line-number {
+    position: absolute;
+    left: -3.4em;
+    width: 2.6em;
+    text-align: right;
+    color: #99a1a8;
+    font-size: 0.75em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: inherit;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .markdown-body li > .mdecho-line-number {
+    left: -4.6em;
+  }
+
+  .markdown-body td:first-child,
+  .markdown-body th:first-child {
+    padding-left: 2em;
+  }
+
+  .markdown-body td .mdecho-line-number,
+  .markdown-body th .mdecho-line-number {
+    left: 0.5em;
+    width: auto;
+    text-align: left;
+  }
+
+  .markdown-body pre .mdecho-line-number {
+    left: -2.6em;
+    width: 2em;
   }
 
   .mdecho-reply-button {

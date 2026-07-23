@@ -119,6 +119,7 @@ export const cursorLineClientScript = `
     getTargetByLine: (line) =>
       targets.find((el) => Number(el.getAttribute("data-line")) === line) ?? null,
     getTargetForElement,
+    getTargets: () => targets.slice(),
     setCursorToElement: (el) => {
       const idx = targets.indexOf(el);
       if (idx !== -1) setCursor(idx);

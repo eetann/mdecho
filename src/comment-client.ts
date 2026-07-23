@@ -84,10 +84,27 @@ export const commentClientScript = `
     textarea.style.height = Math.max(minHeight, textarea.scrollHeight) + "px";
   }
 
+  function formatLineRef(startLine, endLine) {
+    return startLine === endLine ? "L" + startLine : "L" + startLine + "-" + endLine;
+  }
+
+  function createLineRefHeader(key) {
+    const { startLine, endLine } = parseKey(key);
+    const header = document.createElement("div");
+    header.className = "mdecho-comment-line-ref";
+    header.textContent = formatLineRef(startLine, endLine);
+    return header;
+  }
+
   function renderView(host, key, text) {
     host.innerHTML = "";
     const view = document.createElement("div");
     view.className = "mdecho-comment-view";
+
+    view.appendChild(createLineRefHeader(key));
+
+    const bodyRow = document.createElement("div");
+    bodyRow.className = "mdecho-comment-view-body-row";
 
     const label = document.createElement("span");
     label.className = "mdecho-comment-view-label";
@@ -97,8 +114,9 @@ export const commentClientScript = `
     body.className = "mdecho-comment-view-body";
     body.textContent = text;
 
-    view.appendChild(label);
-    view.appendChild(body);
+    bodyRow.appendChild(label);
+    bodyRow.appendChild(body);
+    view.appendChild(bodyRow);
     host.appendChild(view);
   }
 
@@ -106,6 +124,8 @@ export const commentClientScript = `
     host.innerHTML = "";
     const wrapper = document.createElement("div");
     wrapper.className = "mdecho-comment-editor";
+
+    wrapper.appendChild(createLineRefHeader(key));
 
     const textarea = document.createElement("textarea");
     textarea.className = "mdecho-comment-textarea";

@@ -1,5 +1,6 @@
 import { commentClientScript } from "./comment-client.ts";
 import { cursorLineClientScript } from "./cursor-line-client.ts";
+import { lineNumberClientScript } from "./line-number-client.ts";
 import { liveReloadClientScript } from "./live-reload-client.ts";
 import { pageStyles } from "./page-styles.ts";
 
@@ -40,6 +41,7 @@ export function renderPage({ title, bodyHtml, filePath }: PageTemplateOptions): 
     <script>window.__MDECHO_FILE_PATH__ = ${toInlineJson(filePath)};</script>
     <script>${liveReloadClientScript}</script>
     <script>${cursorLineClientScript}</script>
+    <script>${lineNumberClientScript}</script>
     <script>${commentClientScript}</script>
   </body>
 </html>
