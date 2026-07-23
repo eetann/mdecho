@@ -36,7 +36,10 @@ export function renderPage({ title, bodyHtml, filePath }: PageTemplateOptions): 
       <div class="mdecho-toolbar">
         <button id="mdecho-copy-button" type="button" class="mdecho-copy-button" disabled>Copy</button>
       </div>
-      <article class="markdown-body">${bodyHtml}</article>
+      <div class="mdecho-content">
+        <div class="mdecho-line-number-gutter"></div>
+        <article class="markdown-body">${bodyHtml}</article>
+      </div>
     </div>
     <script>window.__MDECHO_FILE_PATH__ = ${toInlineJson(filePath)};</script>
     <script>${liveReloadClientScript}</script>

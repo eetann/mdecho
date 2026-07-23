@@ -25,6 +25,16 @@ export const pageStyles = `
     margin-bottom: 1rem;
   }
 
+  .mdecho-content {
+    display: flex;
+  }
+
+  .mdecho-line-number-gutter {
+    flex: none;
+    width: 2.6em;
+    position: relative;
+  }
+
   .mdecho-copy-button {
     font: inherit;
     padding: 0.4em 0.9em;
@@ -44,8 +54,8 @@ export const pageStyles = `
   }
 
   .markdown-body {
-    width: 100%;
-    max-width: 48rem;
+    flex: 1;
+    min-width: 0;
     line-height: 1.6;
     word-wrap: break-word;
   }
@@ -125,7 +135,7 @@ export const pageStyles = `
   }
 
   .markdown-body pre {
-    padding: 1em 1em 1em 3.4em;
+    padding: 1em;
     overflow-x: auto;
     border: 1px solid #d1d9e0;
     border-radius: 6px;
@@ -141,7 +151,6 @@ export const pageStyles = `
   .markdown-body pre .line {
     display: inline-block;
     width: 100%;
-    position: relative;
   }
 
   .markdown-body [data-mdecho-cursor] {
@@ -313,36 +322,15 @@ export const pageStyles = `
 
   .mdecho-line-number {
     position: absolute;
-    left: -3.4em;
-    width: 2.6em;
+    left: 0;
+    right: 0.6em;
     text-align: right;
     color: #99a1a8;
     font-size: 0.75em;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    line-height: inherit;
     user-select: none;
     pointer-events: none;
-  }
-
-  .markdown-body li > .mdecho-line-number {
-    left: -4.6em;
-  }
-
-  .markdown-body td:first-child,
-  .markdown-body th:first-child {
-    padding-left: 2em;
-  }
-
-  .markdown-body td .mdecho-line-number,
-  .markdown-body th .mdecho-line-number {
-    left: 0.5em;
-    width: auto;
-    text-align: left;
-  }
-
-  .markdown-body pre .mdecho-line-number {
-    left: -2.6em;
-    width: 2em;
+    white-space: nowrap;
   }
 
   .mdecho-reply-button {
