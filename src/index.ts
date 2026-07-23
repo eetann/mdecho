@@ -13,9 +13,15 @@ const command = define({
       required: true,
       description: "表示するMarkdownファイルのパス",
     },
+    open: {
+      type: "boolean",
+      default: true,
+      negatable: true,
+      description: "起動後にブラウザを自動で開く(--no-openで無効化)",
+    },
   },
   run: async (ctx) => {
-    const { file } = ctx.values;
+    const { file, open } = ctx.values;
 
     try {
       await access(file);
@@ -26,7 +32,10 @@ const command = define({
 
     const { url } = await startServer(file);
     console.log(`Listening on ${url}`);
-    await openBrowser(url);
+
+    if (open) {
+      await openBrowser(url);
+    }
   },
 });
 

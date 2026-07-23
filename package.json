@@ -13,6 +13,9 @@
   "devDependencies": {
     "@gunshi/docs": "^0.37.1",
     "@types/bun": "latest",
+    "@types/hast": "^3.0.5",
+    "@types/mdast": "^4.0.4",
+    "mdast-util-to-hast": "^13.2.1",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
     "typescript": "7.0.2"
@@ -21,6 +24,14 @@
     "typescript": "^7"
   },
   "dependencies": {
-    "gunshi": "^0.37.1"
+    "@shikijs/rehype": "^4.3.1",
+    "gunshi": "^0.37.1",
+    "rehype-stringify": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "shiki": "^4.3.1",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0"
   }
 }
