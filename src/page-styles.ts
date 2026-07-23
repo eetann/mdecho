@@ -14,6 +14,35 @@ export const pageStyles = `
     background: #ffffff;
   }
 
+  .mdecho-page {
+    width: 100%;
+    max-width: 48rem;
+  }
+
+  .mdecho-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+  }
+
+  .mdecho-copy-button {
+    font: inherit;
+    padding: 0.4em 0.9em;
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    background: #f6f8fa;
+    cursor: pointer;
+  }
+
+  .mdecho-copy-button:hover:not(:disabled) {
+    background: #eaeef2;
+  }
+
+  .mdecho-copy-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .markdown-body {
     width: 100%;
     max-width: 48rem;
@@ -104,6 +133,7 @@ export const pageStyles = `
   }
 
   .markdown-body pre code {
+    display: block;
     padding: 0;
     background: transparent;
   }
@@ -131,5 +161,136 @@ export const pageStyles = `
   .markdown-body tr[data-mdecho-cursor] > th {
     background: rgba(9, 105, 218, 0.08);
     box-shadow: inset 3px 0 0 #0969da;
+  }
+
+  .mdecho-comment-slot,
+  .mdecho-comment-row td {
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 0.95em;
+    white-space: normal;
+  }
+
+  .mdecho-comment-slot {
+    display: block;
+    margin: 0.5em 0 1em;
+  }
+
+  .markdown-body pre .mdecho-comment-slot {
+    margin-inline: -1em;
+    padding-inline: 1em;
+    width: calc(100% + 2em);
+    box-sizing: border-box;
+  }
+
+  .mdecho-comment-editor {
+    border: 1px solid #0969da;
+    border-radius: 6px;
+    background: #f6f8fa;
+    padding: 0.5em;
+  }
+
+  .mdecho-comment-textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: calc(3 * 1.4em);
+    border: none;
+    background: transparent;
+    resize: vertical;
+    font: inherit;
+    line-height: 1.4;
+  }
+
+  .mdecho-comment-textarea:focus {
+    outline: none;
+  }
+
+  .mdecho-comment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5em;
+    margin-top: 0.5em;
+  }
+
+  .mdecho-comment-actions button {
+    font: inherit;
+    padding: 0.3em 0.8em;
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    background: #ffffff;
+    cursor: pointer;
+  }
+
+  .mdecho-comment-actions button.mdecho-comment-save {
+    border-color: #0969da;
+    background: #0969da;
+    color: #fff;
+  }
+
+  .mdecho-comment-view {
+    border-left: 3px solid #0969da;
+    background: #f6f8fa;
+    border-radius: 0 6px 6px 0;
+    padding: 0.5em 0.75em;
+    cursor: pointer;
+    white-space: pre-wrap;
+  }
+
+  .mdecho-comment-view:hover {
+    background: #eaeef2;
+  }
+
+  .mdecho-comment-view-label {
+    opacity: 0.7;
+    margin-right: 0.3em;
+  }
+
+  .mdecho-comment-row td {
+    padding: 0.75em;
+  }
+
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4,
+  .markdown-body h5,
+  .markdown-body h6,
+  .markdown-body p,
+  .markdown-body li,
+  .markdown-body blockquote,
+  .markdown-body hr {
+    position: relative;
+  }
+
+  .markdown-body h1:hover::before,
+  .markdown-body h2:hover::before,
+  .markdown-body h3:hover::before,
+  .markdown-body h4:hover::before,
+  .markdown-body h5:hover::before,
+  .markdown-body h6:hover::before,
+  .markdown-body p:hover::before,
+  .markdown-body li:hover::before,
+  .markdown-body blockquote:hover::before,
+  .markdown-body hr:hover::before {
+    content: "💬";
+    position: absolute;
+    left: -1.6em;
+    opacity: 0.5;
+    font-size: 0.9em;
+  }
+
+  .markdown-body td,
+  .markdown-body th {
+    position: relative;
+  }
+
+  .markdown-body tr:hover > td:first-child::before,
+  .markdown-body tr:hover > th:first-child::before {
+    content: "💬";
+    position: absolute;
+    left: -1.6em;
+    opacity: 0.5;
+    font-size: 0.9em;
   }
 `;

@@ -25,7 +25,7 @@ export function startServer(filePath: string): Promise<StartServerResult> {
         .then(async (source) => {
           const bodyHtml = await renderMarkdown(source);
           const title = basename(filePath, extname(filePath));
-          const html = renderPage({ title, bodyHtml });
+          const html = renderPage({ title, bodyHtml, filePath });
           res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
           res.end(html);
         })

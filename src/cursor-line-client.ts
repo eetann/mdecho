@@ -106,6 +106,25 @@ export const cursorLineClientScript = `
     }
   }
 
+  function getTargetForElement(el) {
+    if (!el) return null;
+    const container = el.closest(CANDIDATE_SELECTOR);
+    if (!container) return null;
+    const line = Number(container.getAttribute("data-line"));
+    return targets.find((t) => Number(t.getAttribute("data-line")) === line) ?? null;
+  }
+
+  window.mdechoCursor = {
+    getCurrentTarget: () => targets[cursorIndex] ?? null,
+    getTargetByLine: (line) =>
+      targets.find((el) => Number(el.getAttribute("data-line")) === line) ?? null,
+    getTargetForElement,
+    setCursorToElement: (el) => {
+      const idx = targets.indexOf(el);
+      if (idx !== -1) setCursor(idx);
+    },
+  };
+
   function init() {
     const root = document.querySelector(".markdown-body");
     if (!root) return;
