@@ -108,11 +108,23 @@ export const pageStyles = `
     background: transparent;
   }
 
+  .markdown-body pre .line {
+    display: inline-block;
+    width: 100%;
+  }
+
   .markdown-body [data-mdecho-cursor] {
     background: rgba(9, 105, 218, 0.08);
     box-shadow: inset 3px 0 0 #0969da;
     border-radius: 4px;
     scroll-margin-block: 3rem;
+  }
+
+  .markdown-body pre .line[data-mdecho-cursor] {
+    border-radius: 0;
+    margin-inline: -1em;
+    padding-inline: 1em;
+    width: calc(100% + 2em);
   }
 
   .markdown-body tr[data-mdecho-cursor] > td,

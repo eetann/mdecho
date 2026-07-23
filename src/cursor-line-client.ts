@@ -1,9 +1,9 @@
 export const cursorLineClientScript = `
 (() => {
-  const CANDIDATE_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre,hr";
+  const CANDIDATE_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr";
   const PRIORITY = {
     H1: 0, H2: 0, H3: 0, H4: 0, H5: 0, H6: 0,
-    PRE: 1, TR: 2, LI: 3, BLOCKQUOTE: 4, HR: 5, P: 6,
+    SPAN: 1, TR: 2, LI: 3, BLOCKQUOTE: 4, HR: 5, P: 6,
   };
   const CURSOR_ATTR = "data-mdecho-cursor";
   const STORAGE_KEY = "mdecho:cursorLine";

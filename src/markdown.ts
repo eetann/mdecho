@@ -20,6 +20,14 @@ const restoreDataLineTransformer: ShikiTransformer = {
     }
     return node;
   },
+  line(node, line) {
+    const raw = this.options.meta?.__raw ?? "";
+    const match = DATA_LINE_MARKER_PATTERN.exec(raw);
+    if (match?.[1]) {
+      node.properties["data-line"] = Number(match[1]) + line;
+    }
+    return node;
+  },
 };
 
 const processor = unified()
