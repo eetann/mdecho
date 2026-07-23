@@ -1,3 +1,4 @@
+import { liveReloadClientScript } from "./live-reload-client.ts";
 import { pageStyles } from "./page-styles.ts";
 
 export interface PageTemplateOptions {
@@ -24,6 +25,7 @@ export function renderPage({ title, bodyHtml }: PageTemplateOptions): string {
   </head>
   <body>
     <article class="markdown-body">${bodyHtml}</article>
+    <script>${liveReloadClientScript}</script>
   </body>
 </html>
 `;

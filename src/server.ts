@@ -1,12 +1,26 @@
+import { watch } from "chokidar";
 import { readFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { basename, extname } from "node:path";
 import { renderPage } from "./html-template.ts";
+import { createLiveReloadHub } from "./live-reload.ts";
 import { renderMarkdown } from "./markdown.ts";
 
-export function startServer(filePath: string): Promise<{ server: Server; url: string }> {
+export interface StartServerResult {
+  server: Server;
+  url: string;
+  close: () => Promise<void>;
+}
+
+export function startServer(filePath: string): Promise<StartServerResult> {
   return new Promise((resolve) => {
-    const server = createServer((_req, res) => {
+    const liveReload = createLiveReloadHub();
+
+    const server = createServer((req, res) => {
+      if (liveReload.handleRequest(req, res)) {
+        return;
+      }
+
       readFile(filePath, "utf-8")
         .then(async (source) => {
           const bodyHtml = await renderMarkdown(source);
@@ -22,10 +36,25 @@ export function startServer(filePath: string): Promise<{ server: Server; url: st
         });
     });
 
+    const watcher = watch(filePath, { ignoreInitial: true });
+    watcher.on("change", () => liveReload.notifyChange());
+    watcher.on("add", () => liveReload.notifyChange());
+    watcher.on("error", (error) => {
+      console.error("[mdecho] watch error:", error);
+    });
+
+    const close = async () => {
+      await watcher.close();
+      liveReload.closeAll();
+      await new Promise<void>((res, rej) => {
+        server.close((err) => (err ? rej(err) : res()));
+      });
+    };
+
     server.listen(0, () => {
       const address = server.address();
       const port = typeof address === "object" && address ? address.port : 0;
-      resolve({ server, url: `http://localhost:${port}/` });
+      resolve({ server, url: `http://localhost:${port}/`, close });
     });
   });
 }

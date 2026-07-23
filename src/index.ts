@@ -30,12 +30,19 @@ const command = define({
       process.exit(1);
     }
 
-    const { url } = await startServer(file);
+    const { url, close } = await startServer(file);
     console.log(`Listening on ${url}`);
 
     if (open) {
       await openBrowser(url);
     }
+
+    const shutdown = async () => {
+      await close();
+      process.exit(0);
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
   },
 });
 

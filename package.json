@@ -3,6 +3,9 @@
   "module": "src/index.ts",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "start": "bun run src/index.ts",
     "lint": "oxlint src",
@@ -25,6 +28,7 @@
   },
   "dependencies": {
     "@shikijs/rehype": "^4.3.1",
+    "chokidar": "^5.0.0",
     "gunshi": "^0.37.1",
     "rehype-stringify": "^10.0.1",
     "remark-gfm": "^4.0.1",
