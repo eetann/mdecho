@@ -1,3 +1,4 @@
+import { cursorLineClientScript } from "./cursor-line-client.ts";
 import { liveReloadClientScript } from "./live-reload-client.ts";
 import { pageStyles } from "./page-styles.ts";
 
@@ -26,6 +27,7 @@ export function renderPage({ title, bodyHtml }: PageTemplateOptions): string {
   <body>
     <article class="markdown-body">${bodyHtml}</article>
     <script>${liveReloadClientScript}</script>
+    <script>${cursorLineClientScript}</script>
   </body>
 </html>
 `;

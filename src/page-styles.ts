@@ -107,4 +107,17 @@ export const pageStyles = `
     padding: 0;
     background: transparent;
   }
+
+  .markdown-body [data-mdecho-cursor] {
+    background: rgba(9, 105, 218, 0.08);
+    box-shadow: inset 3px 0 0 #0969da;
+    border-radius: 4px;
+    scroll-margin-block: 3rem;
+  }
+
+  .markdown-body tr[data-mdecho-cursor] > td,
+  .markdown-body tr[data-mdecho-cursor] > th {
+    background: rgba(9, 105, 218, 0.08);
+    box-shadow: inset 3px 0 0 #0969da;
+  }
 `;
