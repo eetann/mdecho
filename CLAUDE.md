@@ -1,5 +1,7 @@
 
-Default to using Bun instead of Node.js.
+Default to using Bun instead of Node.js for development tooling (running scripts, tests, package management).
+
+**However, `mdecho` is published to npm and must run under plain Node.js too**, so runtime code under `src/` must not depend on Bun-only globals (`Bun.serve`, `Bun.file`, `Bun.$`, etc.) — use `node:*` APIs there instead (e.g. `node:http`, `node:fs/promises`, `node:child_process`). Bun-only APIs are fine in tests (`bun:test`) since tests never ship.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
 - Use `bun test` instead of `jest` or `vitest`
@@ -11,12 +13,14 @@ Default to using Bun instead of Node.js.
 
 ## APIs
 
+These Bun-only APIs are fine for dev tooling/tests, but avoid them under `src/` (see note above):
+
 - `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
 - `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
 - `Bun.redis` for Redis. Don't use `ioredis`.
 - `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
 - `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
+- `Bun.file` for reading/writing files.
 - Bun.$`ls` instead of execa.
 
 ## Testing
