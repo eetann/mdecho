@@ -293,4 +293,30 @@ export const pageStyles = `
     opacity: 0.5;
     font-size: 0.9em;
   }
+
+  .mdecho-reply-button {
+    position: fixed;
+    z-index: 1000;
+    font: inherit;
+    font-size: 0.85em;
+    padding: 0.3em 0.8em;
+    border: none;
+    border-radius: 6px;
+    background: #0969da;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+  }
+
+  .mdecho-reply-button-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mdecho-reply-button:hover {
+    background: #0757ba;
+  }
 `;
