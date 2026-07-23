@@ -279,9 +279,9 @@ export const commentClientScript = `
     if (viewEl) {
       const slot = viewEl.closest("[data-mdecho-comment-slot]");
       const key = slot?.getAttribute("data-mdecho-comment-slot");
-      const { endLine } = parseKey(key);
+      const { startLine, endLine } = parseKey(key);
       const target = window.mdechoCursor.getTargetByLine(endLine);
-      if (target) openEditor(target);
+      if (target) openEditorForRange(target, startLine, endLine, null);
       return;
     }
 
