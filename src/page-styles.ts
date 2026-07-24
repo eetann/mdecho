@@ -12,6 +12,9 @@ export const pageStyles = `
       -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     color: #1f2328;
     background: #ffffff;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    line-break: strict;
   }
 
   .mdecho-page {
@@ -57,7 +60,6 @@ export const pageStyles = `
     flex: 1;
     min-width: 0;
     line-height: 1.6;
-    word-wrap: break-word;
   }
 
   .markdown-body h1,
