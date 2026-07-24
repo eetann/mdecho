@@ -14,7 +14,7 @@ case "$file" in
 esac
 
 case "$file" in
-*/src/* | src/*) ;;
+*/src/* | src/* | */frontend/* | frontend/* | */scripts/* | scripts/*) ;;
 *) exit 0 ;;
 esac
 
