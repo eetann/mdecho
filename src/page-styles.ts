@@ -23,9 +23,26 @@ export const pageStyles = `
   }
 
   .mdecho-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     display: flex;
-    justify-content: flex-end;
-    margin-bottom: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    margin-bottom: 0.25rem;
+    background: #ffffff;
+  }
+
+  .mdecho-file-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9em;
+    color: #818b94;
   }
 
   .mdecho-content {
@@ -39,6 +56,7 @@ export const pageStyles = `
   }
 
   .mdecho-copy-button {
+    flex: none;
     font: inherit;
     padding: 0.4em 0.9em;
     border: 1px solid #d1d9e0;

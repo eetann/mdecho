@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import { commentClientScript } from "./comment-client.ts";
 import { cursorLineClientScript } from "./cursor-line-client.ts";
 import { lineNumberClientScript } from "./line-number-client.ts";
@@ -23,6 +24,7 @@ function toInlineJson(value: unknown): string {
 }
 
 export function renderPage({ title, bodyHtml, filePath }: PageTemplateOptions): string {
+  const fileName = basename(filePath);
   return `<!doctype html>
 <html lang="ja">
   <head>
@@ -34,6 +36,7 @@ export function renderPage({ title, bodyHtml, filePath }: PageTemplateOptions): 
   <body>
     <div class="mdecho-page">
       <div class="mdecho-toolbar">
+        <span class="mdecho-file-name">${escapeHtml(fileName)}</span>
         <button id="mdecho-copy-button" type="button" class="mdecho-copy-button" disabled>Copy</button>
       </div>
       <div class="mdecho-content">
