@@ -1,10 +1,10 @@
 import { watch } from "chokidar";
 import { readFile } from "node:fs/promises";
-import { createServer, type Server } from "node:http";
+import { createServer, type IncomingMessage, type Server } from "node:http";
 import { basename, extname } from "node:path";
 import { renderPage } from "./html-template.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
-import { renderMarkdown } from "./markdown.ts";
+import { renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
 
 export interface StartServerResult {
   server: Server;
@@ -12,12 +12,50 @@ export interface StartServerResult {
   close: () => Promise<void>;
 }
 
-export function startServer(filePath: string): Promise<StartServerResult> {
+export interface StartServerOptions {
+  /** ブラウザの全タブが閉じられ、サーバーを閉じ終えた後に呼ばれる */
+  onAllTabsClosed?: () => void;
+}
+
+function readRequestBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    req.on("error", reject);
+  });
+}
+
+export function startServer(
+  filePath: string,
+  options: StartServerOptions = {},
+): Promise<StartServerResult> {
   return new Promise((resolve) => {
-    const liveReload = createLiveReloadHub();
+    const { onAllTabsClosed } = options;
+    const liveReload = createLiveReloadHub({
+      onIdle: () => {
+        void close().then(() => onAllTabsClosed?.());
+      },
+    });
 
     const server = createServer((req, res) => {
       if (liveReload.handleRequest(req, res)) {
+        return;
+      }
+
+      if (req.method === "POST" && req.url === "/api/render-comment") {
+        readRequestBody(req)
+          .then(async (body) => {
+            const { text } = JSON.parse(body) as { text?: unknown };
+            const html = await renderCommentMarkdown(typeof text === "string" ? text : "");
+            res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ html }));
+          })
+          .catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+            res.end(`Failed to render comment: ${message}`);
+          });
         return;
       }
 

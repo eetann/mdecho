@@ -30,23 +30,38 @@ const restoreDataLineTransformer: ShikiTransformer = {
   },
 };
 
+const shikiOptions = {
+  theme: "github-light",
+  defaultLanguage: "text",
+  fallbackLanguage: "text",
+  onError: (error: unknown) => {
+    console.error("[mdecho] shiki highlight error:", error);
+  },
+};
+
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkDataLine)
   .use(remarkRehype)
-  .use(rehypeShiki, {
-    theme: "github-light",
-    defaultLanguage: "text",
-    fallbackLanguage: "text",
-    onError: (error) => {
-      console.error("[mdecho] shiki highlight error:", error);
-    },
-    transformers: [restoreDataLineTransformer],
-  })
+  .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
+  .use(rehypeStringify);
+
+// コメント本文用。remarkDataLineを通さないため、本文と違いdata-line属性は付与されない
+// (付与するとcursor-line-clientの行解決ロジックと衝突するため意図的に外している)。
+const commentProcessor = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkRehype)
+  .use(rehypeShiki, shikiOptions)
   .use(rehypeStringify);
 
 export async function renderMarkdown(markdownSource: string): Promise<string> {
   const file = await processor.process(markdownSource);
+  return String(file);
+}
+
+export async function renderCommentMarkdown(commentSource: string): Promise<string> {
+  const file = await commentProcessor.process(commentSource);
   return String(file);
 }

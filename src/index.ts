@@ -30,7 +30,12 @@ const command = define({
       process.exit(1);
     }
 
-    const { url, close } = await startServer(file);
+    const { url, close } = await startServer(file, {
+      onAllTabsClosed: () => {
+        console.log("すべてのタブが閉じられたため終了します");
+        process.exit(0);
+      },
+    });
     console.log(`Listening on ${url}`);
 
     if (open) {

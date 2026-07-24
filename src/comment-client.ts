@@ -2,11 +2,15 @@ export const commentClientScript = `
 (() => {
   const STORAGE_KEY = "mdecho:comments";
   const MIN_TEXTAREA_ROWS = 3;
+  // ダブル/トリプルクリックの1回目はまだ文字選択が確定していないため、
+  // すぐにエディタを開かず少し待って選択が確定していないか確認する。
+  const CLICK_TO_EDIT_DELAY_MS = 300;
 
   let comments = new Map();
   let editingKey = null;
   let pendingSelection = null;
   let replyButton = null;
+  let pendingClickTimer = null;
 
   function isEditableTarget(el) {
     if (!el) return false;
@@ -110,14 +114,33 @@ export const commentClientScript = `
     label.className = "mdecho-comment-view-label";
     label.textContent = "\u{1F4AC}";
 
-    const body = document.createElement("span");
-    body.className = "mdecho-comment-view-body";
+    const body = document.createElement("div");
+    body.className = "mdecho-comment-view-body mdecho-comment-view-body-plain";
     body.textContent = text;
 
     bodyRow.appendChild(label);
     bodyRow.appendChild(body);
     view.appendChild(bodyRow);
     host.appendChild(view);
+
+    renderCommentBodyAsMarkdown(body, text);
+  }
+
+  async function renderCommentBodyAsMarkdown(body, text) {
+    try {
+      const response = await fetch("/api/render-comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!body.isConnected) return;
+      body.innerHTML = data.html;
+      body.classList.remove("mdecho-comment-view-body-plain");
+    } catch {
+      // ネットワークエラー時などはプレーンテキスト表示のままにする
+    }
   }
 
   function renderEditor(host, key, initialText) {
@@ -287,13 +310,28 @@ export const commentClientScript = `
     }
   }
 
+  function cancelPendingClick() {
+    if (pendingClickTimer !== null) {
+      clearTimeout(pendingClickTimer);
+      pendingClickTimer = null;
+    }
+  }
+
+  function hasActiveTextSelection() {
+    const selection = window.getSelection();
+    return !!selection && !selection.isCollapsed && selection.toString().trim() !== "";
+  }
+
   function handleDocumentClick(event) {
+    // ダブル/トリプルクリックの2,3回目もここに来るため、直前のクリックで
+    // 予約された「エディタを開く」処理を毎回キャンセルしておく。
+    cancelPendingClick();
+
     if (event.target.closest(".mdecho-comment-editor")) return;
     if (event.target.closest(".mdecho-toolbar")) return;
     if (event.target.closest(".mdecho-reply-button")) return;
 
-    const selection = window.getSelection();
-    if (selection && !selection.isCollapsed && selection.toString().trim() !== "") return;
+    if (hasActiveTextSelection()) return;
 
     const viewEl = event.target.closest(".mdecho-comment-view");
     if (viewEl) {
@@ -306,10 +344,16 @@ export const commentClientScript = `
     }
 
     const target = window.mdechoCursor.getTargetForElement(event.target);
-    if (target) {
+    if (!target) return;
+
+    // この時点ではダブル/トリプルクリックの1回目かどうか区別できないため、
+    // 少し待って文字選択が確定していないか再確認してから開く。
+    pendingClickTimer = setTimeout(() => {
+      pendingClickTimer = null;
+      if (hasActiveTextSelection()) return;
       window.mdechoCursor.setCursorToElement(target);
       openEditor(target);
-    }
+    }, CLICK_TO_EDIT_DELAY_MS);
   }
 
   function resolveSelectionRange() {
@@ -345,7 +389,7 @@ export const commentClientScript = `
     replyButton.type = "button";
     replyButton.id = "mdecho-reply-button";
     replyButton.className = "mdecho-reply-button";
-    replyButton.textContent = "返信";
+    replyButton.textContent = "Quote";
     replyButton.addEventListener("mousedown", (event) => event.preventDefault());
     replyButton.addEventListener("click", handleReplyButtonClick);
     document.body.appendChild(replyButton);
@@ -366,8 +410,12 @@ export const commentClientScript = `
     }
     pendingSelection = resolved;
     const rect = resolved.rect;
-    button.style.top = Math.max(8, rect.top - 40) + window.scrollY + "px";
-    button.style.left = rect.left + window.scrollX + "px";
+    // .mdecho-reply-buttonはposition: fixedなので、rectのビューポート相対座標を
+    // そのまま使う(scrollを足すとスクロールするほど実際の位置からずれる)。
+    const buttonWidth = button.offsetWidth || 0;
+    const maxLeft = Math.max(8, window.innerWidth - buttonWidth - 8);
+    button.style.top = Math.max(8, rect.top - 40) + "px";
+    button.style.left = Math.min(Math.max(8, rect.left), maxLeft) + "px";
     button.classList.add("mdecho-reply-button-visible");
   }
 

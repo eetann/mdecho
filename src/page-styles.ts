@@ -244,7 +244,6 @@ export const pageStyles = `
     border-radius: 0 6px 6px 0;
     padding: 0.5em 0.75em;
     cursor: pointer;
-    white-space: pre-wrap;
   }
 
   .mdecho-comment-view:hover {
@@ -254,6 +253,98 @@ export const pageStyles = `
   .mdecho-comment-view-label {
     opacity: 0.7;
     margin-right: 0.3em;
+  }
+
+  .mdecho-comment-view-body-plain {
+    white-space: pre-wrap;
+  }
+
+  .mdecho-comment-view-body > :first-child {
+    margin-top: 0;
+  }
+
+  .mdecho-comment-view-body > :last-child {
+    margin-bottom: 0;
+  }
+
+  .mdecho-comment-view-body h1,
+  .mdecho-comment-view-body h2,
+  .mdecho-comment-view-body h3,
+  .mdecho-comment-view-body h4,
+  .mdecho-comment-view-body h5,
+  .mdecho-comment-view-body h6 {
+    margin-top: 0.8em;
+    margin-bottom: 0.4em;
+    font-weight: 600;
+    font-size: 1em;
+    line-height: 1.25;
+  }
+
+  .mdecho-comment-view-body p {
+    margin-top: 0;
+    margin-bottom: 0.6em;
+  }
+
+  .mdecho-comment-view-body ul,
+  .mdecho-comment-view-body ol {
+    padding-left: 1.4em;
+    margin-top: 0;
+    margin-bottom: 0.6em;
+  }
+
+  .mdecho-comment-view-body blockquote {
+    margin: 0 0 0.6em;
+    padding: 0 0.8em;
+    color: #59636e;
+    border-left: 0.25em solid #d1d9e0;
+  }
+
+  .mdecho-comment-view-body table {
+    border-collapse: collapse;
+    margin-bottom: 0.6em;
+    overflow-x: auto;
+    display: block;
+  }
+
+  .mdecho-comment-view-body th,
+  .mdecho-comment-view-body td {
+    padding: 0.3em 0.6em;
+    border: 1px solid #d1d9e0;
+  }
+
+  .mdecho-comment-view-body th {
+    font-weight: 600;
+    background: #eaeef2;
+  }
+
+  .mdecho-comment-view-body code {
+    padding: 0.15em 0.35em;
+    font-size: 0.9em;
+    background: #eaeef2;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  .mdecho-comment-view-body pre {
+    margin-top: 0;
+    margin-bottom: 0.6em;
+    padding: 0.8em;
+    overflow-x: auto;
+    white-space: pre;
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    line-height: 1.45;
+  }
+
+  .mdecho-comment-view-body pre code {
+    display: block;
+    padding: 0;
+    background: transparent;
+  }
+
+  .mdecho-comment-view-body pre .line {
+    display: inline-block;
+    width: 100%;
   }
 
   .mdecho-comment-line-ref {
