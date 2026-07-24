@@ -10,6 +10,7 @@ export function CommentSlot({
   editingInitialText,
   onSave,
   onCancel,
+  onDelete,
 }: {
   commentKey: string;
   comment: Comment | undefined;
@@ -17,6 +18,7 @@ export function CommentSlot({
   editingInitialText: string;
   onSave: (text: string) => void;
   onCancel: () => void;
+  onDelete: () => void;
 }) {
   const { startLine, endLine } = parseKey(commentKey);
 
@@ -28,6 +30,7 @@ export function CommentSlot({
         initialText={editingInitialText}
         onSave={onSave}
         onCancel={onCancel}
+        onDelete={comment ? onDelete : undefined}
       />
     );
   }

@@ -16,7 +16,12 @@ export function App({ bodyHtml, filePath }: { bodyHtml: string; filePath: string
   return (
     <div className="mdecho-page mx-auto w-full max-w-3xl p-8">
       <CursorLineProvider markdownBodyRef={markdownBodyRef}>
-        <Toolbar fileName={fileName} filePath={filePath} comments={commentsApi.comments} />
+        <Toolbar
+          fileName={fileName}
+          filePath={filePath}
+          comments={commentsApi.comments}
+          deleteAllComments={commentsApi.deleteAllComments}
+        />
         <div className="mdecho-content mb-1 flex">
           <LineNumberGutter markdownBodyRef={markdownBodyRef} />
           <MarkdownBody ref={markdownBodyRef} html={bodyHtml} />
@@ -28,6 +33,7 @@ export function App({ bodyHtml, filePath }: { bodyHtml: string; filePath: string
           openEditor={commentsApi.openEditor}
           cancelEditing={commentsApi.cancelEditing}
           save={commentsApi.save}
+          deleteComment={commentsApi.deleteComment}
         />
       </CursorLineProvider>
     </div>

@@ -40,6 +40,7 @@ export function CommentLayer({
   openEditor,
   cancelEditing,
   save,
+  deleteComment,
 }: {
   comments: Map<string, Comment>;
   editingKey: string | null;
@@ -47,6 +48,7 @@ export function CommentLayer({
   openEditor: (startLine: number, endLine: number, selectedText?: string) => void;
   cancelEditing: () => void;
   save: (key: string, text: string) => void;
+  deleteComment: (key: string) => void;
 }) {
   const cursor = useCursorLine();
 
@@ -184,6 +186,7 @@ export function CommentLayer({
             editingInitialText={editingInitialText}
             onSave={(text) => save(key, text)}
             onCancel={cancelEditing}
+            onDelete={() => deleteComment(key)}
           />,
           host,
           key,

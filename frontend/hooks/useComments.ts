@@ -14,7 +14,9 @@ interface CommentsState {
 type CommentsAction =
   | { type: "open"; key: string; quotedText?: string }
   | { type: "cancel" }
-  | { type: "save"; key: string; text: string };
+  | { type: "save"; key: string; text: string }
+  | { type: "delete"; key: string }
+  | { type: "deleteAll" };
 
 function loadInitialComments(): Map<string, Comment> {
   try {
@@ -59,6 +61,20 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
         editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
       };
     }
+    case "delete": {
+      if (!state.comments.has(action.key)) return state;
+      const next = new Map(state.comments);
+      next.delete(action.key);
+      return {
+        comments: next,
+        editingKey: state.editingKey === action.key ? null : state.editingKey,
+        editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
+      };
+    }
+    case "deleteAll": {
+      if (state.comments.size === 0) return state;
+      return { comments: new Map(), editingKey: null, editingInitialText: "" };
+    }
     default:
       return state;
   }
@@ -92,6 +108,10 @@ export function useComments() {
     [],
   );
 
+  const deleteComment = useCallback((key: string) => dispatch({ type: "delete", key }), []);
+
+  const deleteAllComments = useCallback(() => dispatch({ type: "deleteAll" }), []);
+
   return {
     comments: state.comments,
     editingKey: state.editingKey,
@@ -99,5 +119,7 @@ export function useComments() {
     openEditor,
     cancelEditing,
     save,
+    deleteComment,
+    deleteAllComments,
   };
 }

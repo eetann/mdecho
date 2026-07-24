@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { formatLineRef } from "../lib/line-ref.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 const MIN_TEXTAREA_ROWS = 3;
 
@@ -16,14 +17,17 @@ export function CommentEditor({
   initialText,
   onSave,
   onCancel,
+  onDelete,
 }: {
   startLine: number;
   endLine: number;
   initialText: string;
   onSave: (text: string) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }) {
   const [text, setText] = useState(initialText);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -59,7 +63,17 @@ export function CommentEditor({
           }
         }}
       />
-      <div className="mdecho-comment-actions flex justify-end gap-2">
+      <div className="mdecho-comment-actions flex items-center justify-end gap-2">
+        {onDelete && (
+          <button
+            type="button"
+            className="mdecho-comment-delete btn btn-sm btn-ghost mr-auto"
+            aria-label="delete comment"
+            onClick={() => setConfirmingDelete(true)}
+          >
+            🗑️
+          </button>
+        )}
         <button
           type="button"
           className="mdecho-comment-cancel btn btn-sm btn-ghost"
@@ -75,6 +89,17 @@ export function CommentEditor({
           save
         </button>
       </div>
+      {onDelete && (
+        <ConfirmDialog
+          open={confirmingDelete}
+          message="このコメントを削除しますか?"
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
     </div>
   );
 }

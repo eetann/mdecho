@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { buildClipboardText } from "../lib/clipboard-text.ts";
 import type { Comment } from "../lib/types.ts";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 const COPIED_LABEL_DURATION_MS = 1500;
 
@@ -10,12 +11,15 @@ export function Toolbar({
   fileName,
   filePath,
   comments,
+  deleteAllComments,
 }: {
   fileName: string;
   filePath: string;
   comments: Map<string, Comment>;
+  deleteAllComments: () => void;
 }) {
   const [label, setLabel] = useState<CopyLabel>("Copy");
+  const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
 
   async function handleCopyClick() {
     if (comments.size === 0) return;
@@ -43,6 +47,25 @@ export function Toolbar({
       >
         {label}
       </button>
+      <button
+        type="button"
+        id="mdecho-delete-all-button"
+        className="btn btn-sm btn-ghost"
+        aria-label="delete all comments"
+        disabled={comments.size === 0}
+        onClick={() => setConfirmingDeleteAll(true)}
+      >
+        🗑️
+      </button>
+      <ConfirmDialog
+        open={confirmingDeleteAll}
+        message="すべてのコメントを削除しますか?"
+        onConfirm={() => {
+          setConfirmingDeleteAll(false);
+          deleteAllComments();
+        }}
+        onCancel={() => setConfirmingDeleteAll(false)}
+      />
     </div>
   );
 }
