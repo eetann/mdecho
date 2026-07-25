@@ -155,6 +155,8 @@ body {
   box-shadow: inset 3px 0 0 #0969da;
   border-radius: 4px;
   scroll-margin-block: 3rem;
+  margin-left: -0.6em;
+  padding-left: 0.6em;
 }
 
 .markdown-body pre .line[data-mdecho-cursor] {
