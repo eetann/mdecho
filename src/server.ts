@@ -1,6 +1,7 @@
+import { type HttpBindings, serve, type ServerType } from "@hono/node-server";
 import { watch } from "chokidar";
+import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
-import { createServer, type IncomingMessage, type Server } from "node:http";
 import { basename, extname, join } from "node:path";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
@@ -9,7 +10,7 @@ import { renderShell } from "./render-shell.ts";
 const CLIENT_TEMPLATE_PATH = join(import.meta.dirname, "..", "dist", "client", "index.html");
 
 export interface StartServerResult {
-  server: Server;
+  server: ServerType;
   url: string;
   close: () => Promise<void>;
 }
@@ -17,15 +18,6 @@ export interface StartServerResult {
 export interface StartServerOptions {
   /** ブラウザの全タブが閉じられ、サーバーを閉じ終えた後に呼ばれる */
   onAllTabsClosed?: () => void;
-}
-
-function readRequestBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-    req.on("error", reject);
-  });
 }
 
 export async function startServer(
@@ -46,40 +38,34 @@ export async function startServer(
     },
   });
 
-  const server = createServer((req, res) => {
-    if (liveReload.handleRequest(req, res)) {
-      return;
-    }
+  const app = new Hono<{ Bindings: HttpBindings }>();
 
-    if (req.method === "POST" && req.url === "/api/render-comment") {
-      readRequestBody(req)
-        .then(async (body) => {
-          const { text } = JSON.parse(body) as { text?: unknown };
-          const html = await renderCommentMarkdown(typeof text === "string" ? text : "");
-          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ html }));
-        })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error);
-          res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
-          res.end(`Failed to render comment: ${message}`);
-        });
-      return;
-    }
+  app.get("/events", (c) => liveReload.handleEvents(c));
 
-    readFile(filePath, "utf-8")
-      .then(async (source) => {
-        const bodyHtml = await renderMarkdown(source);
-        const title = basename(filePath, extname(filePath));
-        const html = renderShell(clientTemplate, { title, bodyHtml, filePath });
-        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(html);
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end(`Failed to render markdown: ${message}`);
-      });
+  app.post("/api/render-comment", async (c) => {
+    let text: unknown;
+    try {
+      const body = await c.req.json<{ text?: unknown }>();
+      text = body.text;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.text(`Failed to render comment: ${message}`, 400);
+    }
+    const html = await renderCommentMarkdown(typeof text === "string" ? text : "");
+    return c.json({ html });
+  });
+
+  app.get("*", async (c) => {
+    try {
+      const source = await readFile(filePath, "utf-8");
+      const bodyHtml = await renderMarkdown(source);
+      const title = basename(filePath, extname(filePath));
+      const html = renderShell(clientTemplate, { title, bodyHtml, filePath });
+      return c.html(html);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.text(`Failed to render markdown: ${message}`, 500);
+    }
   });
 
   const watcher = watch(filePath, { ignoreInitial: true });
@@ -97,11 +83,11 @@ export async function startServer(
     });
   };
 
-  return new Promise((resolve) => {
-    server.listen(0, () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      resolve({ server, url: `http://localhost:${port}/`, close });
-    });
+  const server = await new Promise<ServerType>((resolve) => {
+    const s = serve({ fetch: app.fetch, port: 0 }, () => resolve(s));
   });
+
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  return { server, url: `http://localhost:${port}/`, close };
 }
