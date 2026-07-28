@@ -37,6 +37,7 @@ body {
    ここだけはグローバルなクラス/属性セレクタで直接スタイルする必要がある。 */
 
 .markdown-body {
+  font-size: 17px;
   line-height: 1.6;
 }
 
@@ -232,7 +233,7 @@ body {
 .mdecho-comment-row td {
   font-family: var(--font-sans);
   font-feature-settings: "palt";
-  font-size: 0.95em;
+  font-size: 1em;
   white-space: normal;
 }
 
