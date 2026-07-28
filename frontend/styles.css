@@ -21,9 +21,8 @@
 @theme {
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
-    "Yu Gothic Medium", "Yu Gothic", "Segoe UI", Roboto, Meiryo, "Noto Sans CJK JP",
-    "Noto Sans JP", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol", "Noto Color Emoji";
+    "Yu Gothic Medium", "Yu Gothic", "Segoe UI", Roboto, Meiryo, "Noto Sans CJK JP", "Noto Sans JP",
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-sans--font-feature-settings: "palt";
 }
 
