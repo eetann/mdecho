@@ -78,6 +78,7 @@ export function CommentLayer({
       if (eventTarget?.closest(".mdecho-comment-editor")) return;
       if (eventTarget?.closest(".mdecho-toolbar")) return;
       if (eventTarget?.closest(".mdecho-reply-button")) return;
+      if (eventTarget?.closest(".mdecho-line-number-gutter")) return;
       if (hasActiveTextSelection()) return;
 
       const viewEl = eventTarget?.closest(".mdecho-comment-view");
