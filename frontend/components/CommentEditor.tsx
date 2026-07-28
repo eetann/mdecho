@@ -46,7 +46,7 @@ export function CommentEditor({
       </div>
       <textarea
         ref={textareaRef}
-        className="textarea w-full resize-y border-none bg-transparent leading-[1.4] focus:outline-none"
+        className="textarea w-full resize-y border-none bg-transparent text-[17px] leading-[1.4] focus:outline-none"
         rows={MIN_TEXTAREA_ROWS}
         value={text}
         onChange={(event) => {
