@@ -1,5 +1,6 @@
 import rehypeShiki from "@shikijs/rehype";
 import rehypeStringify from "rehype-stringify";
+import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
@@ -42,6 +43,7 @@ const shikiOptions = {
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
+  .use(remarkBreaks)
   .use(remarkDataLine)
   .use(remarkRehype)
   .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
@@ -52,6 +54,7 @@ const processor = unified()
 const commentProcessor = unified()
   .use(remarkParse)
   .use(remarkGfm)
+  .use(remarkBreaks)
   .use(remarkRehype)
   .use(rehypeShiki, shikiOptions)
   .use(rehypeStringify);

@@ -9,6 +9,7 @@
   "scripts": {
     "start": "bun run build:client && bun run src/index.ts",
     "build:client": "bun run scripts/build-client.ts",
+    "test": "bun test",
     "lint": "oxlint src frontend scripts",
     "lint:fix": "oxlint --fix src frontend scripts",
     "format": "oxfmt src frontend scripts",
@@ -41,6 +42,7 @@
     "gunshi": "^0.37.1",
     "hono": "^4.12.32",
     "rehype-stringify": "^10.0.1",
+    "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
