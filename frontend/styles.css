@@ -23,7 +23,6 @@
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Yu Gothic Medium", "Yu Gothic", "Segoe UI", Roboto, Meiryo, "Noto Sans CJK JP", "Noto Sans JP",
     Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-sans--font-feature-settings: "palt";
 }
 
 body {
@@ -36,7 +35,6 @@ body {
    ここだけはグローバルなクラス/属性セレクタで直接スタイルする必要がある。 */
 
 .markdown-body {
-  font-size: 17px;
   line-height: 1.6;
 }
 
@@ -231,8 +229,7 @@ body {
 .mdecho-comment-slot,
 .mdecho-comment-row td {
   font-family: var(--font-sans);
-  font-feature-settings: "palt";
-  font-size: 1em;
+  font-size: 0.95em;
   white-space: normal;
 }
 
