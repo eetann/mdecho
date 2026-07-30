@@ -149,6 +149,37 @@ body {
   width: 100%;
 }
 
+.markdown-body .mdecho-mermaid {
+  margin: 1em 0;
+  padding: 1em;
+  overflow-x: auto;
+  white-space: pre;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #d1d9e0;
+  border-radius: 6px;
+}
+
+.markdown-body .mdecho-mermaid[data-mdecho-mermaid-rendered="done"] {
+  white-space: normal;
+}
+
+.markdown-body .mdecho-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-body .mdecho-mermaid pre {
+  margin: 0.75em 0 0;
+  text-align: left;
+}
+
+.markdown-body .mdecho-mermaid-error {
+  color: #cf222e;
+  text-align: left;
+  font-weight: 600;
+}
+
 .markdown-body .mdecho-sentence {
   display: block;
 }
@@ -192,7 +223,8 @@ body {
 .markdown-body p,
 .markdown-body li,
 .markdown-body blockquote,
-.markdown-body hr {
+.markdown-body hr,
+.markdown-body .mdecho-mermaid {
   position: relative;
 }
 
@@ -205,7 +237,8 @@ body {
 .markdown-body p:hover::before,
 .markdown-body li:hover::before,
 .markdown-body blockquote:hover::before,
-.markdown-body hr:hover::before {
+.markdown-body hr:hover::before,
+.markdown-body .mdecho-mermaid:hover::before {
   content: "💬";
   position: absolute;
   left: -1.6em;

@@ -39,6 +39,16 @@
 
 ## コードブロック
 
+Mermaid:
+
+```mermaid
+graph TD
+  A[Markdownを書く] --> B[mdechoで開く]
+  B --> C{Mermaidブロック?}
+  C -->|Yes| D[図として表示]
+  C -->|No| E[通常のMarkdownとして表示]
+```
+
 言語指定あり(TypeScript):
 
 ```ts

@@ -41,6 +41,7 @@
     "chokidar": "^5.0.0",
     "gunshi": "^0.37.1",
     "hono": "^4.12.32",
+    "mermaid": "^11.16.0",
     "rehype-stringify": "^10.0.1",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",

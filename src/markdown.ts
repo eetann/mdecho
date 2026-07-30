@@ -7,6 +7,7 @@ import remarkRehype from "remark-rehype";
 import type { ShikiTransformer } from "shiki";
 import { unified } from "unified";
 import { remarkDataLine } from "./remark-data-line.ts";
+import { remarkMermaid } from "./remark-mermaid.ts";
 import { remarkSplitSentences } from "./remark-split-sentences.ts";
 
 const DATA_LINE_MARKER_PATTERN = /data-mdecho-line-start="(\d+)" data-mdecho-line-end="(\d+)"/;
@@ -46,6 +47,7 @@ const processor = unified()
   .use(remarkGfm)
   .use(remarkBreaks)
   .use(remarkDataLine)
+  .use(remarkMermaid)
   .use(remarkRehype)
   .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
   .use(rehypeStringify);
@@ -56,6 +58,7 @@ const processorSplitSentences = unified()
   .use(remarkSplitSentences)
   .use(remarkBreaks)
   .use(remarkDataLine)
+  .use(remarkMermaid)
   .use(remarkRehype)
   .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
   .use(rehypeStringify);

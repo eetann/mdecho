@@ -13,7 +13,8 @@ import { comparePriority } from "../lib/cursor-priority.ts";
 import { findRestoreIndex, formatCursorKey, parseCursorKey } from "../lib/cursor-restore.ts";
 import { computeLineParts, groupIndexAt, positionOfGroupIndex } from "../lib/line-group.ts";
 
-const CANDIDATE_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr,.mdecho-sentence";
+const CANDIDATE_SELECTOR =
+  "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr,.mdecho-sentence,.mdecho-mermaid";
 const CURSOR_ATTR = "data-mdecho-cursor";
 const STORAGE_KEY = "mdecho:cursorLine";
 

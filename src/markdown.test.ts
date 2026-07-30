@@ -141,6 +141,30 @@ describe("renderMarkdown - sentence split", () => {
   });
 });
 
+describe("renderMarkdown - mermaid", () => {
+  test("本文のmermaidコードブロックはMermaid描画用コンテナになる", async () => {
+    const html = await renderMarkdown("```mermaid\ngraph TD\n  A --> B\n```");
+    expect(html).toContain('class="mdecho-mermaid"');
+    expect(html).toContain('data-line="1"');
+    expect(html).toContain('data-line-end="4"');
+    expect(html).toContain("graph TD");
+    expect(html).not.toContain("language-mermaid");
+  });
+
+  test("通常のコードブロックは従来どおりコード表示になる", async () => {
+    const html = await renderMarkdown("```ts\nconst x = 1;\n```");
+    expect(html).not.toContain("mdecho-mermaid");
+    expect(html).toContain("<pre");
+    expect(html).toContain("const");
+  });
+
+  test("コメント本文のmermaidコードブロックはMermaid描画用コンテナにならない", async () => {
+    const html = await renderCommentMarkdown("```mermaid\ngraph TD\n  A --> B\n```");
+    expect(html).not.toContain("mdecho-mermaid");
+    expect(html).toContain("<pre");
+  });
+});
+
 describe("renderCommentMarkdown - line breaks", () => {
   test("コメント本文でも単一改行が<br>になる", async () => {
     const html = await renderCommentMarkdown("1行目\n2行目");
