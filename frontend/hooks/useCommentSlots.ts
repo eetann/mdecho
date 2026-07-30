@@ -9,12 +9,6 @@ function getContentHost(slotRoot: Element): Element {
   return slotRoot.tagName === "TR" ? (slotRoot.querySelector("td") ?? slotRoot) : slotRoot;
 }
 
-/** .mdecho-sentence(<p>内のインラインspan)への挿入はHTML構造が壊れるため、段落自体をアンカーにする */
-function resolveInsertionAnchor(target: Element): Element {
-  if (!target.classList.contains("mdecho-sentence")) return target;
-  return target.closest("p") ?? target;
-}
-
 /**
  * 同一startLine-endLineクラスタ内で、自分よりsentenceIndexが小さい既存スロットを
  * 辿り、挿入直後に置くべき参照要素を返す。挿入順(文の出現順)が反転しないようにするため。
@@ -41,15 +35,14 @@ function findInsertionReference(
 
 function createSlotRoot(target: Element, key: string): Element {
   const { startLine, endLine, sentenceIndex } = parseKey(key);
-  const anchor = resolveInsertionAnchor(target);
-  const ref = findInsertionReference(anchor, startLine, endLine, sentenceIndex);
+  const ref = findInsertionReference(target, startLine, endLine, sentenceIndex);
 
-  if (anchor.tagName === "TR") {
+  if (target.tagName === "TR") {
     const row = document.createElement("tr");
     row.className = "mdecho-comment-row";
     row.setAttribute("data-mdecho-comment-slot", key);
     const td = document.createElement("td");
-    td.colSpan = anchor.children.length || 1;
+    td.colSpan = target.children.length || 1;
     row.appendChild(td);
     ref.insertAdjacentElement("afterend", row);
     return row;

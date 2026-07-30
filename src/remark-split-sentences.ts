@@ -88,7 +88,36 @@ function splitIntoSentenceGroups(children: PhrasingContent[]): SentenceGroup[] {
     groups.push({ nodes: currentNodes, start: currentStart, end: last.position.end });
   }
 
-  return groups;
+  // 句点直後の改行(単一改行の"\n"、またはhard breakのbreakノード)は、文分割による
+  // 視覚的な改行に既に置き換わっているため、次の文の先頭からは取り除く
+  // (そうしないと2文目以降の先頭に余分な<br>が残ってしまう)。
+  return groups.map((group) => stripLeadingLineBreak(group));
+}
+
+function stripLeadingLineBreak(group: SentenceGroup): SentenceGroup {
+  const [first, ...rest] = group.nodes;
+  if (!first) return group;
+
+  if (first.type === "break") {
+    const nextStart = rest[0]?.position?.start ?? group.end;
+    return { nodes: rest, start: nextStart, end: group.end };
+  }
+
+  if (first.type === "text" && first.value.startsWith("\n") && first.position) {
+    const newStart = advancePosition(first.position.start, first.value, 1);
+    const newValue = first.value.slice(1);
+    if (newValue === "") {
+      return { nodes: rest, start: rest[0]?.position?.start ?? newStart, end: group.end };
+    }
+    const newFirst: Text = {
+      type: "text",
+      value: newValue,
+      position: { start: newStart, end: first.position.end },
+    };
+    return { nodes: [newFirst, ...rest], start: newStart, end: group.end };
+  }
+
+  return group;
 }
 
 export const remarkSplitSentences: Plugin<[], Root> = function remarkSplitSentences() {

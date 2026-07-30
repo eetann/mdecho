@@ -116,6 +116,25 @@ describe("renderMarkdown - sentence split", () => {
     expect(html).toContain("<br");
   });
 
+  test("句点直後の単一改行は次の文の先頭から取り除かれ、<br>にならない", async () => {
+    const html = await renderMarkdown("AはBです。\nそしてBがCなのです。");
+    expect(html).not.toContain("<br");
+    expect(html).toContain(
+      '<span class="mdecho-sentence" data-line="1" data-line-end="1">AはBです。</span>',
+    );
+    expect(html).toContain(
+      '<span class="mdecho-sentence" data-line="2" data-line-end="2">そしてBがCなのです。</span>',
+    );
+  });
+
+  test("句点直後のhard break(行末スペース2個)も次の文の先頭から取り除かれる", async () => {
+    const html = await renderMarkdown("AはBです。  \nそしてBがCなのです。");
+    expect(html).not.toContain("<br");
+    expect(html).toContain(
+      '<span class="mdecho-sentence" data-line="2" data-line-end="2">そしてBがCなのです。</span>',
+    );
+  });
+
   test("renderCommentMarkdownは文分割の影響を受けない", async () => {
     const html = await renderCommentMarkdown("AAA。BBB。CCC。");
     expect(html).not.toContain("mdecho-sentence");
