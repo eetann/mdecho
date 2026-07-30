@@ -95,11 +95,14 @@ export function useComments() {
     }
   }, [state.comments]);
 
-  const openEditor = useCallback((startLine: number, endLine: number, selectedText?: string) => {
-    const quotedText =
-      selectedText !== undefined ? buildInitialCommentText(selectedText) : undefined;
-    dispatch({ type: "open", key: keyOf(startLine, endLine), quotedText });
-  }, []);
+  const openEditor = useCallback(
+    (startLine: number, endLine: number, sentenceIndex = 0, selectedText?: string) => {
+      const quotedText =
+        selectedText !== undefined ? buildInitialCommentText(selectedText) : undefined;
+      dispatch({ type: "open", key: keyOf(startLine, endLine, sentenceIndex), quotedText });
+    },
+    [],
+  );
 
   const cancelEditing = useCallback(() => dispatch({ type: "cancel" }), []);
 

@@ -7,6 +7,7 @@ import remarkRehype from "remark-rehype";
 import type { ShikiTransformer } from "shiki";
 import { unified } from "unified";
 import { remarkDataLine } from "./remark-data-line.ts";
+import { remarkSplitSentences } from "./remark-split-sentences.ts";
 
 const DATA_LINE_MARKER_PATTERN = /data-mdecho-line-start="(\d+)" data-mdecho-line-end="(\d+)"/;
 
@@ -49,6 +50,16 @@ const processor = unified()
   .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
   .use(rehypeStringify);
 
+const processorSplitSentences = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkSplitSentences)
+  .use(remarkBreaks)
+  .use(remarkDataLine)
+  .use(remarkRehype)
+  .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
+  .use(rehypeStringify);
+
 // コメント本文用。remarkDataLineを通さないため、本文と違いdata-line属性は付与されない
 // (付与するとcursor-line-clientの行解決ロジックと衝突するため意図的に外している)。
 const commentProcessor = unified()
@@ -59,8 +70,12 @@ const commentProcessor = unified()
   .use(rehypeShiki, shikiOptions)
   .use(rehypeStringify);
 
-export async function renderMarkdown(markdownSource: string): Promise<string> {
-  const file = await processor.process(markdownSource);
+export async function renderMarkdown(
+  markdownSource: string,
+  options: { splitSentences?: boolean } = {},
+): Promise<string> {
+  const { splitSentences = true } = options;
+  const file = await (splitSentences ? processorSplitSentences : processor).process(markdownSource);
   return String(file);
 }
 

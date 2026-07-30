@@ -19,9 +19,16 @@ const command = define({
       negatable: true,
       description: "起動後にブラウザを自動で開く(--no-openで無効化)",
     },
+    splitSentences: {
+      type: "boolean",
+      default: true,
+      negatable: true,
+      toKebab: true,
+      description: "句点(。)ごとに表示上の改行を入れる(--no-split-sentencesで無効化)",
+    },
   },
   run: async (ctx) => {
-    const { file, open } = ctx.values;
+    const { file, open, splitSentences } = ctx.values;
 
     try {
       await access(file);
@@ -35,6 +42,7 @@ const command = define({
         console.log("すべてのタブが閉じられたため終了します");
         process.exit(0);
       },
+      splitSentences,
     });
     console.log(`Listening on ${url}`);
 

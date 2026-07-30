@@ -12,6 +12,7 @@ const CLICK_TO_EDIT_DELAY_MS = 300;
 interface PendingSelection {
   startLine: number;
   endLine: number;
+  sentenceIndex: number;
   endTarget: Element;
   text: string;
   rect: DOMRect;
@@ -45,7 +46,12 @@ export function CommentLayer({
   comments: Map<string, Comment>;
   editingKey: string | null;
   editingInitialText: string;
-  openEditor: (startLine: number, endLine: number, selectedText?: string) => void;
+  openEditor: (
+    startLine: number,
+    endLine: number,
+    sentenceIndex?: number,
+    selectedText?: string,
+  ) => void;
   cancelEditing: () => void;
   save: (key: string, text: string) => void;
   deleteComment: (key: string) => void;
@@ -58,7 +64,11 @@ export function CommentLayer({
     return Array.from(keys);
   }, [comments, editingKey]);
 
-  const contentHosts = useCommentSlots(visibleKeys, cursor.getTargetByLine, cursor.targets);
+  const contentHosts = useCommentSlots(
+    visibleKeys,
+    cursor.getTargetByLineAndSentence,
+    cursor.targets,
+  );
 
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const pendingClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,9 +97,9 @@ export function CommentLayer({
         const slot = viewEl.closest("[data-mdecho-comment-slot]");
         const key = slot?.getAttribute("data-mdecho-comment-slot");
         if (!key) return;
-        const { startLine, endLine } = parseKey(key);
-        const target = cursor.getTargetByLine(endLine);
-        if (target) openEditor(startLine, endLine);
+        const { startLine, endLine, sentenceIndex } = parseKey(key);
+        const target = cursor.getTargetByLineAndSentence(endLine, sentenceIndex);
+        if (target) openEditor(startLine, endLine, sentenceIndex);
         return;
       }
 
@@ -103,7 +113,8 @@ export function CommentLayer({
         if (hasActiveTextSelection()) return;
         cursor.setCursorToElement(target);
         const line = Number(target.getAttribute("data-line"));
-        openEditor(line, line);
+        const sentenceIndex = cursor.getSentenceIndex(target);
+        openEditor(line, line, sentenceIndex);
       }, CLICK_TO_EDIT_DELAY_MS);
     }
 
@@ -116,7 +127,8 @@ export function CommentLayer({
       if (target) {
         event.preventDefault();
         const line = Number(target.getAttribute("data-line"));
-        openEditor(line, line);
+        const sentenceIndex = cursor.getSentenceIndex(target);
+        openEditor(line, line, sentenceIndex);
       }
     }
 
@@ -153,9 +165,10 @@ export function CommentLayer({
       const endLine = Number(
         endTarget.getAttribute("data-line-end") ?? endTarget.getAttribute("data-line"),
       );
+      const sentenceIndex = cursor.getSentenceIndex(endTarget);
       const rect = range.getBoundingClientRect();
 
-      setPendingSelection({ startLine, endLine, endTarget, text, rect });
+      setPendingSelection({ startLine, endLine, sentenceIndex, endTarget, text, rect });
     }
 
     document.addEventListener("click", handleDocumentClick);
@@ -171,10 +184,10 @@ export function CommentLayer({
 
   function handleQuoteClick() {
     if (!pendingSelection) return;
-    const { startLine, endLine, text } = pendingSelection;
+    const { startLine, endLine, sentenceIndex, text } = pendingSelection;
     setPendingSelection(null);
     window.getSelection()?.removeAllRanges();
-    openEditor(startLine, endLine, text);
+    openEditor(startLine, endLine, sentenceIndex, text);
   }
 
   return (

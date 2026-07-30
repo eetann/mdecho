@@ -9,21 +9,55 @@ function getContentHost(slotRoot: Element): Element {
   return slotRoot.tagName === "TR" ? (slotRoot.querySelector("td") ?? slotRoot) : slotRoot;
 }
 
+/** .mdecho-sentence(<p>内のインラインspan)への挿入はHTML構造が壊れるため、段落自体をアンカーにする */
+function resolveInsertionAnchor(target: Element): Element {
+  if (!target.classList.contains("mdecho-sentence")) return target;
+  return target.closest("p") ?? target;
+}
+
+/**
+ * 同一startLine-endLineクラスタ内で、自分よりsentenceIndexが小さい既存スロットを
+ * 辿り、挿入直後に置くべき参照要素を返す。挿入順(文の出現順)が反転しないようにするため。
+ */
+function findInsertionReference(
+  anchor: Element,
+  startLine: number,
+  endLine: number,
+  sentenceIndex: number,
+): Element {
+  let ref = anchor;
+  let sibling = anchor.nextElementSibling;
+  while (sibling) {
+    const siblingKey = sibling.getAttribute("data-mdecho-comment-slot");
+    if (!siblingKey) break;
+    const parsed = parseKey(siblingKey);
+    if (parsed.startLine !== startLine || parsed.endLine !== endLine) break;
+    if (parsed.sentenceIndex >= sentenceIndex) break;
+    ref = sibling;
+    sibling = sibling.nextElementSibling;
+  }
+  return ref;
+}
+
 function createSlotRoot(target: Element, key: string): Element {
-  if (target.tagName === "TR") {
+  const { startLine, endLine, sentenceIndex } = parseKey(key);
+  const anchor = resolveInsertionAnchor(target);
+  const ref = findInsertionReference(anchor, startLine, endLine, sentenceIndex);
+
+  if (anchor.tagName === "TR") {
     const row = document.createElement("tr");
     row.className = "mdecho-comment-row";
     row.setAttribute("data-mdecho-comment-slot", key);
     const td = document.createElement("td");
-    td.colSpan = target.children.length || 1;
+    td.colSpan = anchor.children.length || 1;
     row.appendChild(td);
-    target.insertAdjacentElement("afterend", row);
+    ref.insertAdjacentElement("afterend", row);
     return row;
   }
   const div = document.createElement("div");
   div.className = "mdecho-comment-slot";
   div.setAttribute("data-mdecho-comment-slot", key);
-  target.insertAdjacentElement("afterend", div);
+  ref.insertAdjacentElement("afterend", div);
   return div;
 }
 
@@ -35,7 +69,7 @@ function createSlotRoot(target: Element, key: string): Element {
  */
 export function useCommentSlots(
   visibleKeys: string[],
-  getTargetByLine: (line: number) => Element | null,
+  getTargetByLineAndSentence: (line: number, sentenceIndex: number) => Element | null,
   targets: readonly Element[],
 ): Map<string, Element> {
   const [contentHosts, setContentHosts] = useState<Map<string, Element>>(new Map());
@@ -54,8 +88,8 @@ export function useCommentSlots(
 
     for (const key of visibleKeys) {
       if (roots.has(key)) continue;
-      const { endLine } = parseKey(key);
-      const target = getTargetByLine(endLine);
+      const { endLine, sentenceIndex } = parseKey(key);
+      const target = getTargetByLineAndSentence(endLine, sentenceIndex);
       if (!target) continue;
       const root = findSlotRoot(key) ?? createSlotRoot(target, key);
       roots.set(key, root);
@@ -68,7 +102,7 @@ export function useCommentSlots(
       }
       return next;
     });
-  }, [visibleKeys, getTargetByLine, targets]);
+  }, [visibleKeys, getTargetByLineAndSentence, targets]);
 
   return contentHosts;
 }

@@ -49,6 +49,79 @@ describe("renderMarkdown - line breaks", () => {
   });
 });
 
+describe("renderMarkdown - sentence split", () => {
+  test("デフォルトで句点ごとに.mdecho-sentenceへ分割される", async () => {
+    const html = await renderMarkdown("AAA。BBB。CCC。DDD。");
+    expect(html.match(/class="mdecho-sentence"/g)?.length).toBe(4);
+    expect(html).toContain('<p data-line="1" data-line-end="1">');
+    expect(html.match(/data-line="1"/g)?.length).toBe(5); // p + 4 spans
+  });
+
+  test("splitSentences:falseを指定すると分割されない", async () => {
+    const html = await renderMarkdown("AAA。BBB。CCC。DDD。", { splitSentences: false });
+    expect(html).not.toContain("mdecho-sentence");
+    expect(html).toContain("AAA。BBB。CCC。DDD。");
+  });
+
+  test("句点が1つだけの単文段落は分割されない", async () => {
+    const html = await renderMarkdown("Hello world。");
+    expect(html).not.toContain("mdecho-sentence");
+  });
+
+  test("句点が皆無の段落は分割されない", async () => {
+    const html = await renderMarkdown("句点なしの文章");
+    expect(html).not.toContain("mdecho-sentence");
+  });
+
+  test("見出しは分割対象外", async () => {
+    const html = await renderMarkdown("# 見出し。テスト。");
+    expect(html).not.toContain("mdecho-sentence");
+    expect(html).toContain("見出し。テスト。");
+  });
+
+  test("テーブルセルは分割対象外", async () => {
+    const html = await renderMarkdown("| a |\n| --- |\n| AAA。BBB。 |");
+    expect(html).not.toContain("mdecho-sentence");
+    expect(html).toContain("AAA。BBB。");
+  });
+
+  test("コードブロック内の句点は分割されない", async () => {
+    const html = await renderMarkdown("```\nAAA。BBB。\n```");
+    expect(html).not.toContain("mdecho-sentence");
+  });
+
+  test("インラインコード内の句点は分割されず、周囲の文は分割される", async () => {
+    const html = await renderMarkdown("前置き。`code。inline。` 続き。");
+    const sentenceCount = html.match(/class="mdecho-sentence"/g)?.length ?? 0;
+    expect(sentenceCount).toBe(2);
+    expect(html).toContain("<code");
+    expect(html).toContain("code。inline。");
+  });
+
+  test("リスト項目内でも分割される", async () => {
+    const html = await renderMarkdown("- 項目1。項目2。\n- 項目3");
+    expect(html.match(/class="mdecho-sentence"/g)?.length).toBe(2);
+    expect(html.match(/<li/g)?.length).toBe(2);
+  });
+
+  test("blockquote内でも分割される", async () => {
+    const html = await renderMarkdown("> 引用A。引用B。");
+    expect(html.match(/class="mdecho-sentence"/g)?.length).toBe(2);
+    expect(html).toContain("<blockquote");
+  });
+
+  test("remark-breaksをまたぐ文はdata-lineとdata-line-endが異なる値になる", async () => {
+    const html = await renderMarkdown("AAA。まだ続く\n続き終わり。BBB。");
+    expect(html).toContain('data-line="1" data-line-end="2"');
+    expect(html).toContain("<br");
+  });
+
+  test("renderCommentMarkdownは文分割の影響を受けない", async () => {
+    const html = await renderCommentMarkdown("AAA。BBB。CCC。");
+    expect(html).not.toContain("mdecho-sentence");
+  });
+});
+
 describe("renderCommentMarkdown - line breaks", () => {
   test("コメント本文でも単一改行が<br>になる", async () => {
     const html = await renderCommentMarkdown("1行目\n2行目");

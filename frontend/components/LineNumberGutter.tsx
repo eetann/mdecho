@@ -4,6 +4,7 @@ import { useCursorLine } from "../hooks/useCursorLine.tsx";
 interface LineNumberEntry {
   line: string;
   top: number;
+  target: Element;
 }
 
 export function LineNumberGutter({
@@ -11,7 +12,7 @@ export function LineNumberGutter({
 }: {
   markdownBodyRef: RefObject<HTMLElement | null>;
 }) {
-  const { targets, getTargetByLine, setCursorToElement } = useCursorLine();
+  const { targets, setCursorToElement } = useCursorLine();
   const gutterRef = useRef<HTMLDivElement>(null);
   const [entries, setEntries] = useState<LineNumberEntry[]>([]);
 
@@ -32,6 +33,7 @@ export function LineNumberGutter({
           return {
             line: target.getAttribute("data-line") ?? "",
             top: rect.top - gutterRect.top,
+            target,
           };
         }),
       );
@@ -48,20 +50,14 @@ export function LineNumberGutter({
     };
   }, [targets, markdownBodyRef]);
 
-  function handleLineNumberClick(line: string) {
-    const target = getTargetByLine(Number(line));
-    if (!target) return;
-    setCursorToElement(target);
-  }
-
   return (
     <div ref={gutterRef} className="mdecho-line-number-gutter relative w-[2.6em] flex-none">
-      {entries.map((entry) => (
+      {entries.map((entry, index) => (
         <span
-          key={entry.line}
+          key={index}
           className="mdecho-line-number absolute right-[0.6em] left-0 cursor-pointer font-mono text-[0.75em] text-base-content/40 whitespace-nowrap select-none hover:text-base-content/60"
           style={{ top: entry.top }}
-          onClick={() => handleLineNumberClick(entry.line)}
+          onClick={() => setCursorToElement(entry.target)}
         >
           {entry.line}
         </span>

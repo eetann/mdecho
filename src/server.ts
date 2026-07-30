@@ -18,6 +18,8 @@ export interface StartServerResult {
 export interface StartServerOptions {
   /** ブラウザの全タブが閉じられ、サーバーを閉じ終えた後に呼ばれる */
   onAllTabsClosed?: () => void;
+  /** 句点(。)ごとに表示上の改行を入れるか(デフォルトtrue) */
+  splitSentences?: boolean;
 }
 
 export async function startServer(
@@ -31,7 +33,7 @@ export async function startServer(
     );
   });
 
-  const { onAllTabsClosed } = options;
+  const { onAllTabsClosed, splitSentences = true } = options;
   const liveReload = createLiveReloadHub({
     onIdle: () => {
       void close().then(() => onAllTabsClosed?.());
@@ -58,7 +60,7 @@ export async function startServer(
   app.get("*", async (c) => {
     try {
       const source = await readFile(filePath, "utf-8");
-      const bodyHtml = await renderMarkdown(source);
+      const bodyHtml = await renderMarkdown(source, { splitSentences });
       const title = basename(filePath, extname(filePath));
       const html = renderShell(clientTemplate, { title, bodyHtml, filePath });
       return c.html(html);

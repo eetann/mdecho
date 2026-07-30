@@ -10,9 +10,10 @@ import {
   useState,
 } from "react";
 import { comparePriority } from "../lib/cursor-priority.ts";
-import { findRestoreIndex } from "../lib/cursor-restore.ts";
+import { findRestoreIndex, formatCursorKey, parseCursorKey } from "../lib/cursor-restore.ts";
+import { computeLineParts, groupIndexAt, positionOfGroupIndex } from "../lib/line-group.ts";
 
-const CANDIDATE_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr";
+const CANDIDATE_SELECTOR = "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr,.mdecho-sentence";
 const CURSOR_ATTR = "data-mdecho-cursor";
 const STORAGE_KEY = "mdecho:cursorLine";
 
@@ -20,6 +21,8 @@ export interface CursorLineApi {
   targets: Element[];
   getCurrentTarget: () => Element | null;
   getTargetByLine: (line: number) => Element | null;
+  getTargetByLineAndSentence: (line: number, sentenceIndex: number) => Element | null;
+  getSentenceIndex: (el: Element) => number;
   getTargetForElement: (el: Element | null) => Element | null;
   setCursorToElement: (el: Element) => void;
 }
@@ -56,8 +59,16 @@ function collectTargets(root: Element): Element[] {
     el.hasAttribute("data-line"),
   );
 
+  // 句点分割された文(.mdecho-sentence)はそれぞれ個別targetとして扱う。
+  // それらを子孫に持つ祖先(分割された段落の<p>自身など)は、既存のグルーピング対象から除外する。
+  const sentences = all.filter((el) => el.classList.contains("mdecho-sentence"));
+  const rest = all.filter(
+    (el) =>
+      !el.classList.contains("mdecho-sentence") && el.querySelector(".mdecho-sentence") === null,
+  );
+
   const byLine = new Map<number, Element[]>();
-  for (const el of all) {
+  for (const el of rest) {
     const line = Number(el.getAttribute("data-line"));
     const group = byLine.get(line);
     if (group) {
@@ -67,9 +78,11 @@ function collectTargets(root: Element): Element[] {
     }
   }
 
-  return Array.from(byLine.values())
-    .map(pickWinner)
-    .sort((a, b) => Number(a.getAttribute("data-line")) - Number(b.getAttribute("data-line")));
+  const winners = Array.from(byLine.values()).map(pickWinner);
+
+  return [...winners, ...sentences].sort(
+    (a, b) => Number(a.getAttribute("data-line")) - Number(b.getAttribute("data-line")),
+  );
 }
 
 export function CursorLineProvider({
@@ -97,7 +110,10 @@ export function CursorLineProvider({
     el.setAttribute(CURSOR_ATTR, "");
     el.scrollIntoView({ block: "nearest", inline: "nearest" });
     try {
-      sessionStorage.setItem(STORAGE_KEY, el.getAttribute("data-line") ?? "");
+      const line = Number(el.getAttribute("data-line"));
+      const lines = currentTargets.map((t) => Number(t.getAttribute("data-line")));
+      const part = groupIndexAt(lines, clamped);
+      sessionStorage.setItem(STORAGE_KEY, formatCursorKey(line, part));
     } catch {
       // sessionStorageが使えない環境(プライベートブラウジング等)は無視
     }
@@ -123,17 +139,15 @@ export function CursorLineProvider({
     setTargets(collected);
     if (collected.length === 0) return;
 
-    let storedLine: number | null = null;
+    let stored: ReturnType<typeof parseCursorKey> = null;
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (raw !== null) storedLine = Number(raw);
+      stored = parseCursorKey(sessionStorage.getItem(STORAGE_KEY));
     } catch {
       // sessionStorageが使えない環境(プライベートブラウジング等)は無視
     }
-    const restoreIndex = findRestoreIndex(
-      collected.map((el) => Number(el.getAttribute("data-line"))),
-      storedLine,
-    );
+    const lines = collected.map((el) => Number(el.getAttribute("data-line")));
+    const parts = computeLineParts(lines);
+    const restoreIndex = findRestoreIndex(lines, parts, stored);
     setCursor(restoreIndex === -1 ? 0 : restoreIndex);
 
     function handleKeydown(event: KeyboardEvent) {
@@ -163,10 +177,22 @@ export function CursorLineProvider({
       targetsRef.current.find((el) => Number(el.getAttribute("data-line")) === line) ?? null,
     [],
   );
+  const getTargetByLineAndSentence = useCallback((line: number, sentenceIndex: number) => {
+    const lines = targetsRef.current.map((el) => Number(el.getAttribute("data-line")));
+    const position = positionOfGroupIndex(lines, line, sentenceIndex);
+    return position === null ? null : (targetsRef.current[position] ?? null);
+  }, []);
+  const getSentenceIndex = useCallback((el: Element) => {
+    const position = targetsRef.current.indexOf(el);
+    if (position === -1) return 0;
+    const lines = targetsRef.current.map((t) => Number(t.getAttribute("data-line")));
+    return groupIndexAt(lines, position);
+  }, []);
   const getTargetForElement = useCallback((el: Element | null) => {
     if (!el) return null;
     const container = el.closest(CANDIDATE_SELECTOR);
     if (!container) return null;
+    if (targetsRef.current.includes(container)) return container;
     const line = Number(container.getAttribute("data-line"));
     return targetsRef.current.find((t) => Number(t.getAttribute("data-line")) === line) ?? null;
   }, []);
@@ -179,8 +205,24 @@ export function CursorLineProvider({
   );
 
   const api = useMemo<CursorLineApi>(
-    () => ({ targets, getCurrentTarget, getTargetByLine, getTargetForElement, setCursorToElement }),
-    [targets, getCurrentTarget, getTargetByLine, getTargetForElement, setCursorToElement],
+    () => ({
+      targets,
+      getCurrentTarget,
+      getTargetByLine,
+      getTargetByLineAndSentence,
+      getSentenceIndex,
+      getTargetForElement,
+      setCursorToElement,
+    }),
+    [
+      targets,
+      getCurrentTarget,
+      getTargetByLine,
+      getTargetByLineAndSentence,
+      getSentenceIndex,
+      getTargetForElement,
+      setCursorToElement,
+    ],
   );
 
   return <CursorLineContext.Provider value={api}>{children}</CursorLineContext.Provider>;

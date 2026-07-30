@@ -149,6 +149,10 @@ body {
   width: 100%;
 }
 
+.markdown-body .mdecho-sentence {
+  display: block;
+}
+
 .markdown-body hr {
   /* Preflightがhrのボーダーを消すため、元のUAデフォルト相当を明示する。 */
   margin: 1.5em 0;
