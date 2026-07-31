@@ -107,6 +107,21 @@ body {
   margin-bottom: 1em;
   overflow-x: auto;
   display: block;
+  position: relative;
+  /* mdecho-tocのz-10より手前にして、右にはみ出した部分でTOCと重なっても
+     テーブルの不透明背景がTOCの文字を隠すようにする。 */
+  z-index: 20;
+}
+
+/* 1024px未満は本文カラム=ページ幅なので、はみ出せる余白が無い。
+   1024px以上(.mdecho-pageがmax-w-5xlに達した状態)でのみ、右方向に
+   最大限ネガティブマージンで広げる。左はガターがあるためはみ出さない。 */
+@media (min-width: 1024px) {
+  .markdown-body table {
+    --mdecho-table-w: max(918px, calc((100vw + 1024px) / 2 - 106px));
+    width: var(--mdecho-table-w);
+    margin-right: calc(918px - var(--mdecho-table-w));
+  }
 }
 
 .markdown-body th,

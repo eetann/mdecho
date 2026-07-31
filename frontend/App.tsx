@@ -16,7 +16,7 @@ export function App({ bodyHtml, filePath }: { bodyHtml: string; filePath: string
 
   return (
     <CursorLineProvider markdownBodyRef={markdownBodyRef}>
-      <div className="mdecho-page w-full max-w-5xl p-8">
+      <div className="mdecho-page w-full max-w-5xl p-8 mx-auto">
         <Toolbar
           fileName={fileName}
           filePath={filePath}
