@@ -1,14 +1,27 @@
 {
   "name": "mdecho",
+  "version": "0.0.1",
   "module": "src/index.ts",
   "type": "module",
-  "private": true,
+  "bin": {
+    "mdecho": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "docs"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20.19.0"
   },
   "scripts": {
     "start": "bun run build:client && bun run src/index.ts",
+    "build": "bun run build:client && bun run build:cli",
     "build:client": "bun run scripts/build-client.ts",
+    "build:cli": "bun run scripts/build-cli.ts",
+    "prepublishOnly": "bun run build",
     "test": "bun test",
     "lint": "oxlint src frontend scripts",
     "lint:fix": "oxlint --fix src frontend scripts",

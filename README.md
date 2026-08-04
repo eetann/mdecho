@@ -1,15 +1,30 @@
 # mdecho
 
-To install dependencies:
+AIが生成したMarkdownを、人間がレビューしやすくするためのCLIツール。
+
+単なるMarkdownビューアではなく、AIとのやり取り(レビュー・質問・フィードバック)を行いやすくすることを目的としています。CLIから実行するとlocalhostでレンダリングされたMarkdownが開き、クリックや範囲選択でその箇所への返信をAI向けの形式でクリップボードにコピーできます。
+
+## インストール
 
 ```bash
 bun install
 ```
 
-To run:
+## 使い方
 
 ```bash
-bun run start
+bun run start -- -f <file>
 ```
 
-This project was created using `bun init` in bun v1.3.13. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+詳細なオプションは `mdecho --help` または `mdecho docs show cli-reference` を参照してください。
+
+## AIエージェント向け
+
+このツールはコーディングエージェントがMarkdownを生成したあとに呼び出し、人間にレビューを依頼する用途を想定しています。
+
+```bash
+mdecho docs list
+mdecho docs show agent-workflow
+```
+
+`mdecho docs list` で利用可能なドキュメント一覧を、`mdecho docs show <name>` でその内容を確認できます。AIエージェントとの連携方法の詳細は [docs/agent-workflow.md](docs/agent-workflow.md) を参照してください。

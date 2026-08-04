@@ -3,6 +3,7 @@ import { watch } from "chokidar";
 import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
+import { AGENT_HINT_TROUBLESHOOTING } from "./agent-hint.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
 import { renderShell } from "./render-shell.ts";
@@ -29,7 +30,7 @@ export async function startServer(
   const clientTemplate = await readFile(CLIENT_TEMPLATE_PATH, "utf-8").catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `dist/client/index.htmlが見つかりません。先に \`bun run build:client\` を実行してください (${message})`,
+      `dist/client/index.htmlが見つかりません。先に \`bun run build:client\` を実行してください (${message})\n${AGENT_HINT_TROUBLESHOOTING}`,
     );
   });
 

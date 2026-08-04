@@ -1,11 +1,21 @@
 import { access } from "node:fs/promises";
 import { cli, define } from "gunshi";
+import { AGENT_HINT } from "./agent-hint.ts";
+import { docsCommand } from "./docs-command.ts";
 import { openBrowser } from "./open-browser.ts";
 import { startServer } from "./server.ts";
 
 const command = define({
   name: "mdecho",
   description: "AIが生成したMarkdownを、人間がレビューしやすくするためのCLIツール",
+  examples: `# 基本的な使い方
+$ mdecho -f review.md
+
+# ブラウザを自動で開かない
+$ mdecho -f review.md --no-open
+
+# ${AGENT_HINT}
+$ mdecho docs list`,
   args: {
     file: {
       type: "string",
@@ -34,6 +44,7 @@ const command = define({
       await access(file);
     } catch {
       console.error(`ファイルが見つかりません: ${file}`);
+      console.error(AGENT_HINT);
       process.exit(1);
     }
 
@@ -63,4 +74,6 @@ await cli(process.argv.slice(2), command, {
   name: "mdecho",
   version: "0.0.1",
   description: "AIが生成したMarkdownを、人間がレビューしやすくするためのCLIツール",
+  subCommands: { docs: docsCommand },
+  fallbackToEntry: true,
 });
