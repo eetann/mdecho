@@ -19,9 +19,12 @@
 }
 
 @theme {
+  /* BIZ UDPGothicはWindows 11標準搭載のUDフォントで、Yu Gothicよりブラウザ上で
+     太さが安定して読みやすいため、Windows系フォントの中で優先している。 */
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
-    "Yu Gothic Medium", "Yu Gothic", "Segoe UI", Roboto, Meiryo, "Noto Sans CJK JP", "Noto Sans JP",
+    "BIZ UDPGothic", "Yu Gothic Medium", "Yu Gothic", "Segoe UI", Roboto, Meiryo,
+    "Noto Sans CJK JP", "Noto Sans JP",
     Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
