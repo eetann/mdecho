@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { AGENT_HINT_TROUBLESHOOTING } from "./agent-hint.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
-import { renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
+import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
 import { renderShell } from "./render-shell.ts";
 
 const CLIENT_TEMPLATE_PATH = join(import.meta.dirname, "..", "dist", "client", "index.html");
@@ -62,7 +62,7 @@ export async function startServer(
     try {
       const source = await readFile(filePath, "utf-8");
       const bodyHtml = await renderMarkdown(source, { splitSentences });
-      const title = basename(filePath, extname(filePath));
+      const title = extractTitle(source) ?? basename(filePath, extname(filePath));
       const html = renderShell(clientTemplate, { title, bodyHtml, filePath });
       return c.html(html);
     } catch (error) {

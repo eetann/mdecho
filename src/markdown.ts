@@ -1,4 +1,5 @@
 import rehypeShiki from "@shikijs/rehype";
+import type { Heading, PhrasingContent } from "mdast";
 import rehypeStringify from "rehype-stringify";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -72,6 +73,35 @@ const commentProcessor = unified()
   .use(remarkRehype)
   .use(rehypeShiki, shikiOptions)
   .use(rehypeStringify);
+
+const titleProcessor = unified().use(remarkParse).use(remarkGfm);
+
+function phrasingToText(nodes: PhrasingContent[]): string {
+  return nodes
+    .map((node) => {
+      if ("value" in node) {
+        return node.value;
+      }
+      if ("children" in node) {
+        return phrasingToText(node.children);
+      }
+      return "";
+    })
+    .join("");
+}
+
+/** 本文中で最初に登場するトップレベルh1見出しをページタイトルとして抽出する。無ければundefined。 */
+export function extractTitle(markdownSource: string): string | undefined {
+  const tree = titleProcessor.parse(markdownSource);
+  const heading = tree.children.find(
+    (node): node is Heading => node.type === "heading" && node.depth === 1,
+  );
+  if (!heading) {
+    return undefined;
+  }
+  const title = phrasingToText(heading.children).trim();
+  return title.length > 0 ? title : undefined;
+}
 
 export async function renderMarkdown(
   markdownSource: string,

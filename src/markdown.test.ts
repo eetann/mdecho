@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
+import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
 
 describe("renderMarkdown - line breaks", () => {
   test("単一改行(Enter1回)がそのまま<br>になる", async () => {
@@ -162,6 +162,25 @@ describe("renderMarkdown - mermaid", () => {
     const html = await renderCommentMarkdown("```mermaid\ngraph TD\n  A --> B\n```");
     expect(html).not.toContain("mdecho-mermaid");
     expect(html).toContain("<pre");
+  });
+});
+
+describe("extractTitle", () => {
+  test("先頭のh1見出しをタイトルとして抽出する", () => {
+    expect(extractTitle("# 見出し\n\n本文")).toBe("見出し");
+  });
+
+  test("h1がインライン要素を含む場合はテキストのみを抽出する", () => {
+    expect(extractTitle("# **太字**と`コード`のタイトル")).toBe("太字とコードのタイトル");
+  });
+
+  test("h1が無ければundefinedを返す", () => {
+    expect(extractTitle("## 見出し2\n\n本文")).toBeUndefined();
+    expect(extractTitle("本文のみ")).toBeUndefined();
+  });
+
+  test("h1が本文の途中にある場合でも最初のh1を抽出する", () => {
+    expect(extractTitle("本文\n\n# 見出し")).toBe("見出し");
   });
 });
 
