@@ -1,8 +1,9 @@
 import { type HttpBindings, serve, type ServerType } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { watch } from "chokidar";
 import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
-import { basename, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { AGENT_HINT_TROUBLESHOOTING } from "./agent-hint.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
@@ -44,6 +45,12 @@ export async function startServer(
   const app = new Hono<{ Bindings: HttpBindings }>();
 
   app.get("/events", (c) => liveReload.handleEvents(c));
+
+  // Markdown中の相対パス画像(![alt](./foo.png)など)を配信するため、
+  // Markdownファイルと同じディレクトリを静的ファイルルートとして公開する。
+  // 該当ファイルが無ければnext()でmarkdownレンダリングにフォールスルーする。
+  const baseDir = dirname(resolve(filePath));
+  app.use("*", serveStatic({ root: baseDir }));
 
   app.post("/api/render-comment", async (c) => {
     let text: unknown;
