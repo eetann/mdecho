@@ -88,6 +88,15 @@ body {
   margin-bottom: 1em;
 }
 
+.markdown-body a {
+  color: #0969da;
+  text-decoration: underline;
+}
+
+.markdown-body a:hover {
+  text-decoration: none;
+}
+
 .markdown-body ul,
 .markdown-body ol {
   padding-left: 2em;
@@ -328,6 +337,15 @@ body {
 .mdecho-comment-view-body p {
   margin-top: 0;
   margin-bottom: 0.6em;
+}
+
+.mdecho-comment-view-body a {
+  color: #0969da;
+  text-decoration: underline;
+}
+
+.mdecho-comment-view-body a:hover {
+  text-decoration: none;
 }
 
 .mdecho-comment-view-body ul,
