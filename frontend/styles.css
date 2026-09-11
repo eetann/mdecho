@@ -24,8 +24,8 @@
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "BIZ UDPGothic", "Yu Gothic Medium", "Yu Gothic", "Segoe UI", Roboto, Meiryo,
-    "Noto Sans CJK JP", "Noto Sans JP",
-    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    "Noto Sans CJK JP", "Noto Sans JP", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 body {
@@ -115,25 +115,77 @@ body {
 
 .markdown-body table {
   border-collapse: collapse;
+  /* 実際のカラム幅とfont-sizeは、セル内容の実寸をもとにuseTableToolsが
+     インラインスタイルで上書きする。ここはそれが走る前のフォールバック。 */
   width: 100%;
-  margin-bottom: 1em;
-  overflow-x: auto;
-  display: block;
-  position: relative;
-  /* mdecho-tocのz-10より手前にして、右にはみ出した部分でTOCと重なっても
-     テーブルの不透明背景がTOCの文字を隠すようにする。 */
-  z-index: 20;
 }
 
-/* 1024px未満は本文カラム=ページ幅なので、はみ出せる余白が無い。
-   1024px以上(.mdecho-pageがmax-w-5xlに達した状態)でのみ、右方向に
-   最大限ネガティブマージンで広げる。左はガターがあるためはみ出さない。 */
-@media (min-width: 1024px) {
-  .markdown-body table {
-    --mdecho-table-w: max(918px, calc((100vw + 1024px) / 2 - 106px));
-    width: var(--mdecho-table-w);
-    margin-right: calc(918px - var(--mdecho-table-w));
-  }
+/* useTableToolsがtableを .mdecho-table-wrap > .mdecho-table-scroll で包む。
+   横スクロールを外側の要素に持たせることで、table自身はカラム幅の計算に専念できる。 */
+.mdecho-table-wrap {
+  position: relative;
+  margin-bottom: 1em;
+}
+
+.mdecho-table-tools {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 1.5rem;
+}
+
+.mdecho-table-scroll {
+  overflow-x: auto;
+}
+
+/* 列幅ドラッグ用のつまみ。セルの右端にまたがるよう、th(position: relative)に重ねる。 */
+.mdecho-col-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+/* 最終列のつまみは、はみ出すと横スクロール領域の外で切れるため内側に寄せる。 */
+.markdown-body th:last-child .mdecho-col-resizer {
+  right: 0;
+}
+
+.mdecho-col-resizer::after {
+  content: "";
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.mdecho-col-resizer:hover::after {
+  background: #0969da;
+}
+
+/* 拡大モーダル中は、移動してきた .mdecho-table-scroll が縦横両方のスクロールを担当する。 */
+.mdecho-table-modal-body > .mdecho-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.mdecho-table-modal thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  /* border-collapse下ではstickyなセルのborderがスクロールと一緒に消えるため、
+     内側shadowで枠線を描き直す。 */
+  box-shadow:
+    inset 0 1px 0 #d1d9e0,
+    inset 0 -1px 0 #d1d9e0;
 }
 
 .markdown-body th,

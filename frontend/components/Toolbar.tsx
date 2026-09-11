@@ -34,7 +34,7 @@ export function Toolbar({
   }
 
   return (
-    <div className="mdecho-toolbar navbar sticky top-0 z-10 gap-4 bg-base-100 px-0 py-3">
+    <div className="mdecho-toolbar navbar sticky top-0 z-20 gap-4 bg-base-100 px-0 py-3">
       <span className="mdecho-file-name min-w-0 flex-1 truncate text-sm text-base-content/60">
         {fileName}
       </span>
