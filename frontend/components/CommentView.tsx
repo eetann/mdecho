@@ -1,3 +1,4 @@
+import { MessageSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 import { formatLineRef } from "../lib/line-ref.ts";
 
@@ -42,7 +43,7 @@ export function CommentView({
         {formatLineRef(startLine, endLine)}
       </div>
       <div className="mdecho-comment-view-body-row flex items-start gap-2">
-        <span className="mdecho-comment-view-label opacity-70">💬</span>
+        <MessageSquare className="mdecho-comment-view-label mt-[0.2em] size-[1.1em] flex-none text-base-content/60" />
         {renderedHtml === null ? (
           <div className="mdecho-comment-view-body mdecho-comment-view-body-plain">{text}</div>
         ) : (

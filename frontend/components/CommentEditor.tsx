@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { formatLineRef } from "../lib/line-ref.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
@@ -71,7 +72,7 @@ export function CommentEditor({
             aria-label="delete comment"
             onClick={() => setConfirmingDelete(true)}
           >
-            🗑️
+            <Trash2 className="size-[1.1em]" />
           </button>
         )}
         <button

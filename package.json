@@ -37,6 +37,7 @@
     "@types/react-dom": "^19.2.3",
     "bun-plugin-tailwind": "^0.1.2",
     "daisyui": "^5.7.0",
+    "lucide-react": "^1.42.0",
     "mdast-util-to-hast": "^13.2.1",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",

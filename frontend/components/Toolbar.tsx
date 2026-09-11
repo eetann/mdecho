@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { buildClipboardText } from "../lib/clipboard-text.ts";
 import type { Comment } from "../lib/types.ts";
@@ -55,7 +56,7 @@ export function Toolbar({
         disabled={comments.size === 0}
         onClick={() => setConfirmingDeleteAll(true)}
       >
-        🗑️
+        <Trash2 className="size-[1.1em]" />
       </button>
       <ConfirmDialog
         open={confirmingDeleteAll}
