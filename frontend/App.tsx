@@ -27,7 +27,12 @@ export function App({ bodyHtml, filePath }: { bodyHtml: string; filePath: string
           deleteAllComments={commentsApi.deleteAllComments}
         />
         <div className="mdecho-content mb-1 flex">
-          <LineNumberGutter markdownBodyRef={markdownBodyRef} openEditor={commentsApi.openEditor} />
+          <LineNumberGutter
+            markdownBodyRef={markdownBodyRef}
+            openEditor={commentsApi.openEditor}
+            comments={commentsApi.comments}
+            editingKey={commentsApi.editingKey}
+          />
           <MarkdownBody ref={markdownBodyRef} html={bodyHtml} />
         </div>
         <CommentLayer

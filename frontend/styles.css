@@ -303,6 +303,15 @@ body {
   border-radius: 4px;
 }
 
+/* コメント入力中の対象行。保存するまで、どの行に対して書いているのかを本文側でも示す。
+   ドラッグ中より長く出しっぱなしになるため、色は控えめにする。 */
+.markdown-body [data-mdecho-comment-active],
+.markdown-body tr[data-mdecho-comment-active] > td,
+.markdown-body tr[data-mdecho-comment-active] > th {
+  background: rgba(9, 105, 218, 0.09);
+  border-radius: 4px;
+}
+
 .markdown-body td,
 .markdown-body th {
   position: relative;
