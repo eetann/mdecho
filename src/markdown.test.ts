@@ -195,3 +195,50 @@ describe("renderCommentMarkdown - line breaks", () => {
     expect(html).not.toContain("data-line");
   });
 });
+
+describe("renderMarkdown - links", () => {
+  test("httpsリンクは新しいタブで開くようtarget/relが付く", async () => {
+    const html = await renderMarkdown("[example](https://example.com)");
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+  });
+
+  test("httpリンクも同様に扱う", async () => {
+    const html = await renderMarkdown("[example](http://example.com)");
+    expect(html).toContain('target="_blank"');
+  });
+
+  test("自動リンク(<https://...>)にもtargetが付く", async () => {
+    const html = await renderMarkdown("<https://example.com>");
+    expect(html).toContain('target="_blank"');
+  });
+
+  test("./foo.mdのような相対リンクは変更しない(TASK-0005で扱い方を決めるまで未対応)", async () => {
+    const html = await renderMarkdown("[doc](./foo.md)");
+    expect(html).toContain('href="./foo.md"');
+    expect(html).not.toContain("target=");
+    expect(html).not.toContain("rel=");
+  });
+
+  test("ページ内リンク(#見出し)も変更しない", async () => {
+    const html = await renderMarkdown("[jump](#heading)");
+    expect(html).toContain('href="#heading"');
+    expect(html).not.toContain("target=");
+  });
+
+  test("mailto:リンクも変更しない", async () => {
+    const html = await renderMarkdown("[mail](mailto:foo@example.com)");
+    expect(html).not.toContain("target=");
+  });
+
+  test("splitSentences:falseでも同じくtargetが付く", async () => {
+    const html = await renderMarkdown("[example](https://example.com)", { splitSentences: false });
+    expect(html).toContain('target="_blank"');
+  });
+
+  test("コメント本文のhttpsリンクも新しいタブで開く", async () => {
+    const html = await renderCommentMarkdown("[example](https://example.com)");
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+  });
+});

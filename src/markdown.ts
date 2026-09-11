@@ -7,6 +7,7 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import type { ShikiTransformer } from "shiki";
 import { unified } from "unified";
+import { rehypeExternalLinks } from "./rehype-external-links.ts";
 import { remarkDataLine } from "./remark-data-line.ts";
 import { remarkMermaid } from "./remark-mermaid.ts";
 import { remarkSplitSentences } from "./remark-split-sentences.ts";
@@ -50,6 +51,7 @@ const processor = unified()
   .use(remarkDataLine)
   .use(remarkMermaid)
   .use(remarkRehype)
+  .use(rehypeExternalLinks)
   .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
   .use(rehypeStringify);
 
@@ -61,6 +63,7 @@ const processorSplitSentences = unified()
   .use(remarkDataLine)
   .use(remarkMermaid)
   .use(remarkRehype)
+  .use(rehypeExternalLinks)
   .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
   .use(rehypeStringify);
 
@@ -71,6 +74,7 @@ const commentProcessor = unified()
   .use(remarkGfm)
   .use(remarkBreaks)
   .use(remarkRehype)
+  .use(rehypeExternalLinks)
   .use(rehypeShiki, shikiOptions)
   .use(rehypeStringify);
 
