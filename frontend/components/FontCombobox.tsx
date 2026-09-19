@@ -1,7 +1,18 @@
 import { Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { filterFonts } from "../lib/font-filter.ts";
 import type { SystemFont } from "../lib/types.ts";
+
+/** 候補リストの高さの上限(px)と、境界との余白。 */
+const MAX_DROPDOWN_HEIGHT = 192;
+const DROPDOWN_GAP = 8;
+/** これより狭い側には開かない(1件も見えないため)。 */
+const MIN_DROPDOWN_HEIGHT = 72;
+
+interface DropdownPlacement {
+  side: "bottom" | "top";
+  maxHeight: number;
+}
 
 /**
  * フォント名の入力欄と候補リスト。
@@ -16,18 +27,26 @@ export function FontCombobox({
   loading,
   selected,
   onAdd,
+  boundaryRef,
 }: {
   label: string;
   fonts: SystemFont[];
   loading: boolean;
   selected: string[];
   onAdd: (name: string) => void;
+  /** 候補リストがはみ出さないよう収めたい要素(モーダルの本体) */
+  boundaryRef: RefObject<HTMLElement | null>;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const activeItemRef = useRef<HTMLLIElement>(null);
+  const [placement, setPlacement] = useState<DropdownPlacement>({
+    side: "bottom",
+    maxHeight: MAX_DROPDOWN_HEIGHT,
+  });
 
   const candidates = useMemo(() => filterFonts(fonts, query, selected), [fonts, query, selected]);
   const active = candidates.fonts[activeIndex];
@@ -40,6 +59,29 @@ export function FontCombobox({
   useEffect(() => {
     activeItemRef.current?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
+
+  // 候補リストはレイアウトを押し広げないよう浮かせて表示する。そのぶんモーダルからは
+  // はみ出しうるので、下に入らなければ上開きにし、高さも収まる分だけに抑える。
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+    const input = inputRef.current;
+    const boundary = boundaryRef.current;
+    if (!input || !boundary) {
+      return;
+    }
+    const inputRect = input.getBoundingClientRect();
+    const boundaryRect = boundary.getBoundingClientRect();
+    const below = boundaryRect.bottom - inputRect.bottom - DROPDOWN_GAP;
+    const above = inputRect.top - boundaryRect.top - DROPDOWN_GAP;
+    const side = below >= MAX_DROPDOWN_HEIGHT || below >= above ? "bottom" : "top";
+    const available = side === "bottom" ? below : above;
+    setPlacement({
+      side,
+      maxHeight: Math.max(MIN_DROPDOWN_HEIGHT, Math.min(MAX_DROPDOWN_HEIGHT, available)),
+    });
+  }, [open, boundaryRef, selected.length]);
 
   useEffect(() => {
     if (!open) {
@@ -96,6 +138,7 @@ export function FontCombobox({
     <div ref={containerRef} className="relative">
       <div className="flex gap-2">
         <input
+          ref={inputRef}
           type="text"
           className="input input-sm input-bordered min-w-0 flex-1"
           placeholder="フォント名を入力または選択"
@@ -123,7 +166,12 @@ export function FontCombobox({
       </div>
 
       {open && (
-        <div className="mt-1 max-h-48 overflow-y-auto rounded border border-base-300 bg-base-100 shadow">
+        <div
+          className={`absolute z-10 w-full overflow-y-auto rounded border border-base-300 bg-base-100 shadow-lg ${
+            placement.side === "bottom" ? "top-full mt-1" : "bottom-full mb-1"
+          }`}
+          style={{ maxHeight: placement.maxHeight }}
+        >
           {loading && <p className="px-2 py-1.5 text-sm text-base-content/60">読み込み中...</p>}
           {!loading && candidates.fonts.length === 0 && (
             <p className="px-2 py-1.5 text-sm text-base-content/60">

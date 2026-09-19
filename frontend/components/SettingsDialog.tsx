@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import { FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
 import type { SettingsApi } from "../hooks/useSettings.ts";
 import { FontCombobox } from "./FontCombobox.tsx";
@@ -48,10 +48,12 @@ function FontList({
   fonts,
   setFonts,
   settings,
+  boundaryRef,
 }: FontSection & {
   fonts: string[];
   setFonts: (kind: FontKind, fonts: string[]) => void;
   settings: SettingsApi;
+  boundaryRef: RefObject<HTMLElement | null>;
 }) {
   return (
     <section className="mdecho-font-section">
@@ -116,6 +118,7 @@ function FontList({
         loading={settings.systemFontsLoading}
         selected={fonts}
         onAdd={(name) => setFonts(kind, [...fonts, name])}
+        boundaryRef={boundaryRef}
       />
     </section>
   );
@@ -123,6 +126,7 @@ function FontList({
 
 export function SettingsDialog({ settings }: { settings: SettingsApi }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -136,7 +140,7 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
 
   return (
     <dialog ref={dialogRef} className="modal" onClose={settings.cancel}>
-      <div className="modal-box max-h-[85vh] max-w-xl">
+      <div ref={boxRef} className="modal-box max-h-[85vh] max-w-xl">
         <h2 className="text-lg font-semibold">フォント設定</h2>
         <p className="mt-1 text-xs text-base-content/60">
           上にあるものから順に使われ、そのフォントが無ければ次のものが使われます。選ぶとすぐ背景の表示に反映されます。
@@ -150,6 +154,7 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
               fonts={settings.draft[section.kind]}
               setFonts={settings.setFonts}
               settings={settings}
+              boundaryRef={boxRef}
             />
           ))}
         </div>
