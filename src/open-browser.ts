@@ -1,20 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
-
-function isWsl(): boolean {
-  if (process.platform !== "linux") {
-    return false;
-  }
-  if (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP) {
-    return true;
-  }
-  try {
-    const release = readFileSync("/proc/version", "utf-8").toLowerCase();
-    return release.includes("microsoft");
-  } catch {
-    return false;
-  }
-}
+import { isWsl } from "./platform.ts";
 
 export async function openBrowser(url: string) {
   const command =

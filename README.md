@@ -32,7 +32,7 @@ bun run start -- -f <file>
 }
 ```
 
-詳細は [docs/configuration.md](docs/configuration.md) を参照してください。
+使えるフォント名は `mdecho font-ls` で確認できます。詳細は [docs/configuration.md](docs/configuration.md) を参照してください。
 
 ## AIエージェント向け
 

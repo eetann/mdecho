@@ -1,8 +1,10 @@
 import { access } from "node:fs/promises";
 import { cli, define } from "gunshi";
+import { renderHeader } from "gunshi/renderer";
 import { AGENT_HINT } from "./agent-hint.ts";
 import { loadMdechoConfig } from "./config.ts";
 import { docsCommand } from "./docs-command.ts";
+import { fontLsCommand } from "./font-command.ts";
 import { openBrowser } from "./open-browser.ts";
 import { startServer } from "./server.ts";
 
@@ -81,6 +83,8 @@ await cli(process.argv.slice(2), command, {
   name: "mdecho",
   version: "0.0.1",
   description: "AIが生成したMarkdownを、人間がレビューしやすくするためのCLIツール",
-  subCommands: { docs: docsCommand },
+  subCommands: { docs: docsCommand, "font-ls": fontLsCommand },
+  // font-lsの出力はgrepなどに流す前提なので、ヘッダーでstdoutを汚さない。
+  renderHeader: async (ctx) => (ctx.name === fontLsCommand.name ? "" : await renderHeader(ctx)),
   fallbackToEntry: true,
 });

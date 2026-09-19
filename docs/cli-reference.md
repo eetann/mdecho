@@ -18,6 +18,12 @@ description: mdechoの全コマンド・全オプション一覧
 
 コマンドラインオプションとは別に、`~/.config/mdecho/config.jsonc` でフォントを変更できます。詳細は `mdecho docs show configuration` を参照。
 
+## `mdecho font-ls`
+
+そのマシンでブラウザが使えるフォント名を一覧表示する。設定ファイルの `font` に書く名前を調べるのに使う。
+
+括弧内は同じフォントを指す別名で、設定に書くのは括弧の前の名前。ヘッダーを出さないため、そのままgrepなどに流せる。
+
 ## `mdecho docs list`
 
 利用可能なドキュメント一覧を表示する。

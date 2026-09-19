@@ -3,7 +3,7 @@ import { parseJSONC } from "confbox/jsonc";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, join } from "node:path";
-import type { FontFamilies } from "./font-css.ts";
+import { type FontFamilies, toFontFamilyToken } from "./font-css.ts";
 
 export interface MdechoConfig {
   font: FontFamilies;
@@ -52,6 +52,14 @@ function normalizeFontList(value: unknown, keyPath: string, warn: WarnFn): strin
     }
     const trimmed = item.trim();
     if (trimmed.length === 0) {
+      continue;
+    }
+    // 黙って無視されると原因が分からないため、CSSに書けない名前はここで弾いて知らせる。
+    // (`mdecho font-ls`の出力を括弧ごと貼り付けた場合などに起きる)
+    if (toFontFamilyToken(trimmed) === undefined) {
+      warn(
+        `${keyPath}にフォント名として使えない文字が含まれています。この要素は無視します: ${JSON.stringify(trimmed)}`,
+      );
       continue;
     }
     fonts.push(trimmed);

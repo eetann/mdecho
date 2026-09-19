@@ -20,7 +20,7 @@ mdecho -f <file>
 
 ## 設定ファイル
 
-`~/.config/mdecho/config.jsonc` で本文やコードブロックのフォントを変更できます。詳細は [設定ファイル](./configuration.md) を参照してください。
+`~/.config/mdecho/config.jsonc` で本文やコードブロックのフォントを変更できます。使えるフォント名は `mdecho font-ls` で確認できます。詳細は [設定ファイル](./configuration.md) を参照してください。
 
 ## 終了方法
 
