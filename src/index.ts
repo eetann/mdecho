@@ -3,6 +3,7 @@ import { cli, define } from "gunshi";
 import { renderHeader } from "gunshi/renderer";
 import { AGENT_HINT } from "./agent-hint.ts";
 import { loadMdechoConfig } from "./config.ts";
+import { defaultConfigFile } from "./config-writer.ts";
 import { docsCommand } from "./docs-command.ts";
 import { fontLsCommand } from "./font-command.ts";
 import { openBrowser } from "./open-browser.ts";
@@ -51,9 +52,12 @@ $ mdecho docs list`,
       process.exit(1);
     }
 
-    const { config, configFile } = await loadMdechoConfig();
-    if (configFile) {
-      console.log(`Loaded config from ${configFile}`);
+    const loaded = await loadMdechoConfig();
+    const { config } = loaded;
+    // 設定ファイルがまだ無い場合も、モーダルから保存できるよう既定の保存先を渡す。
+    const configFile = loaded.configFile ?? defaultConfigFile();
+    if (loaded.configFile) {
+      console.log(`Loaded config from ${loaded.configFile}`);
     }
 
     const { url, close } = await startServer(file, {
@@ -63,6 +67,7 @@ $ mdecho docs list`,
       },
       splitSentences,
       config,
+      configFile,
     });
     console.log(`Listening on ${url}`);
 

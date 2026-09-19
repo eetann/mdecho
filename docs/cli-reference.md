@@ -16,7 +16,7 @@ description: mdechoの全コマンド・全オプション一覧
 
 ## 設定ファイル
 
-コマンドラインオプションとは別に、`~/.config/mdecho/config.jsonc` でフォントを変更できます。詳細は `mdecho docs show configuration` を参照。
+コマンドラインオプションとは別に、ツールバーの歯車アイコンまたは `~/.config/mdecho/config.jsonc` でフォントを変更できます。詳細は `mdecho docs show configuration` を参照。
 
 ## `mdecho font-ls`
 

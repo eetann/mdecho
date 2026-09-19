@@ -16,4 +16,6 @@ if (!rootEl) {
   throw new Error("root element not found");
 }
 
-createRoot(rootEl).render(<App bodyHtml={data.bodyHtml} filePath={data.filePath} />);
+createRoot(rootEl).render(
+  <App bodyHtml={data.bodyHtml} filePath={data.filePath} settings={data.settings} />,
+);

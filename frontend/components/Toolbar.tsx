@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Settings, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { buildClipboardText } from "../lib/clipboard-text.ts";
 import type { Comment } from "../lib/types.ts";
@@ -13,11 +13,13 @@ export function Toolbar({
   filePath,
   comments,
   deleteAllComments,
+  openSettings,
 }: {
   fileName: string;
   filePath: string;
   comments: Map<string, Comment>;
   deleteAllComments: () => void;
+  openSettings: () => void;
 }) {
   const [label, setLabel] = useState<CopyLabel>("Copy");
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
@@ -57,6 +59,15 @@ export function Toolbar({
         onClick={() => setConfirmingDeleteAll(true)}
       >
         <Trash2 className="size-[1.1em]" />
+      </button>
+      <button
+        type="button"
+        id="mdecho-settings-button"
+        className="btn btn-sm btn-ghost"
+        aria-label="settings"
+        onClick={openSettings}
+      >
+        <Settings className="size-[1.1em]" />
       </button>
       <ConfirmDialog
         open={confirmingDeleteAll}

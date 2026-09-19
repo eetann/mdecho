@@ -62,18 +62,36 @@ export function toFontFamilyValue(fonts: readonly string[]): string {
 }
 
 /**
+ * 種類ごとの、上書きするCSS変数と、styles.cssが持つ既定スタックのCSS変数。
+ * サーバー側のCSS生成と、設定モーダルのライブプレビューで共有する。
+ */
+export const FONT_VARIABLES = {
+  body: { variable: "--font-sans", defaultVariable: "--mdecho-default-font-body" },
+  code: { variable: "--font-mono", defaultVariable: "--mdecho-default-font-code" },
+} as const;
+
+export type FontKind = keyof typeof FONT_VARIABLES;
+
+/**
+ * ユーザー指定のフォントを既定スタックの手前に差し込んだfont-familyの値を返す。
+ * 指定が無ければ空文字を返し、その場合は上書き自体を行わない。
+ */
+export function buildFontFamilyValue(fonts: readonly string[], kind: FontKind): string {
+  const value = toFontFamilyValue(fonts);
+  return value.length > 0 ? `${value}, var(${FONT_VARIABLES[kind].defaultVariable})` : "";
+}
+
+/**
  * ユーザー指定のフォントを、styles.cssが持つ既定スタックの手前に差し込むCSSを組み立てる。
  * 未指定なら空文字を返し、その場合<head>への注入自体を行わない。
  */
 export function buildFontCss(fonts: FontFamilies): string {
   const declarations: string[] = [];
-  const body = toFontFamilyValue(fonts.body);
-  if (body.length > 0) {
-    declarations.push(`  --font-sans: ${body}, var(--mdecho-default-font-body);`);
-  }
-  const code = toFontFamilyValue(fonts.code);
-  if (code.length > 0) {
-    declarations.push(`  --font-mono: ${code}, var(--mdecho-default-font-code);`);
+  for (const kind of ["body", "code"] as const) {
+    const value = buildFontFamilyValue(fonts[kind], kind);
+    if (value.length > 0) {
+      declarations.push(`  ${FONT_VARIABLES[kind].variable}: ${value};`);
+    }
   }
   if (declarations.length === 0) {
     return "";

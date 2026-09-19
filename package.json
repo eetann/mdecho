@@ -57,6 +57,7 @@
     "confbox": "^0.3.1",
     "gunshi": "^0.37.1",
     "hono": "^4.12.32",
+    "jsonc-parser": "^3.3.1",
     "mermaid": "^11.16.0",
     "rehype-stringify": "^10.0.1",
     "remark-breaks": "^4.0.0",

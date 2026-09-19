@@ -1,7 +1,16 @@
+export interface ShellSettings {
+  font: { body: string[]; code: string[] };
+  /** 設定モーダルからの保存先(表示用) */
+  configFile: string;
+  /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */
+  editable: boolean;
+}
+
 export interface ShellData {
   title: string;
   bodyHtml: string;
   filePath: string;
+  settings: ShellSettings;
   /** <head>の末尾に差し込む追加CSS(ユーザー設定のフォント指定など)。空なら注入しない */
   headCss?: string;
 }
@@ -32,11 +41,11 @@ function toInlineJson(value: unknown): string {
  * 属性/タグ名をアンカーにした正規表現で置換する。
  */
 export function renderShell(clientTemplate: string, data: ShellData): string {
-  const { title, bodyHtml, filePath, headCss } = data;
+  const { title, bodyHtml, filePath, settings, headCss } = data;
   const withData = clientTemplate.replace(
     DATA_SCRIPT_PATTERN,
     (_match, open: string, _oldContent: string, close: string) =>
-      `${open}${toInlineJson({ title, bodyHtml, filePath })}${close}`,
+      `${open}${toInlineJson({ title, bodyHtml, filePath, settings })}${close}`,
   );
   const withTitle = withData.replace(
     TITLE_TAG_PATTERN,
