@@ -150,8 +150,23 @@ function resolveFontSource(): FontSource {
   };
 }
 
+/**
+ * 取得はOSのコマンド実行を伴うのに対し、インストール済みフォントはプロセスの寿命の間に
+ * そうそう変わらないため、一度取れたら使い回す。
+ */
+let cached: Promise<SystemFont[]> | undefined;
+
 /** 実行中のシステムでブラウザが使えるフォントの一覧を取得する。 */
-export async function listSystemFonts(): Promise<SystemFont[]> {
+export function listSystemFonts(): Promise<SystemFont[]> {
+  cached ??= runFontSource().catch((error: unknown) => {
+    // 失敗を覚えてしまうと直したあとも取得できなくなるため、次回は取り直す。
+    cached = undefined;
+    throw error;
+  });
+  return cached;
+}
+
+async function runFontSource(): Promise<SystemFont[]> {
   const source = resolveFontSource();
   try {
     return await source.run();

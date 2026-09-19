@@ -10,6 +10,7 @@ export interface SettingsApi {
   draft: FontSettings;
   setFonts: (kind: FontKind, fonts: string[]) => void;
   systemFonts: SystemFont[];
+  systemFontsLoading: boolean;
   systemFontsError: string | undefined;
   saving: boolean;
   saveError: string | undefined;
@@ -33,6 +34,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
   const [saved, setSaved] = useState<FontSettings>(initial.font);
   const [draft, setDraft] = useState<FontSettings>(initial.font);
   const [systemFonts, setSystemFonts] = useState<SystemFont[]>([]);
+  const [systemFontsLoading, setSystemFontsLoading] = useState(true);
   const [systemFontsError, setSystemFontsError] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
@@ -88,11 +90,9 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     }
   }, [draft]);
 
-  // フォント一覧の取得はOSのコマンド実行を伴うため、モーダルを開くまで遅らせる。
+  // モーダルを開いた時点から取りに行くと、候補が出るまでの一拍が操作の邪魔になるため、
+  // 表示時に先に取っておく。サーバー側はプロセス内でキャッシュしている。
   useEffect(() => {
-    if (!open || systemFonts.length > 0 || systemFontsError !== undefined) {
-      return;
-    }
     let aborted = false;
     void (async () => {
       try {
@@ -109,12 +109,16 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
         if (!aborted) {
           setSystemFontsError(error instanceof Error ? error.message : String(error));
         }
+      } finally {
+        if (!aborted) {
+          setSystemFontsLoading(false);
+        }
       }
     })();
     return () => {
       aborted = true;
     };
-  }, [open, systemFonts.length, systemFontsError]);
+  }, []);
 
   return {
     open,
@@ -123,6 +127,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     draft,
     setFonts,
     systemFonts,
+    systemFontsLoading,
     systemFontsError,
     saving,
     saveError,

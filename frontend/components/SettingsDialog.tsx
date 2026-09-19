@@ -1,10 +1,8 @@
-import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
 import type { SettingsApi } from "../hooks/useSettings.ts";
-import type { SystemFont } from "../lib/types.ts";
-
-const FONT_OPTIONS_LIST_ID = "mdecho-font-options";
+import { FontCombobox } from "./FontCombobox.tsx";
 
 interface FontSection {
   kind: FontKind;
@@ -49,22 +47,12 @@ function FontList({
   sample,
   fonts,
   setFonts,
+  settings,
 }: FontSection & {
   fonts: string[];
   setFonts: (kind: FontKind, fonts: string[]) => void;
+  settings: SettingsApi;
 }) {
-  const [adding, setAdding] = useState("");
-
-  function add() {
-    const name = adding.trim();
-    if (name.length === 0 || fonts.includes(name)) {
-      setAdding("");
-      return;
-    }
-    setFonts(kind, [...fonts, name]);
-    setAdding("");
-  }
-
   return (
     <section className="mdecho-font-section">
       <h3 className="font-semibold">
@@ -122,43 +110,14 @@ function FontList({
         </p>
       </div>
 
-      <div className="flex gap-2">
-        <input
-          type="text"
-          className="input input-sm input-bordered min-w-0 flex-1"
-          list={FONT_OPTIONS_LIST_ID}
-          placeholder="フォント名を入力または選択"
-          value={adding}
-          onChange={(event) => setAdding(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              add();
-            }
-          }}
-        />
-        <button
-          type="button"
-          className="btn btn-sm"
-          aria-label={`${label}のフォントを追加`}
-          disabled={adding.trim().length === 0}
-          onClick={add}
-        >
-          <Plus className="size-[1.1em]" />
-        </button>
-      </div>
+      <FontCombobox
+        label={label}
+        fonts={settings.systemFonts}
+        loading={settings.systemFontsLoading}
+        selected={fonts}
+        onAdd={(name) => setFonts(kind, [...fonts, name])}
+      />
     </section>
-  );
-}
-
-function FontOptions({ fonts }: { fonts: SystemFont[] }) {
-  return (
-    <datalist id={FONT_OPTIONS_LIST_ID}>
-      {fonts.map((font) => (
-        // 別名はlabelに出しておくと、日本語名からでも探せる
-        <option key={font.name} value={font.name} label={font.aliases.join(", ") || undefined} />
-      ))}
-    </datalist>
   );
 }
 
@@ -190,11 +149,10 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
               {...section}
               fonts={settings.draft[section.kind]}
               setFonts={settings.setFonts}
+              settings={settings}
             />
           ))}
         </div>
-
-        <FontOptions fonts={settings.systemFonts} />
 
         {settings.systemFontsError !== undefined && (
           <p className="text-sm text-error">
