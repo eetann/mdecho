@@ -18,6 +18,22 @@ bun run start -- -f <file>
 
 詳細なオプションは `mdecho --help` または `mdecho docs show cli-reference` を参照してください。
 
+## 設定
+
+`~/.config/mdecho/config.jsonc` で本文・コードブロックのフォントを変更できます。
+
+```jsonc
+{
+  "font": {
+    // 前から順に試して、無ければ次のフォントが使われる
+    "body": ["Inter", "BIZ UDPGothic"],
+    "code": ["JetBrains Mono"],
+  },
+}
+```
+
+詳細は [docs/configuration.md](docs/configuration.md) を参照してください。
+
 ## AIエージェント向け
 
 このツールはコーディングエージェントがMarkdownを生成したあとに呼び出し、人間にレビューを依頼する用途を想定しています。

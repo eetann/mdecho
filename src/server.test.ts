@@ -40,6 +40,36 @@ describe("startServer", () => {
     expect(await imageRes.bytes()).toEqual(pngBytes);
   });
 
+  test("設定したフォントを<head>のCSSとして注入する", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+
+    running = await startServer(filePath, {
+      splitSentences: false,
+      config: { font: { body: ["Inter"], code: ["JetBrains Mono"] } },
+    });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).toContain("--font-sans: Inter, var(--mdecho-default-font-body);");
+    expect(html).toContain('--font-mono: "JetBrains Mono", var(--mdecho-default-font-code);');
+    // styles.cssより後に置かれないと上書きできない
+    expect(html.indexOf("mdecho-config-style")).toBeGreaterThan(
+      html.indexOf("--mdecho-default-font-body:"),
+    );
+  });
+
+  test("フォント未設定なら余計なstyleを注入しない", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+
+    running = await startServer(filePath, { splitSentences: false });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).not.toContain("mdecho-config-style");
+  });
+
   test("存在しないパスはmarkdownのレンダリング結果にフォールバックする", async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
     const filePath = join(dir, "doc.md");

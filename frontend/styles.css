@@ -19,13 +19,25 @@
 }
 
 @theme {
+  --font-sans: var(--mdecho-default-font-body);
+  --font-mono: var(--mdecho-default-font-code);
+}
+
+/* 既定のフォントスタック。~/.config/mdecho/config.jsonc でフォントを指定すると、
+   サーバーが <head> の末尾に :root { --font-sans: <指定フォント>, var(--mdecho-default-font-body) }
+   を注入し、この既定スタックの手前へ差し込む(src/font-css.ts)。
+   @themeの外に置くのは、Tailwindの未使用テーマ変数の削除対象にしないため。 */
+:root {
   /* BIZ UDPGothicはWindows 11標準搭載のUDフォントで、Yu Gothicよりブラウザ上で
      太さが安定して読みやすいため、Windows系フォントの中で優先している。 */
-  --font-sans:
+  --mdecho-default-font-body:
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "BIZ UDPGothic", "Yu Gothic Medium", "Yu Gothic", "Segoe UI", Roboto, Meiryo,
     "Noto Sans CJK JP", "Noto Sans JP", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", "Noto Color Emoji";
+  --mdecho-default-font-code:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
 }
 
 body {
@@ -204,7 +216,7 @@ body {
   font-size: 0.9em;
   background: #f6f8fa;
   border-radius: 6px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .markdown-body pre {
@@ -416,7 +428,7 @@ body {
   font-size: 0.9em;
   background: #eaeef2;
   border-radius: 6px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 .mdecho-comment-view-body pre {

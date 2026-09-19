@@ -14,6 +14,10 @@ description: mdechoの全コマンド・全オプション一覧
 | `--open` / `--no-open` | 起動後にブラウザを自動で開く(既定: 有効) |
 | `--split-sentences` / `--no-split-sentences` | 句点(。)ごとに表示上の改行を入れる(既定: 有効) |
 
+## 設定ファイル
+
+コマンドラインオプションとは別に、`~/.config/mdecho/config.jsonc` でフォントを変更できます。詳細は `mdecho docs show configuration` を参照。
+
 ## `mdecho docs list`
 
 利用可能なドキュメント一覧を表示する。

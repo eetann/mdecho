@@ -18,6 +18,10 @@ mdecho -f <file>
 - `--no-open`: 起動後にブラウザを自動で開かない
 - `--no-split-sentences`: 句点(。)ごとの表示上の改行を無効化する
 
+## 設定ファイル
+
+`~/.config/mdecho/config.jsonc` で本文やコードブロックのフォントを変更できます。詳細は [設定ファイル](./configuration.md) を参照してください。
+
 ## 終了方法
 
 `Ctrl+C` (SIGINT) または `SIGTERM` でサーバーを終了できます。ブラウザの全タブを閉じた場合も自動的に終了します。

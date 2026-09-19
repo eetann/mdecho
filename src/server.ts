@@ -5,6 +5,8 @@ import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { AGENT_HINT_TROUBLESHOOTING } from "./agent-hint.ts";
+import { DEFAULT_CONFIG, type MdechoConfig } from "./config.ts";
+import { buildFontCss } from "./font-css.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
 import { renderShell } from "./render-shell.ts";
@@ -22,6 +24,8 @@ export interface StartServerOptions {
   onAllTabsClosed?: () => void;
   /** 句点(。)ごとに表示上の改行を入れるか(デフォルトtrue) */
   splitSentences?: boolean;
+  /** グローバル設定(~/.config/mdecho/config.jsonc)の内容 */
+  config?: MdechoConfig;
 }
 
 export async function startServer(
@@ -35,7 +39,9 @@ export async function startServer(
     );
   });
 
-  const { onAllTabsClosed, splitSentences = true } = options;
+  const { onAllTabsClosed, splitSentences = true, config = DEFAULT_CONFIG } = options;
+  // 設定はプロセス起動時に固定されるため、リクエストごとに組み立て直す必要はない。
+  const headCss = buildFontCss(config.font);
   const liveReload = createLiveReloadHub({
     onIdle: () => {
       void close().then(() => onAllTabsClosed?.());
@@ -70,7 +76,7 @@ export async function startServer(
       const source = await readFile(filePath, "utf-8");
       const bodyHtml = await renderMarkdown(source, { splitSentences });
       const title = extractTitle(source) ?? basename(filePath, extname(filePath));
-      const html = renderShell(clientTemplate, { title, bodyHtml, filePath });
+      const html = renderShell(clientTemplate, { title, bodyHtml, filePath, headCss });
       return c.html(html);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

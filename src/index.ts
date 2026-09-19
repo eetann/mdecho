@@ -1,6 +1,7 @@
 import { access } from "node:fs/promises";
 import { cli, define } from "gunshi";
 import { AGENT_HINT } from "./agent-hint.ts";
+import { loadMdechoConfig } from "./config.ts";
 import { docsCommand } from "./docs-command.ts";
 import { openBrowser } from "./open-browser.ts";
 import { startServer } from "./server.ts";
@@ -48,12 +49,18 @@ $ mdecho docs list`,
       process.exit(1);
     }
 
+    const { config, configFile } = await loadMdechoConfig();
+    if (configFile) {
+      console.log(`Loaded config from ${configFile}`);
+    }
+
     const { url, close } = await startServer(file, {
       onAllTabsClosed: () => {
         console.log("すべてのタブが閉じられたため終了します");
         process.exit(0);
       },
       splitSentences,
+      config,
     });
     console.log(`Listening on ${url}`);
 
