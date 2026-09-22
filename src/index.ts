@@ -18,6 +18,9 @@ $ mdecho -f review.md
 # ブラウザを自動で開かない
 $ mdecho -f review.md --no-open
 
+# 句点ごとの改行をやめる(設定ファイルでも指定できる)
+$ mdecho -f review.md --no-split-sentences
+
 # ${AGENT_HINT}
 $ mdecho docs list`,
   args: {
@@ -35,14 +38,21 @@ $ mdecho docs list`,
     },
     splitSentences: {
       type: "boolean",
-      default: true,
       negatable: true,
       toKebab: true,
-      description: "句点(。)ごとに表示上の改行を入れる(--no-split-sentencesで無効化)",
+      description:
+        "句点(。)ごとに表示上の改行を入れる(既定: 有効。設定ファイルのlineBreak.splitSentencesより優先)",
+    },
+    singleNewline: {
+      type: "boolean",
+      negatable: true,
+      toKebab: true,
+      description:
+        "単一改行(Enterキー1回)をそのまま表示上の改行にする(既定: 有効。設定ファイルのlineBreak.singleNewlineより優先)",
     },
   },
   run: async (ctx) => {
-    const { file, open, splitSentences } = ctx.values;
+    const { file, open, splitSentences, singleNewline } = ctx.values;
 
     try {
       await access(file);
@@ -65,8 +75,9 @@ $ mdecho docs list`,
         console.log("すべてのタブが閉じられたため終了します");
         process.exit(0);
       },
-      splitSentences,
       config,
+      // 未指定の項目はundefinedのまま渡し、設定ファイルの値を使わせる。
+      lineBreakOverride: { splitSentences, singleNewline },
       configFile,
     });
     console.log(`Listening on ${url}`);

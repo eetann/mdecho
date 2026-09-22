@@ -5,14 +5,26 @@ import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import { type FontFamilies, toFontFamilyToken } from "./font-css.ts";
 
-export interface MdechoConfig {
-  font: FontFamilies;
+/** 表示上の改行をどこで入れるか。 */
+export interface LineBreakConfig {
+  /** 句点(。)ごとに表示上の改行を入れる */
+  splitSentences: boolean;
+  /** 単一改行(Enterキー1回)をそのまま表示上の改行にする */
+  singleNewline: boolean;
 }
 
-const KNOWN_TOP_LEVEL_KEYS = new Set(["font"]);
-const KNOWN_FONT_KEYS = new Set(["body", "code"]);
+export interface MdechoConfig {
+  font: FontFamilies;
+  lineBreak: LineBreakConfig;
+}
 
-export const DEFAULT_CONFIG: MdechoConfig = { font: { body: [], code: [] } };
+const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak"]);
+const KNOWN_FONT_KEYS = new Set(["body", "code"]);
+const KNOWN_LINE_BREAK_KEYS = new Set(["splitSentences", "singleNewline"]);
+
+export const DEFAULT_FONT: FontFamilies = { body: [], code: [] };
+export const DEFAULT_LINE_BREAK: LineBreakConfig = { splitSentences: true, singleNewline: true };
+export const DEFAULT_CONFIG: MdechoConfig = { font: DEFAULT_FONT, lineBreak: DEFAULT_LINE_BREAK };
 
 export type WarnFn = (message: string) => void;
 
@@ -29,6 +41,20 @@ export function resolveConfigDir(env: NodeJS.ProcessEnv = process.env): string {
   const base =
     xdgConfigHome && xdgConfigHome.length > 0 ? xdgConfigHome : join(homedir(), ".config");
   return join(base, "mdecho");
+}
+
+/**
+ * CLIフラグで明示された項目だけ設定ファイルの値を上書きする。
+ * 未指定(undefined)の項目は設定ファイルの値をそのまま使う。
+ */
+export function resolveLineBreak(
+  base: LineBreakConfig,
+  override: Partial<LineBreakConfig> = {},
+): LineBreakConfig {
+  return {
+    splitSentences: override.splitSentences ?? base.splitSentences,
+    singleNewline: override.singleNewline ?? base.singleNewline,
+  };
 }
 
 function normalizeFontList(value: unknown, keyPath: string, warn: WarnFn): string[] {
@@ -67,6 +93,22 @@ function normalizeFontList(value: unknown, keyPath: string, warn: WarnFn): strin
   return fonts;
 }
 
+function normalizeBoolean(
+  value: unknown,
+  keyPath: string,
+  fallback: boolean,
+  warn: WarnFn,
+): boolean {
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  if (typeof value !== "boolean") {
+    warn(`${keyPath}はtrueまたはfalseで指定してください。この設定は無視します`);
+    return fallback;
+  }
+  return value;
+}
+
 function warnUnknownKeys(value: object, known: Set<string>, keyPath: string, warn: WarnFn): void {
   for (const key of Object.keys(value)) {
     // c12の$env/$meta等のメタキーは設定ファイル側の正当な記法なので対象外。
@@ -75,6 +117,46 @@ function warnUnknownKeys(value: object, known: Set<string>, keyPath: string, war
     }
     warn(`${keyPath}に未知のキーがあります: ${key}`);
   }
+}
+
+function normalizeFont(raw: unknown, warn: WarnFn): FontFamilies {
+  if (raw === undefined || raw === null) {
+    return DEFAULT_FONT;
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    warn("fontはオブジェクトで指定してください。この設定は無視します");
+    return DEFAULT_FONT;
+  }
+  warnUnknownKeys(raw, KNOWN_FONT_KEYS, "font", warn);
+  return {
+    body: normalizeFontList((raw as { body?: unknown }).body, "font.body", warn),
+    code: normalizeFontList((raw as { code?: unknown }).code, "font.code", warn),
+  };
+}
+
+function normalizeLineBreak(raw: unknown, warn: WarnFn): LineBreakConfig {
+  if (raw === undefined || raw === null) {
+    return DEFAULT_LINE_BREAK;
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    warn("lineBreakはオブジェクトで指定してください。この設定は無視します");
+    return DEFAULT_LINE_BREAK;
+  }
+  warnUnknownKeys(raw, KNOWN_LINE_BREAK_KEYS, "lineBreak", warn);
+  return {
+    splitSentences: normalizeBoolean(
+      (raw as { splitSentences?: unknown }).splitSentences,
+      "lineBreak.splitSentences",
+      DEFAULT_LINE_BREAK.splitSentences,
+      warn,
+    ),
+    singleNewline: normalizeBoolean(
+      (raw as { singleNewline?: unknown }).singleNewline,
+      "lineBreak.singleNewline",
+      DEFAULT_LINE_BREAK.singleNewline,
+      warn,
+    ),
+  };
 }
 
 /** 設定ファイルから読んだ生の値を検証し、扱いやすい形へ正規化する。 */
@@ -88,21 +170,9 @@ export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): Mdech
   }
   warnUnknownKeys(raw, KNOWN_TOP_LEVEL_KEYS, "設定", warn);
 
-  const rawFont = (raw as { font?: unknown }).font;
-  if (rawFont === undefined || rawFont === null) {
-    return DEFAULT_CONFIG;
-  }
-  if (typeof rawFont !== "object" || Array.isArray(rawFont)) {
-    warn("fontはオブジェクトで指定してください。この設定は無視します");
-    return DEFAULT_CONFIG;
-  }
-  warnUnknownKeys(rawFont, KNOWN_FONT_KEYS, "font", warn);
-
   return {
-    font: {
-      body: normalizeFontList((rawFont as { body?: unknown }).body, "font.body", warn),
-      code: normalizeFontList((rawFont as { code?: unknown }).code, "font.code", warn),
-    },
+    font: normalizeFont((raw as { font?: unknown }).font, warn),
+    lineBreak: normalizeLineBreak((raw as { lineBreak?: unknown }).lineBreak, warn),
   };
 }
 

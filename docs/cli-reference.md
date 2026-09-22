@@ -13,10 +13,13 @@ description: mdechoの全コマンド・全オプション一覧
 | `-f, --file <path>` (必須) | 表示するMarkdownファイルのパス |
 | `--open` / `--no-open` | 起動後にブラウザを自動で開く(既定: 有効) |
 | `--split-sentences` / `--no-split-sentences` | 句点(。)ごとに表示上の改行を入れる(既定: 有効) |
+| `--single-newline` / `--no-single-newline` | 単一改行(Enterキー1回)をそのまま表示上の改行にする(既定: 有効) |
 
 ## 設定ファイル
 
-コマンドラインオプションとは別に、ツールバーの歯車アイコンまたは `~/.config/mdecho/config.jsonc` でフォントを変更できます。詳細は `mdecho docs show configuration` を参照。
+コマンドラインオプションとは別に、ツールバーの歯車アイコンまたは `~/.config/mdecho/config.jsonc` でフォント・改行の扱いを変更できます。詳細は `mdecho docs show configuration` を参照。
+
+改行まわりの2つのオプションは設定ファイルの `lineBreak` と同じ項目です。**コマンドラインで明示したときだけ設定ファイルより優先されます**。指定しなければ設定ファイルの値(無ければ既定値)を使います。
 
 ## `mdecho font-ls`
 

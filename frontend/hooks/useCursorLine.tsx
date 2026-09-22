@@ -12,6 +12,7 @@ import {
 import { comparePriority } from "../lib/cursor-priority.ts";
 import { findRestoreIndex, formatCursorKey, parseCursorKey } from "../lib/cursor-restore.ts";
 import { computeLineParts, groupIndexAt, positionOfGroupIndex } from "../lib/line-group.ts";
+import { isModalOpen } from "../lib/modal.ts";
 
 const CANDIDATE_SELECTOR =
   "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr,.mdecho-sentence,.mdecho-mermaid";
@@ -155,6 +156,7 @@ export function CursorLineProvider({
       if (event.defaultPrevented) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(document.activeElement)) return;
+      if (isModalOpen()) return;
 
       if (event.key === "ArrowDown" || event.key === "j") {
         event.preventDefault();

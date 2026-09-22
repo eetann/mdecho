@@ -2,7 +2,32 @@ import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { type RefObject, useEffect, useRef } from "react";
 import { FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
 import type { SettingsApi } from "../hooks/useSettings.ts";
+import type { LineBreakSettings } from "../lib/types.ts";
 import { FontCombobox } from "./FontCombobox.tsx";
+
+interface LineBreakItem {
+  key: keyof LineBreakSettings;
+  label: string;
+  description: string;
+  /** この項目を上書きするCLIフラグ(無効化する側) */
+  disableFlag: string;
+}
+
+const LINE_BREAK_ITEMS: LineBreakItem[] = [
+  {
+    key: "splitSentences",
+    label: "句点(。)ごとに改行する",
+    description: "1つの段落でも、句点で区切って1文ずつ表示します",
+    disableFlag: "--no-split-sentences",
+  },
+  {
+    key: "singleNewline",
+    label: "単一改行をそのまま改行にする",
+    description:
+      "Enterキー1回の改行を<br>にします。切るとMarkdown本来の扱い(空白としてつながる)になります",
+    disableFlag: "--no-single-newline",
+  },
+];
 
 interface FontSection {
   kind: FontKind;
@@ -40,6 +65,48 @@ function moveItem(fonts: string[], from: number, to: number): string[] {
   return next;
 }
 
+function LineBreakList({ settings }: { settings: SettingsApi }) {
+  return (
+    <section className="mdecho-line-break-section">
+      <h3 className="font-semibold">改行</h3>
+      <p className="mt-1 text-xs text-base-content/60">
+        フォントと違い保存後に反映されるため、保存すると自動で読み込み直します。
+      </p>
+
+      <ul className="mt-2 flex flex-col gap-3">
+        {LINE_BREAK_ITEMS.map((item) => {
+          const overridden = settings.lineBreakOverride[item.key];
+          return (
+            <li key={item.key}>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="toggle toggle-sm mt-0.5 shrink-0"
+                  checked={settings.lineBreakDraft[item.key]}
+                  onChange={(event) => settings.setLineBreak(item.key, event.target.checked)}
+                />
+                <span className="min-w-0">
+                  <span className="text-sm">{item.label}</span>
+                  <span className="block text-xs text-base-content/60">{item.description}</span>
+                  {/* CLIフラグの方が強いので、保存しても今の表示が変わらないことを先に伝える */}
+                  {overridden !== undefined && (
+                    <span className="block text-xs text-warning">
+                      起動時に{" "}
+                      {overridden ? item.disableFlag.replace("--no-", "--") : item.disableFlag}{" "}
+                      が指定されているため、この表示では{overridden ? "有効" : "無効"}
+                      のままです(保存した内容は次回起動から効きます)
+                    </span>
+                  )}
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function FontList({
   kind,
   label,
@@ -57,10 +124,10 @@ function FontList({
 }) {
   return (
     <section className="mdecho-font-section">
-      <h3 className="font-semibold">
+      <h4 className="font-semibold">
         {label}
         <span className="ml-2 text-xs font-normal text-base-content/60">{description}</span>
-      </h3>
+      </h4>
 
       {fonts.length === 0 ? (
         <p className="py-2 text-sm text-base-content/60">未設定(mdechoの既定フォントを使います)</p>
@@ -141,22 +208,29 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
   return (
     <dialog ref={dialogRef} className="modal" onClose={settings.cancel}>
       <div ref={boxRef} className="modal-box max-h-[85vh] max-w-xl">
-        <h2 className="text-lg font-semibold">フォント設定</h2>
-        <p className="mt-1 text-xs text-base-content/60">
-          上にあるものから順に使われ、そのフォントが無ければ次のものが使われます。選ぶとすぐ背景の表示に反映されます。
-        </p>
+        <h2 className="text-lg font-semibold">設定</h2>
 
-        <div className="my-4 flex flex-col gap-5">
-          {FONT_SECTIONS.map((section) => (
-            <FontList
-              key={section.kind}
-              {...section}
-              fonts={settings.draft[section.kind]}
-              setFonts={settings.setFonts}
-              settings={settings}
-              boundaryRef={boxRef}
-            />
-          ))}
+        <div className="my-4 flex flex-col gap-6">
+          <LineBreakList settings={settings} />
+
+          <section>
+            <h3 className="font-semibold">フォント</h3>
+            <p className="mt-1 text-xs text-base-content/60">
+              上にあるものから順に使われ、そのフォントが無ければ次のものが使われます。選ぶとすぐ背景の表示に反映されます。
+            </p>
+            <div className="mt-3 flex flex-col gap-5">
+              {FONT_SECTIONS.map((section) => (
+                <FontList
+                  key={section.kind}
+                  {...section}
+                  fonts={settings.fontDraft[section.kind]}
+                  setFonts={settings.setFonts}
+                  settings={settings}
+                  boundaryRef={boxRef}
+                />
+              ))}
+            </div>
+          </section>
         </div>
 
         {settings.systemFontsError !== undefined && (

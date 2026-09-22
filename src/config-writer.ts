@@ -1,8 +1,7 @@
 import { applyEdits, modify } from "jsonc-parser";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
-import { resolveConfigDir } from "./config.ts";
-import type { FontFamilies } from "./font-css.ts";
+import { type MdechoConfig, resolveConfigDir } from "./config.ts";
 
 /** UIから書き換えられる設定ファイルの拡張子。 */
 const WRITABLE_EXTENSIONS = new Set([".json", ".jsonc"]);
@@ -22,27 +21,30 @@ export function isWritableConfigFile(configFile: string): boolean {
   return WRITABLE_EXTENSIONS.has(extname(configFile));
 }
 
-/** 既存のJSONCのコメントや整形を保ったまま、fontの値だけを差し替える。 */
-export function applyFontEdits(source: string, fonts: FontFamilies): string {
+/** 既存のJSONCのコメントや整形を保ったまま、UIから編集できる値だけを差し替える。 */
+export function applyConfigEdits(source: string, config: MdechoConfig): string {
   let text = source;
-  for (const key of ["body", "code"] as const) {
-    const edits = modify(text, ["font", key], fonts[key], {
-      formattingOptions: FORMATTING_OPTIONS,
-    });
-    text = applyEdits(text, edits);
+  const entries: [path: string[], value: unknown][] = [
+    [["font", "body"], config.font.body],
+    [["font", "code"], config.font.code],
+    [["lineBreak", "splitSentences"], config.lineBreak.splitSentences],
+    [["lineBreak", "singleNewline"], config.lineBreak.singleNewline],
+  ];
+  for (const [path, value] of entries) {
+    text = applyEdits(text, modify(text, path, value, { formattingOptions: FORMATTING_OPTIONS }));
   }
   return text;
 }
 
-/** 設定ファイルへfontの設定を書き込む。ファイルもディレクトリも無ければ作る。 */
-export async function saveFontConfig(configFile: string, fonts: FontFamilies): Promise<void> {
+/** 設定ファイルへ設定を書き込む。ファイルもディレクトリも無ければ作る。 */
+export async function saveConfig(configFile: string, config: MdechoConfig): Promise<void> {
   if (!isWritableConfigFile(configFile)) {
     throw new Error(
       `${configFile} はUIから保存できない形式です。JSONCまたはJSONの設定ファイルを使ってください`,
     );
   }
   const source = await readFile(configFile, "utf-8").catch(() => "");
-  const updated = applyFontEdits(source, fonts);
+  const updated = applyConfigEdits(source, config);
   await mkdir(dirname(configFile), { recursive: true });
   await writeFile(configFile, updated, "utf-8");
 }

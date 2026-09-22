@@ -2,7 +2,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyFontEdits, isWritableConfigFile, saveFontConfig } from "./config-writer.ts";
+import { DEFAULT_CONFIG, type MdechoConfig } from "./config.ts";
+import { applyConfigEdits, isWritableConfigFile, saveConfig } from "./config-writer.ts";
+
+function configOf(overrides: Partial<MdechoConfig>): MdechoConfig {
+  return { ...DEFAULT_CONFIG, ...overrides };
+}
+
+const DEFAULT_LINE_BREAK_JSON = { splitSentences: true, singleNewline: true };
 
 let dir: string | undefined;
 
@@ -22,7 +29,7 @@ describe("isWritableConfigFile", () => {
   });
 });
 
-describe("applyFontEdits", () => {
+describe("applyConfigEdits", () => {
   test("コメントと末尾カンマを保ったままfontだけ差し替える", () => {
     const source = `{
   // 本文のフォント
@@ -34,7 +41,10 @@ describe("applyFontEdits", () => {
 }
 `;
 
-    const updated = applyFontEdits(source, { body: ["Noto Sans JP"], code: ["Cascadia Code"] });
+    const updated = applyConfigEdits(
+      source,
+      configOf({ font: { body: ["Noto Sans JP"], code: ["Cascadia Code"] } }),
+    );
 
     expect(updated).toContain("// 本文のフォント");
     expect(updated).toContain("/* コードブロック */");
@@ -44,28 +54,62 @@ describe("applyFontEdits", () => {
     expect(updated).not.toContain("JetBrains Mono");
   });
 
-  test("font以外のキーは残す", () => {
-    const updated = applyFontEdits('{ "future": { "a": 1 } }', { body: ["Inter"], code: [] });
+  test("lineBreakも書き戻す", () => {
+    const source = `{
+  // 改行の扱い
+  "lineBreak": {
+    "splitSentences": true,
+    "singleNewline": true,
+  },
+}
+`;
 
-    expect(JSON.parse(updated)).toEqual({ future: { a: 1 }, font: { body: ["Inter"], code: [] } });
+    const updated = applyConfigEdits(
+      source,
+      configOf({ lineBreak: { splitSentences: false, singleNewline: true } }),
+    );
+
+    expect(updated).toContain("// 改行の扱い");
+    expect(updated).toContain('"splitSentences": false');
+    expect(updated).toContain('"singleNewline": true');
+  });
+
+  test("mdechoが扱わないキーは残す", () => {
+    const updated = applyConfigEdits(
+      '{ "future": { "a": 1 } }',
+      configOf({ font: { body: ["Inter"], code: [] } }),
+    );
+
+    expect(JSON.parse(updated)).toEqual({
+      future: { a: 1 },
+      font: { body: ["Inter"], code: [] },
+      lineBreak: DEFAULT_LINE_BREAK_JSON,
+    });
   });
 
   test("空の内容からでも設定を組み立てる", () => {
-    const updated = applyFontEdits("", { body: ["Inter"], code: ["Consolas"] });
+    const updated = applyConfigEdits(
+      "",
+      configOf({ font: { body: ["Inter"], code: ["Consolas"] } }),
+    );
 
-    expect(JSON.parse(updated)).toEqual({ font: { body: ["Inter"], code: ["Consolas"] } });
+    expect(JSON.parse(updated)).toEqual({
+      font: { body: ["Inter"], code: ["Consolas"] },
+      lineBreak: DEFAULT_LINE_BREAK_JSON,
+    });
   });
 });
 
-describe("saveFontConfig", () => {
+describe("saveConfig", () => {
   test("設定ファイルが無ければディレクトリごと作る", async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-writer-test-"));
     const configFile = join(dir, "nested", "config.jsonc");
 
-    await saveFontConfig(configFile, { body: ["Inter"], code: [] });
+    await saveConfig(configFile, configOf({ font: { body: ["Inter"], code: [] } }));
 
     expect(JSON.parse(await readFile(configFile, "utf-8"))).toEqual({
       font: { body: ["Inter"], code: [] },
+      lineBreak: DEFAULT_LINE_BREAK_JSON,
     });
   });
 
@@ -74,9 +118,9 @@ describe("saveFontConfig", () => {
     const configFile = join(dir, "config.yaml");
     await writeFile(configFile, "font:\n  body: [Inter]\n");
 
-    await expect(saveFontConfig(configFile, { body: ["Meiryo"], code: [] })).rejects.toThrow(
-      "UIから保存できない形式",
-    );
+    await expect(
+      saveConfig(configFile, configOf({ font: { body: ["Meiryo"], code: [] } })),
+    ).rejects.toThrow("UIから保存できない形式");
     expect(await readFile(configFile, "utf-8")).toContain("Inter");
   });
 });

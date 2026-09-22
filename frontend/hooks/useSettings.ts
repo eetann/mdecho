@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { buildFontFamilyValue, FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
-import type { FontSettings, MdechoSettings, SystemFont } from "../lib/types.ts";
+import type { FontSettings, LineBreakSettings, MdechoSettings, SystemFont } from "../lib/types.ts";
 
 export interface SettingsApi {
   open: boolean;
   openDialog: () => void;
   cancel: () => void;
   /** 編集中のフォント設定。保存前でもページには即座に反映される */
-  draft: FontSettings;
+  fontDraft: FontSettings;
   setFonts: (kind: FontKind, fonts: string[]) => void;
+  /** 編集中の改行設定。反映にはサーバーでの再レンダリングが要るため、保存時に読み込み直す */
+  lineBreakDraft: LineBreakSettings;
+  setLineBreak: (key: keyof LineBreakSettings, value: boolean) => void;
+  /** CLIフラグで固定されている項目。保存はできるが、この起動中の表示は変わらない */
+  lineBreakOverride: Partial<LineBreakSettings>;
   systemFonts: SystemFont[];
   systemFontsLoading: boolean;
   systemFontsError: string | undefined;
@@ -29,10 +34,16 @@ function isSameFonts(a: FontSettings, b: FontSettings): boolean {
   );
 }
 
+function isSameLineBreak(a: LineBreakSettings, b: LineBreakSettings): boolean {
+  return a.splitSentences === b.splitSentences && a.singleNewline === b.singleNewline;
+}
+
 export function useSettings(initial: MdechoSettings): SettingsApi {
   const [open, setOpen] = useState(false);
-  const [saved, setSaved] = useState<FontSettings>(initial.font);
-  const [draft, setDraft] = useState<FontSettings>(initial.font);
+  const [savedFonts, setSavedFonts] = useState<FontSettings>(initial.font);
+  const [fontDraft, setFontDraft] = useState<FontSettings>(initial.font);
+  const [savedLineBreak] = useState<LineBreakSettings>(initial.lineBreak);
+  const [lineBreakDraft, setLineBreakDraft] = useState<LineBreakSettings>(initial.lineBreak);
   const [systemFonts, setSystemFonts] = useState<SystemFont[]>([]);
   const [systemFontsLoading, setSystemFontsLoading] = useState(true);
   const [systemFontsError, setSystemFontsError] = useState<string>();
@@ -44,14 +55,14 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
   useEffect(() => {
     const root = document.documentElement;
     for (const kind of ["body", "code"] as const) {
-      const value = buildFontFamilyValue(draft[kind], kind);
+      const value = buildFontFamilyValue(fontDraft[kind], kind);
       if (value.length > 0) {
         root.style.setProperty(FONT_VARIABLES[kind].variable, value);
       } else {
         root.style.removeProperty(FONT_VARIABLES[kind].variable);
       }
     }
-  }, [draft]);
+  }, [fontDraft]);
 
   const openDialog = useCallback(() => {
     setOpen(true);
@@ -59,13 +70,18 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
   }, []);
 
   const cancel = useCallback(() => {
-    setDraft(saved);
+    setFontDraft(savedFonts);
+    setLineBreakDraft(savedLineBreak);
     setSaveError(undefined);
     setOpen(false);
-  }, [saved]);
+  }, [savedFonts, savedLineBreak]);
 
   const setFonts = useCallback((kind: FontKind, fonts: string[]) => {
-    setDraft((current) => ({ ...current, [kind]: fonts }));
+    setFontDraft((current) => ({ ...current, [kind]: fonts }));
+  }, []);
+
+  const setLineBreak = useCallback((key: keyof LineBreakSettings, value: boolean) => {
+    setLineBreakDraft((current) => ({ ...current, [key]: value }));
   }, []);
 
   const save = useCallback(async () => {
@@ -75,20 +91,25 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       const res = await fetch("/api/config", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ font: draft }),
+        body: JSON.stringify({ font: fontDraft, lineBreak: lineBreakDraft }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(body.message ?? `保存に失敗しました (HTTP ${res.status})`);
       }
-      setSaved(draft);
+      // 改行の扱いはサーバー側のHTML生成で決まるため、フォントと違って読み込み直さないと反映されない。
+      if (!isSameLineBreak(lineBreakDraft, savedLineBreak)) {
+        location.reload();
+        return;
+      }
+      setSavedFonts(fontDraft);
       setOpen(false);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
     }
-  }, [draft]);
+  }, [fontDraft, lineBreakDraft, savedLineBreak]);
 
   // モーダルを開いた時点から取りに行くと、候補が出るまでの一拍が操作の邪魔になるため、
   // 表示時に先に取っておく。サーバー側はプロセス内でキャッシュしている。
@@ -124,14 +145,17 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     open,
     openDialog,
     cancel,
-    draft,
+    fontDraft,
     setFonts,
+    lineBreakDraft,
+    setLineBreak,
+    lineBreakOverride: initial.lineBreakOverride,
     systemFonts,
     systemFontsLoading,
     systemFontsError,
     saving,
     saveError,
-    dirty: !isSameFonts(draft, saved),
+    dirty: !isSameFonts(fontDraft, savedFonts) || !isSameLineBreak(lineBreakDraft, savedLineBreak),
     save,
     configFile: initial.configFile,
     editable: initial.editable,

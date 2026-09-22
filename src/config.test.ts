@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadMdechoConfig, normalizeConfig, resolveConfigDir } from "./config.ts";
+import { loadMdechoConfig, normalizeConfig, resolveConfigDir, resolveLineBreak } from "./config.ts";
 
 let dir: string | undefined;
 
@@ -61,6 +61,64 @@ describe("normalizeConfig", () => {
 
   test("設定が無ければ既定値を返す", () => {
     expect(normalizeConfig(undefined).font).toEqual({ body: [], code: [] });
+    expect(normalizeConfig(undefined).lineBreak).toEqual({
+      splitSentences: true,
+      singleNewline: true,
+    });
+  });
+
+  test("lineBreakは書いた項目だけ上書きされる", () => {
+    const config = normalizeConfig({ lineBreak: { splitSentences: false } });
+    expect(config.lineBreak).toEqual({ splitSentences: false, singleNewline: true });
+  });
+
+  test("fontだけ書いてもlineBreakは既定値になる", () => {
+    expect(normalizeConfig({ font: { body: ["Inter"] } }).lineBreak).toEqual({
+      splitSentences: true,
+      singleNewline: true,
+    });
+  });
+
+  test("lineBreakに真偽値以外を書くと警告して既定値にする", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ lineBreak: { singleNewline: "no" } }, (m) => warnings.push(m));
+    expect(config.lineBreak.singleNewline).toBe(true);
+    expect(warnings).toEqual([
+      "lineBreak.singleNewlineはtrueまたはfalseで指定してください。この設定は無視します",
+    ]);
+  });
+
+  test("lineBreakの未知のキーを警告する", () => {
+    const warnings: string[] = [];
+    normalizeConfig({ lineBreak: { splitSentence: true } }, (m) => warnings.push(m));
+    expect(warnings).toEqual(["lineBreakに未知のキーがあります: splitSentence"]);
+  });
+});
+
+describe("resolveLineBreak", () => {
+  const base = { splitSentences: true, singleNewline: true };
+
+  test("上書きが無ければ設定ファイルの値をそのまま使う", () => {
+    expect(resolveLineBreak(base, {})).toEqual(base);
+  });
+
+  test("CLIで明示された項目だけ上書きする", () => {
+    expect(resolveLineBreak(base, { splitSentences: false })).toEqual({
+      splitSentences: false,
+      singleNewline: true,
+    });
+  });
+
+  test("undefinedの項目は上書き扱いしない", () => {
+    expect(
+      resolveLineBreak(
+        { splitSentences: false, singleNewline: false },
+        {
+          splitSentences: undefined,
+          singleNewline: true,
+        },
+      ),
+    ).toEqual({ splitSentences: false, singleNewline: true });
   });
 });
 
@@ -92,7 +150,28 @@ describe("loadMdechoConfig", () => {
     const { config, configFile } = await loadMdechoConfig({ cwd: dir });
 
     expect(config.font).toEqual({ body: [], code: [] });
+    expect(config.lineBreak).toEqual({ splitSentences: true, singleNewline: true });
     expect(configFile).toBeUndefined();
+  });
+
+  test("lineBreakを書いた設定ファイルを読み込める", async () => {
+    const cwd = await writeConfig(
+      "config.jsonc",
+      `{
+  // 句点で切らずに、行そのままで表示する
+  "lineBreak": {
+    "splitSentences": false,
+    "singleNewline": false,
+  },
+}
+`,
+    );
+    const warnings: string[] = [];
+
+    const { config } = await loadMdechoConfig({ cwd, warn: (m) => warnings.push(m) });
+
+    expect(config.lineBreak).toEqual({ splitSentences: false, singleNewline: false });
+    expect(warnings).toEqual([]);
   });
 
   test("末尾カンマは構文エラーにしない", async () => {
