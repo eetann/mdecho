@@ -1,19 +1,19 @@
 import { House, Keyboard, Settings, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { buildClipboardText } from "../lib/clipboard-text.ts";
-import type { Comment } from "../lib/types.ts";
+import { buildClipboardText, type CommentGroup } from "../lib/clipboard-text.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { KeyboardHelpDialog } from "./KeyboardHelpDialog.tsx";
 
 const COPIED_LABEL_DURATION_MS = 1500;
 
-type CopyLabel = "Copy" | "Copied!" | "Copy failed";
+type CopyState = "idle" | "copied" | "failed";
 
 export function Toolbar({
   relPath,
   filePath,
   entryRelPath,
-  comments,
+  commentGroups,
+  otherFileCount,
   deleteAllComments,
   openSettings,
 }: {
@@ -23,25 +23,43 @@ export function Toolbar({
   filePath: string;
   /** 同じ形式で表した`-f`のファイルのパス */
   entryRelPath: string;
-  comments: Map<string, Comment>;
+  /** 表示中のファイルと、リンク先で書いたコメントを合わせたコピー対象 */
+  commentGroups: CommentGroup[];
+  /** 表示中のファイル以外に残っているコメントの数 */
+  otherFileCount: number;
   deleteAllComments: () => void;
   openSettings: () => void;
 }) {
-  const [label, setLabel] = useState<CopyLabel>("Copy");
+  const [copyState, setCopyState] = useState<CopyState>("idle");
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
   const isEntry = relPath === entryRelPath;
 
+  const totalCount = commentGroups.reduce(
+    (total, group) => total + Array.from(group.comments).length,
+    0,
+  );
+  const copyLabel =
+    copyState === "copied"
+      ? "Copied!"
+      : copyState === "failed"
+        ? "Copy failed"
+        : totalCount === 0
+          ? "Copy"
+          : `Copy (${totalCount})`;
+  // 画面に見えている数と違うことがあるため、内訳を添えておく。
+  const otherFilesNote =
+    otherFileCount === 0 ? undefined : `他のファイルの${otherFileCount}件を含む`;
+
   async function handleCopyClick() {
-    if (comments.size === 0) return;
-    const text = buildClipboardText(filePath, comments.values());
+    if (totalCount === 0) return;
     try {
-      await navigator.clipboard.writeText(text);
-      setLabel("Copied!");
+      await navigator.clipboard.writeText(buildClipboardText(commentGroups));
+      setCopyState("copied");
     } catch {
-      setLabel("Copy failed");
+      setCopyState("failed");
     }
-    setTimeout(() => setLabel("Copy"), COPIED_LABEL_DURATION_MS);
+    setTimeout(() => setCopyState("idle"), COPIED_LABEL_DURATION_MS);
   }
 
   return (
@@ -68,17 +86,19 @@ export function Toolbar({
         type="button"
         id="mdecho-copy-button"
         className="btn btn-sm"
-        disabled={comments.size === 0}
+        disabled={totalCount === 0}
+        title={otherFilesNote}
         onClick={handleCopyClick}
       >
-        {label}
+        {copyLabel}
       </button>
       <button
         type="button"
         id="mdecho-delete-all-button"
         className="btn btn-sm btn-ghost"
         aria-label="delete all comments"
-        disabled={comments.size === 0}
+        disabled={totalCount === 0}
+        title={otherFilesNote}
         onClick={() => setConfirmingDeleteAll(true)}
       >
         <Trash2 className="size-[1.1em]" />
@@ -105,7 +125,11 @@ export function Toolbar({
       <KeyboardHelpDialog open={keyboardHelpOpen} onClose={() => setKeyboardHelpOpen(false)} />
       <ConfirmDialog
         open={confirmingDeleteAll}
-        message="すべてのコメントを削除しますか?"
+        message={
+          otherFileCount === 0
+            ? "すべてのコメントを削除しますか?"
+            : `他のファイルの${otherFileCount}件を含む、${totalCount}件のコメントを削除しますか?`
+        }
         onConfirm={() => {
           setConfirmingDeleteAll(false);
           deleteAllComments();

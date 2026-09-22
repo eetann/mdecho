@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { keyOf, parseKey } from "../lib/comment-keys.ts";
 import { buildInitialCommentText } from "../lib/comment-text.ts";
+import {
+  clearAllComments,
+  type CommentStore,
+  loadComments,
+  loadOtherStores,
+  saveComments,
+} from "../lib/comment-store.ts";
+import type { CommentGroup } from "../lib/clipboard-text.ts";
 import type { Comment } from "../lib/types.ts";
-
-// ファイルをまたいで読み進められるため、コメントは表示中のファイルごとに分けて持つ。
-const STORAGE_KEY_PREFIX = "mdecho:comments:";
 
 interface CommentsState {
   comments: Map<string, Comment>;
@@ -18,18 +23,6 @@ type CommentsAction =
   | { type: "save"; key: string; text: string }
   | { type: "delete"; key: string }
   | { type: "deleteAll" };
-
-function loadInitialComments(storageKey: string): Map<string, Comment> {
-  try {
-    const raw = sessionStorage.getItem(storageKey);
-    if (raw !== null) {
-      return new Map(JSON.parse(raw));
-    }
-  } catch {
-    // sessionStorageが使えない、または壊れたデータは無視
-  }
-  return new Map();
-}
 
 function reducer(state: CommentsState, action: CommentsAction): CommentsState {
   switch (action.type) {
@@ -81,22 +74,23 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
   }
 }
 
-/** relPath: Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
-export function useComments(relPath: string) {
-  const storageKey = `${STORAGE_KEY_PREFIX}${relPath}`;
+/**
+ * relPath: Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス
+ * filePath: `-f`に渡したパスと同じ書き方で表した、表示中ファイルのパス
+ */
+export function useComments(relPath: string, filePath: string) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
-    comments: loadInitialComments(storageKey),
+    comments: loadComments(relPath),
     editingKey: null,
     editingInitialText: "",
   }));
+  // リンクを辿った先で書いたコメントもまとめてコピーできるようにする。
+  // 他のファイルの分はそのファイルを開いている間しか変わらないため、初回に読むだけでよい。
+  const [otherStores, setOtherStores] = useState<CommentStore[]>(() => loadOtherStores(relPath));
 
   useEffect(() => {
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(Array.from(state.comments.entries())));
-    } catch {
-      // sessionStorageが使えない環境(プライベートブラウジング等)は無視
-    }
-  }, [state.comments, storageKey]);
+    saveComments(relPath, filePath, state.comments);
+  }, [state.comments, relPath, filePath]);
 
   const openEditor = useCallback(
     (startLine: number, endLine: number, sentenceIndex = 0, selectedText?: string) => {
@@ -116,12 +110,34 @@ export function useComments(relPath: string) {
 
   const deleteComment = useCallback((key: string) => dispatch({ type: "delete", key }), []);
 
-  const deleteAllComments = useCallback(() => dispatch({ type: "deleteAll" }), []);
+  const deleteAllComments = useCallback(() => {
+    clearAllComments();
+    setOtherStores([]);
+    dispatch({ type: "deleteAll" });
+  }, []);
+
+  // 表示中のファイルを先頭にして、残りはパス順(loadOtherStoresの並び)で続ける。
+  const commentGroups = useMemo<CommentGroup[]>(() => {
+    const groups: CommentGroup[] = [];
+    if (state.comments.size > 0) {
+      groups.push({ filePath, comments: Array.from(state.comments.values()) });
+    }
+    for (const store of otherStores) {
+      groups.push({ filePath: store.filePath, comments: Array.from(store.comments.values()) });
+    }
+    return groups;
+  }, [state.comments, otherStores, filePath]);
+
+  const otherFileCount = otherStores.reduce((total, store) => total + store.comments.size, 0);
 
   return {
     comments: state.comments,
     editingKey: state.editingKey,
     editingInitialText: state.editingInitialText,
+    /** コピー対象。表示中のファイルと、リンク先で書いたコメントを合わせたもの */
+    commentGroups,
+    /** 表示中のファイル以外に残っているコメントの数 */
+    otherFileCount,
     openEditor,
     cancelEditing,
     save,

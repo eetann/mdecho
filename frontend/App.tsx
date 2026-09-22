@@ -28,7 +28,7 @@ export function App({
 }) {
   useLiveReload();
   const markdownBodyRef = useRef<HTMLElement | null>(null);
-  const commentsApi = useComments(relPath);
+  const commentsApi = useComments(relPath, filePath);
   const tables = useTableTools(markdownBodyRef, bodyHtml);
   const settingsApi = useSettings(settings);
 
@@ -39,7 +39,8 @@ export function App({
           relPath={relPath}
           filePath={filePath}
           entryRelPath={entryRelPath}
-          comments={commentsApi.comments}
+          commentGroups={commentsApi.commentGroups}
+          otherFileCount={commentsApi.otherFileCount}
           deleteAllComments={commentsApi.deleteAllComments}
           openSettings={settingsApi.openDialog}
         />
