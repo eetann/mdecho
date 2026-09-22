@@ -42,6 +42,19 @@ function isEditableTarget(el: Element | null): boolean {
   );
 }
 
+/** URLのフラグメントが指す見出しがtargetsの何番目かを返す。無ければ-1 */
+function findHashIndex(targets: readonly Element[]): number {
+  const raw = location.hash.slice(1);
+  if (raw === "") return -1;
+  let id: string;
+  try {
+    id = decodeURIComponent(raw);
+  } catch {
+    id = raw;
+  }
+  return targets.findIndex((el) => el.id === id);
+}
+
 function pickWinner(group: Element[]): Element {
   if (group.length === 1) {
     return group[0] as Element;
@@ -98,7 +111,7 @@ export function CursorLineProvider({
   const targetsRef = useRef<Element[]>([]);
   const cursorIndexRef = useRef(-1);
 
-  const setCursor = useCallback((index: number) => {
+  const setCursor = useCallback((index: number, scrollBlock: ScrollLogicalPosition = "nearest") => {
     const currentTargets = targetsRef.current;
     if (currentTargets.length === 0) return;
     const clamped = Math.max(0, Math.min(index, currentTargets.length - 1));
@@ -110,7 +123,7 @@ export function CursorLineProvider({
     const el = currentTargets[clamped];
     if (!el) return;
     el.setAttribute(CURSOR_ATTR, "");
-    el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    el.scrollIntoView({ block: scrollBlock, inline: "nearest" });
     try {
       const line = Number(el.getAttribute("data-line"));
       const lines = currentTargets.map((t) => Number(t.getAttribute("data-line")));
@@ -141,16 +154,24 @@ export function CursorLineProvider({
     setTargets(collected);
     if (collected.length === 0) return;
 
-    let stored: ReturnType<typeof parseCursorKey> = null;
-    try {
-      stored = parseCursorKey(sessionStorage.getItem(STORAGE_KEY));
-    } catch {
-      // sessionStorageが使えない環境(プライベートブラウジング等)は無視
+    // 目次から共有された`#見出し`付きのURLで開いたときは、そこをカーソル位置にする。
+    // 本文はReactがマウントしてから描画するため、ブラウザ自身のフラグメント移動は間に合わない。
+    const hashIndex = findHashIndex(collected);
+    if (hashIndex === -1) {
+      let stored: ReturnType<typeof parseCursorKey> = null;
+      try {
+        stored = parseCursorKey(sessionStorage.getItem(STORAGE_KEY));
+      } catch {
+        // sessionStorageが使えない環境(プライベートブラウジング等)は無視
+      }
+      const lines = collected.map((el) => Number(el.getAttribute("data-line")));
+      const parts = computeLineParts(lines);
+      const restoreIndex = findRestoreIndex(lines, parts, stored);
+      setCursor(restoreIndex === -1 ? 0 : restoreIndex);
+    } else {
+      // 共有リンクを開いた直後は見出しが画面外なので、"nearest"ではなく先頭に寄せる。
+      setCursor(hashIndex, "start");
     }
-    const lines = collected.map((el) => Number(el.getAttribute("data-line")));
-    const parts = computeLineParts(lines);
-    const restoreIndex = findRestoreIndex(lines, parts, stored);
-    setCursor(restoreIndex === -1 ? 0 : restoreIndex);
 
     function handleKeydown(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
@@ -167,8 +188,18 @@ export function CursorLineProvider({
       }
     }
 
+    function handleHashChange() {
+      const index = findHashIndex(targetsRef.current);
+      // スクロールはブラウザが済ませているので、ここではカーソルだけ合わせる。
+      if (index !== -1) setCursor(index);
+    }
+
     document.addEventListener("keydown", handleKeydown);
-    return () => document.removeEventListener("keydown", handleKeydown);
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      document.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("hashchange", handleHashChange);
+    };
   }, [markdownBodyRef, setCursor, moveCursor]);
 
   const getCurrentTarget = useCallback(

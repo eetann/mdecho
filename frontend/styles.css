@@ -38,6 +38,10 @@
   --mdecho-default-font-code:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
+
+  /* スクロールで行や見出しを画面に寄せるとき、sticky配置のツールバー(高さ4rem)の
+     下に潜らないよう上側に空ける余白。 */
+  --mdecho-scroll-margin-top: 4.5rem;
 }
 
 body {
@@ -63,8 +67,8 @@ body {
   margin-bottom: 0.5em;
   font-weight: 600;
   line-height: 1.25;
-  /* ページ内リンクで飛んだとき、sticky配置のツールバーの下に見出しが隠れないようにする。 */
-  scroll-margin-top: 4.5rem;
+  /* ページ内リンク(#見出し)で飛んだときの位置 */
+  scroll-margin-top: var(--mdecho-scroll-margin-top);
 }
 
 .markdown-body h1 {
@@ -289,7 +293,8 @@ body {
   background: rgba(9, 105, 218, 0.08);
   box-shadow: inset 3px 0 0 #0969da;
   border-radius: 4px;
-  scroll-margin-block: 3rem;
+  scroll-margin-top: var(--mdecho-scroll-margin-top);
+  scroll-margin-bottom: 3rem;
   /* 見出しなど文字サイズが大きい行でもガター側へはみ出す量を揃えるため、emではなくremで指定する */
   margin-left: -0.6rem;
   padding-left: 0.6rem;

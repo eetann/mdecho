@@ -11,6 +11,7 @@ export function TableOfContents() {
       tagName: target.tagName,
       line: Number(target.getAttribute("data-line")),
       text: target.textContent?.trim() ?? "",
+      id: target.id,
     })),
   );
 
@@ -39,15 +40,17 @@ export function TableOfContents() {
         aria-label="目次"
       >
         {entries.map((entry) => (
-          <button
+          // 見出しへのリンクにしておくと、スクロールとURLの書き換えをブラウザに任せられる。
+          // 目次から開いた位置をそのまま共有でき、「戻る」で元の位置にも戻れる。
+          <a
             key={entry.line}
-            type="button"
+            href={entry.id === "" ? undefined : `#${encodeURIComponent(entry.id)}`}
             className="mdecho-toc-item block w-full cursor-pointer truncate py-0.5 text-left text-sm text-base-content/70 hover:text-base-content"
             style={{ paddingLeft: `${(entry.level - 1) * 0.9}em` }}
             onClick={() => handleClick(entry.line)}
           >
             {entry.text}
-          </button>
+          </a>
         ))}
       </nav>
     </>

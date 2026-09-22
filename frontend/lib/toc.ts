@@ -2,12 +2,15 @@ export interface TocSourceEntry {
   tagName: string;
   line: number;
   text: string;
+  /** 見出しに振られたid(src/rehype-heading-id.ts)。目次のリンク先になる */
+  id: string;
 }
 
 export interface TocEntry {
   level: number;
   line: number;
   text: string;
+  id: string;
 }
 
 const HEADING_PATTERN = /^H([1-6])$/;
@@ -15,10 +18,10 @@ const HEADING_PATTERN = /^H([1-6])$/;
 /** targets のうち見出し(h1〜h6)だけを抽出し、レベル付きの目次エントリに変換する。 */
 export function buildToc(sourceEntries: TocSourceEntry[]): TocEntry[] {
   const entries: TocEntry[] = [];
-  for (const { tagName, line, text } of sourceEntries) {
+  for (const { tagName, line, text, id } of sourceEntries) {
     const match = HEADING_PATTERN.exec(tagName);
     if (!match?.[1]) continue;
-    entries.push({ level: Number(match[1]), line, text });
+    entries.push({ level: Number(match[1]), line, text, id });
   }
   return entries;
 }
