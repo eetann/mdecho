@@ -5,13 +5,20 @@ import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { AGENT_HINT_TROUBLESHOOTING } from "./agent-hint.ts";
-import { DEFAULT_CONFIG, type MdechoConfig, normalizeConfig } from "./config.ts";
-import { defaultConfigFile, isWritableConfigFile, saveFontConfig } from "./config-writer.ts";
+import {
+  DEFAULT_CONFIG,
+  type LineBreakConfig,
+  type MdechoConfig,
+  normalizeConfig,
+  resolveLineBreak,
+} from "./config.ts";
+import { defaultConfigFile, isWritableConfigFile, saveConfig } from "./config-writer.ts";
+import { isMarkdownPath, resolveDoc } from "./doc-path.ts";
 import { buildFontCss } from "./font-css.ts";
 import { listSystemFonts } from "./system-fonts.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
-import { renderShell } from "./render-shell.ts";
+import { renderNotFoundPage, renderShell } from "./render-shell.ts";
 
 const CLIENT_TEMPLATE_PATH = join(import.meta.dirname, "..", "dist", "client", "index.html");
 
@@ -24,10 +31,13 @@ export interface StartServerResult {
 export interface StartServerOptions {
   /** ブラウザの全タブが閉じられ、サーバーを閉じ終えた後に呼ばれる */
   onAllTabsClosed?: () => void;
-  /** 句点(。)ごとに表示上の改行を入れるか(デフォルトtrue) */
-  splitSentences?: boolean;
   /** グローバル設定(~/.config/mdecho/config.jsonc)の内容 */
   config?: MdechoConfig;
+  /**
+   * CLIフラグによる改行設定の上書き。指定した項目は設定ファイルより優先され、
+   * 設定モーダルから保存してもこの起動中は変わらない。
+   */
+  lineBreakOverride?: Partial<LineBreakConfig>;
   /** 設定モーダルからの保存先。未指定なら既定の場所に作る */
   configFile?: string;
 }
@@ -45,23 +55,35 @@ export async function startServer(
 
   const {
     onAllTabsClosed,
-    splitSentences = true,
     config = DEFAULT_CONFIG,
+    lineBreakOverride = {},
     configFile = defaultConfigFile(),
   } = options;
   // 設定モーダルからの保存で変わるため、リクエストごとではなく保存時に組み立て直す。
   let currentConfig = config;
   let headCss = buildFontCss(currentConfig.font);
   const configEditable = isWritableConfigFile(configFile);
+
+  // `-f`で指定したファイル。`/`へのリクエストと、ホームへ戻る導線の行き先になる。
+  const entryDoc = resolveDoc(filePath, "/");
+  if (!entryDoc) {
+    throw new Error(`ファイルのパスを解決できません: ${filePath}\n${AGENT_HINT_TROUBLESHOOTING}`);
+  }
+
   const liveReload = createLiveReloadHub({
     onIdle: () => {
       void close().then(() => onAllTabsClosed?.());
     },
+    onWatchTargetsChange: (paths) => syncWatchTargets(paths),
   });
 
   const app = new Hono<{ Bindings: HttpBindings }>();
 
-  app.get("/events", (c) => liveReload.handleEvents(c));
+  app.get("/events", (c) => {
+    // タブごとに違うMarkdownを開けるため、そのタブが見ているファイルだけを監視対象にする。
+    const doc = resolveDoc(filePath, c.req.query("path") ?? "/");
+    return liveReload.handleEvents(c, doc?.absPath ?? entryDoc.absPath);
+  });
 
   app.get("/api/fonts", async (c) => {
     try {
@@ -87,23 +109,18 @@ export async function startServer(
     const warnings: string[] = [];
     const normalized = normalizeConfig(body, (warning) => warnings.push(warning));
     try {
-      await saveFontConfig(configFile, normalized.font);
+      await saveConfig(configFile, normalized);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return c.json({ message: `設定の保存に失敗しました: ${message}` }, 500);
     }
 
-    // 以降のページ読み込みで新しいフォントが当たるようにする。
+    // 以降のページ読み込みで新しい設定が当たるようにする。
+    // ただしlineBreakOverrideはCLIで明示された指定なので、保存後も優先し続ける。
     currentConfig = normalized;
     headCss = buildFontCss(currentConfig.font);
-    return c.json({ font: normalized.font, warnings });
+    return c.json({ font: normalized.font, lineBreak: normalized.lineBreak, warnings });
   });
-
-  // Markdown中の相対パス画像(![alt](./foo.png)など)を配信するため、
-  // Markdownファイルと同じディレクトリを静的ファイルルートとして公開する。
-  // 該当ファイルが無ければnext()でmarkdownレンダリングにフォールスルーする。
-  const baseDir = dirname(resolve(filePath));
-  app.use("*", serveStatic({ root: baseDir }));
 
   app.post("/api/render-comment", async (c) => {
     let text: unknown;
@@ -118,17 +135,43 @@ export async function startServer(
     return c.json({ html });
   });
 
-  app.get("*", async (c) => {
+  // `./foo.md`のようなドキュメントへのリンクも、同じサーバーでレンダリングして返す。
+  // 静的ファイル配信より前に置かないと、.mdがoctet-streamとしてダウンロードされてしまう。
+  app.get("*", async (c, next) => {
+    const doc = resolveDoc(filePath, c.req.path);
+    if (!doc) {
+      return next();
+    }
+    // `-f`で渡されたファイル自体は拡張子に関わらず扱う(`-f notes.txt`のようなケース)。
+    if (doc.absPath !== entryDoc.absPath && !isMarkdownPath(doc.relPath)) {
+      return next();
+    }
+
+    const source = await readFile(doc.absPath, "utf-8").catch(() => undefined);
+    if (source === undefined) {
+      return next();
+    }
+
     try {
-      const source = await readFile(filePath, "utf-8");
-      const bodyHtml = await renderMarkdown(source, { splitSentences });
-      const title = extractTitle(source) ?? basename(filePath, extname(filePath));
+      const bodyHtml = await renderMarkdown(
+        source,
+        resolveLineBreak(currentConfig.lineBreak, lineBreakOverride),
+      );
+      const title = extractTitle(source) ?? basename(doc.absPath, extname(doc.absPath));
       const html = renderShell(clientTemplate, {
         title,
         bodyHtml,
-        filePath,
+        filePath: doc.displayPath,
+        relPath: doc.relPath,
+        entryRelPath: entryDoc.relPath,
         headCss,
-        settings: { font: currentConfig.font, configFile, editable: configEditable },
+        settings: {
+          font: currentConfig.font,
+          lineBreak: currentConfig.lineBreak,
+          lineBreakOverride,
+          configFile,
+          editable: configEditable,
+        },
       });
       return c.html(html);
     } catch (error) {
@@ -137,14 +180,41 @@ export async function startServer(
     }
   });
 
-  const watcher = watch(filePath, { ignoreInitial: true });
-  watcher.on("change", () => liveReload.notifyChange());
-  watcher.on("add", () => liveReload.notifyChange());
+  // Markdown中の相対パス画像(![alt](./foo.png)など)を配信するため、
+  // Markdownファイルと同じディレクトリを静的ファイルルートとして公開する。
+  const baseDir = dirname(resolve(filePath));
+  app.use("*", serveStatic({ root: baseDir }));
+
+  app.all("*", (c) => c.html(renderNotFoundPage(c.req.path, entryDoc.relPath), 404));
+
+  let closed = false;
+  const watchedPaths = new Set<string>([entryDoc.absPath]);
+  const watcher = watch(entryDoc.absPath, { ignoreInitial: true });
+  watcher.on("change", (path) => liveReload.notifyChange(path));
+  watcher.on("add", (path) => liveReload.notifyChange(path));
   watcher.on("error", (error) => {
     console.error("[mdecho] watch error:", error);
   });
 
+  /** 開かれているタブが見ているファイルへ、監視対象を追従させる */
+  const syncWatchTargets = (paths: Set<string>) => {
+    if (closed) return;
+    // エントリのファイルは、タブを開く前の変更も拾えるよう常に監視し続ける。
+    const wanted = new Set(paths).add(entryDoc.absPath);
+    for (const path of watchedPaths) {
+      if (wanted.has(path)) continue;
+      watcher.unwatch(path);
+      watchedPaths.delete(path);
+    }
+    for (const path of wanted) {
+      if (watchedPaths.has(path)) continue;
+      watcher.add(path);
+      watchedPaths.add(path);
+    }
+  };
+
   const close = async () => {
+    closed = true;
     await watcher.close();
     liveReload.closeAll();
     await new Promise<void>((res, rej) => {

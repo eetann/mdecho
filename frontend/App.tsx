@@ -16,16 +16,19 @@ import type { MdechoSettings } from "./lib/types.ts";
 export function App({
   bodyHtml,
   filePath,
+  relPath,
+  entryRelPath,
   settings,
 }: {
   bodyHtml: string;
   filePath: string;
+  relPath: string;
+  entryRelPath: string;
   settings: MdechoSettings;
 }) {
   useLiveReload();
   const markdownBodyRef = useRef<HTMLElement | null>(null);
-  const fileName = filePath.split("/").pop() ?? filePath;
-  const commentsApi = useComments();
+  const commentsApi = useComments(relPath);
   const tables = useTableTools(markdownBodyRef, bodyHtml);
   const settingsApi = useSettings(settings);
 
@@ -33,8 +36,9 @@ export function App({
     <CursorLineProvider markdownBodyRef={markdownBodyRef}>
       <div className="mdecho-page w-full max-w-5xl p-8 mx-auto">
         <Toolbar
-          fileName={fileName}
+          relPath={relPath}
           filePath={filePath}
+          entryRelPath={entryRelPath}
           comments={commentsApi.comments}
           deleteAllComments={commentsApi.deleteAllComments}
           openSettings={settingsApi.openDialog}

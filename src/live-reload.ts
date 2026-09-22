@@ -11,18 +11,25 @@ export interface LiveReloadHubOptions {
   /** 一度でも接続したクライアントが全員いなくなったときに呼ばれる */
   onIdle?: () => void;
   idleTimeoutMs?: number;
+  /**
+   * クライアントが見ているファイルの集合が変わったときに呼ばれる。
+   * タブごとに違うMarkdownを開けるため、監視対象をその集合に追従させるのに使う。
+   */
+  onWatchTargetsChange?: (paths: Set<string>) => void;
 }
 
 export interface LiveReloadHub {
-  handleEvents(c: Context<{ Bindings: HttpBindings }>): Response;
-  notifyChange(): void;
+  /** watchPathは、このクライアントが表示しているファイルの絶対パス */
+  handleEvents(c: Context<{ Bindings: HttpBindings }>, watchPath: string): Response;
+  /** 変更されたファイルを見ているクライアントにだけリロードを伝える */
+  notifyChange(path: string): void;
   closeAll(): void;
 }
 
 export function createLiveReloadHub(options: LiveReloadHubOptions = {}): LiveReloadHub {
-  const { onIdle, idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = options;
-  const clients = new Set<SSEStreamingApi>();
-  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  const { onIdle, idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS, onWatchTargetsChange } = options;
+  const clients = new Map<SSEStreamingApi, string>();
+  const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let hasConnectedOnce = false;
   let stopped = false;
@@ -32,6 +39,10 @@ export function createLiveReloadHub(options: LiveReloadHubOptions = {}): LiveRel
       clearTimeout(idleTimer);
       idleTimer = undefined;
     }
+  }
+
+  function notifyWatchTargets() {
+    onWatchTargetsChange?.(new Set(clients.values()));
   }
 
   function scheduleIdleCheck() {
@@ -48,12 +59,13 @@ export function createLiveReloadHub(options: LiveReloadHubOptions = {}): LiveRel
   }
 
   return {
-    handleEvents(c) {
+    handleEvents(c, watchPath) {
       hasConnectedOnce = true;
       cancelIdleTimer();
 
       return streamSSE(c, async (stream) => {
-        clients.add(stream);
+        clients.set(stream, watchPath);
+        notifyWatchTargets();
         // Bun上の@hono/node-serverではstream.onAbortが発火しないことがあるため、
         // Node.js標準のincoming(IncomingMessage)のcloseイベントで明示的に検知する。
         const onIncomingClose = () => {
@@ -64,6 +76,7 @@ export function createLiveReloadHub(options: LiveReloadHubOptions = {}): LiveRel
           stream.onAbort(() => {
             c.env.incoming.off("close", onIncomingClose);
             clients.delete(stream);
+            notifyWatchTargets();
             scheduleIdleCheck();
             resolve();
           });
@@ -71,28 +84,33 @@ export function createLiveReloadHub(options: LiveReloadHubOptions = {}): LiveRel
       });
     },
 
-    notifyChange() {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
+    notifyChange(path) {
+      const existing = debounceTimers.get(path);
+      if (existing) {
+        clearTimeout(existing);
       }
-      debounceTimer = setTimeout(() => {
-        debounceTimer = undefined;
-        for (const stream of clients) {
-          stream.writeSSE({ event: "reload", data: String(Date.now()) }).catch(() => {
-            clients.delete(stream);
-          });
-        }
-      }, NOTIFY_DEBOUNCE_MS);
+      debounceTimers.set(
+        path,
+        setTimeout(() => {
+          debounceTimers.delete(path);
+          for (const [stream, watchPath] of clients) {
+            if (watchPath !== path) continue;
+            stream.writeSSE({ event: "reload", data: String(Date.now()) }).catch(() => {
+              clients.delete(stream);
+            });
+          }
+        }, NOTIFY_DEBOUNCE_MS),
+      );
     },
 
     closeAll() {
       stopped = true;
       cancelIdleTimer();
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-        debounceTimer = undefined;
+      for (const timer of debounceTimers.values()) {
+        clearTimeout(timer);
       }
-      for (const stream of clients) {
+      debounceTimers.clear();
+      for (const stream of clients.keys()) {
         stream.close();
       }
       clients.clear();

@@ -3,7 +3,8 @@ import { keyOf, parseKey } from "../lib/comment-keys.ts";
 import { buildInitialCommentText } from "../lib/comment-text.ts";
 import type { Comment } from "../lib/types.ts";
 
-const STORAGE_KEY = "mdecho:comments";
+// ファイルをまたいで読み進められるため、コメントは表示中のファイルごとに分けて持つ。
+const STORAGE_KEY_PREFIX = "mdecho:comments:";
 
 interface CommentsState {
   comments: Map<string, Comment>;
@@ -18,9 +19,9 @@ type CommentsAction =
   | { type: "delete"; key: string }
   | { type: "deleteAll" };
 
-function loadInitialComments(): Map<string, Comment> {
+function loadInitialComments(storageKey: string): Map<string, Comment> {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(storageKey);
     if (raw !== null) {
       return new Map(JSON.parse(raw));
     }
@@ -80,20 +81,22 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
   }
 }
 
-export function useComments() {
+/** relPath: Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
+export function useComments(relPath: string) {
+  const storageKey = `${STORAGE_KEY_PREFIX}${relPath}`;
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
-    comments: loadInitialComments(),
+    comments: loadInitialComments(storageKey),
     editingKey: null,
     editingInitialText: "",
   }));
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(state.comments.entries())));
+      sessionStorage.setItem(storageKey, JSON.stringify(Array.from(state.comments.entries())));
     } catch {
       // sessionStorageが使えない環境(プライベートブラウジング等)は無視
     }
-  }, [state.comments]);
+  }, [state.comments, storageKey]);
 
   const openEditor = useCallback(
     (startLine: number, endLine: number, sentenceIndex = 0, selectedText?: string) => {

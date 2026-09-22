@@ -63,6 +63,8 @@ body {
   margin-bottom: 0.5em;
   font-weight: 600;
   line-height: 1.25;
+  /* ページ内リンクで飛んだとき、sticky配置のツールバーの下に見出しが隠れないようにする。 */
+  scroll-margin-top: 4.5rem;
 }
 
 .markdown-body h1 {

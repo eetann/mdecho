@@ -18,9 +18,11 @@ bun run start -- -f <file>
 
 詳細なオプションは `mdecho --help` または `mdecho docs show cli-reference` を参照してください。
 
+`./foo.md` のような他のMarkdownへのリンクを辿ると、同じディレクトリのファイルをその場で読み進められます。リンク先でもコメントを書け、ツールバー左のホームアイコンで最初のファイルへ戻れます。
+
 ## 設定
 
-ツールバー右上の歯車アイコンから、本文・コードブロックのフォントを変更できます。選ぶとその場で表示に反映され、保存すると `~/.config/mdecho/config.jsonc` に書き込まれます。
+ツールバー右上の歯車アイコンから、改行の扱いと本文・コードブロックのフォントを変更できます。保存すると `~/.config/mdecho/config.jsonc` に書き込まれます。
 
 設定ファイルを直接書くこともできます。
 
@@ -31,10 +33,16 @@ bun run start -- -f <file>
     "body": ["Inter", "BIZ UDPGothic"],
     "code": ["JetBrains Mono"],
   },
+  "lineBreak": {
+    // 句点(。)ごとに表示上の改行を入れる
+    "splitSentences": true,
+    // 単一改行(Enterキー1回)をそのまま表示上の改行にする
+    "singleNewline": true,
+  },
 }
 ```
 
-使えるフォント名は `mdecho font-ls` で確認できます。詳細は [docs/configuration.md](docs/configuration.md) を参照してください。
+改行まわりは `--no-split-sentences` / `--no-single-newline` でも切り替えられ、コマンドラインでの指定が設定ファイルより優先されます。使えるフォント名は `mdecho font-ls` で確認できます。詳細は [docs/configuration.md](docs/configuration.md) を参照してください。
 
 ## AIエージェント向け
 

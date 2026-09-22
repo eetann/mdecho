@@ -135,6 +135,33 @@ describe("renderMarkdown - sentence split", () => {
     );
   });
 
+  test("singleNewline:falseなら単一改行が<br>にならない", async () => {
+    const html = await renderMarkdown("1行目\n2行目", { singleNewline: false });
+
+    expect(html).not.toContain("<br>");
+    expect(html).toContain("1行目");
+    expect(html).toContain("2行目");
+  });
+
+  test("singleNewline:falseでも句点分割は効く", async () => {
+    const html = await renderMarkdown("AはBです。そしてBがCなのです。", {
+      singleNewline: false,
+    });
+
+    expect(html).toContain('<span class="mdecho-sentence"');
+    expect(html.match(/mdecho-sentence/g)).toHaveLength(2);
+  });
+
+  test("両方falseなら単一改行はMarkdown本来どおり1段落へつながる", async () => {
+    const html = await renderMarkdown("AはBです。\nそしてBがCなのです。", {
+      splitSentences: false,
+      singleNewline: false,
+    });
+
+    expect(html).not.toContain("<br>");
+    expect(html).not.toContain("mdecho-sentence");
+  });
+
   test("renderCommentMarkdownは文分割の影響を受けない", async () => {
     const html = await renderCommentMarkdown("AAA。BBB。CCC。");
     expect(html).not.toContain("mdecho-sentence");
@@ -213,7 +240,7 @@ describe("renderMarkdown - links", () => {
     expect(html).toContain('target="_blank"');
   });
 
-  test("./foo.mdのような相対リンクは変更しない(TASK-0005で扱い方を決めるまで未対応)", async () => {
+  test("./foo.mdのような相対リンクにはtargetを付けない(同じタブでmdechoが開くため)", async () => {
     const html = await renderMarkdown("[doc](./foo.md)");
     expect(html).toContain('href="./foo.md"');
     expect(html).not.toContain("target=");
@@ -240,5 +267,36 @@ describe("renderMarkdown - links", () => {
     const html = await renderCommentMarkdown("[example](https://example.com)");
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
+  });
+});
+
+describe("renderMarkdown - heading id", () => {
+  test("見出しにGitHubと同じ規則のidが付く", async () => {
+    const html = await renderMarkdown("## My Heading!");
+    expect(html).toContain('id="my-heading"');
+  });
+
+  test("日本語の見出しはそのままidになり、Markdownに書いたアンカーと一致する", async () => {
+    const html = await renderMarkdown("[jump](#みだし2)\n\n## みだし2");
+    expect(html).toContain('id="みだし2"');
+  });
+
+  test("同じ見出しが複数あるときは連番が付く", async () => {
+    const html = await renderMarkdown("## 概要\n\n## 概要");
+    expect(html).toContain('id="概要"');
+    expect(html).toContain('id="概要-1"');
+  });
+
+  test("h1からh6まで振る", async () => {
+    const html = await renderMarkdown("# a\n\n## b\n\n### c\n\n#### d\n\n##### e\n\n###### f");
+    for (const name of ["a", "b", "c", "d", "e", "f"]) {
+      expect(html).toContain(`id="${name}"`);
+    }
+  });
+
+  test("コメント本文の見出しにはidを付けない(本文側と衝突するため)", async () => {
+    const html = await renderCommentMarkdown("## My Heading");
+    expect(html).toContain("<h2");
+    expect(html).not.toContain("id=");
   });
 });

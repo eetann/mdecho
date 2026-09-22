@@ -17,5 +17,11 @@ if (!rootEl) {
 }
 
 createRoot(rootEl).render(
-  <App bodyHtml={data.bodyHtml} filePath={data.filePath} settings={data.settings} />,
+  <App
+    bodyHtml={data.bodyHtml}
+    filePath={data.filePath}
+    relPath={data.relPath}
+    entryRelPath={data.entryRelPath}
+    settings={data.settings}
+  />,
 );
