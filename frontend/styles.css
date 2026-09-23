@@ -63,8 +63,14 @@
 
 body {
   overflow-wrap: anywhere;
-  word-break: normal;
   line-break: strict;
+  word-break: normal;
+  /* index.htmlがlang="ja"なので、Chromium系は文節の区切りで折り返してくれる
+     (内部でBudouX相当の分かち書きを使う)。Safari/Firefoxはこの値を解釈できず
+     直前のnormalへ落ちるだけなので、従来どおり文字単位の折返しになる。
+     長いURL対策のoverflow-wrap: anywhereとは両立し、日本語は文節で、
+     途中で切らないと収まらない英数字だけが文字単位で折り返される。 */
+  word-break: auto-phrase;
 }
 
 /* markdown-bodyとmdecho-comment-view-bodyはdangerouslySetInnerHTMLで挿入される生HTMLなので、
