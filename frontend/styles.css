@@ -71,6 +71,15 @@ body {
      長いURL対策のoverflow-wrap: anywhereとは両立し、日本語は文節で、
      途中で切らないと収まらない英数字だけが文字単位で折り返される。 */
   word-break: auto-phrase;
+  /* 日本語とLatin文字・数字の境目に四分アキを入れる。Chromiumの初期値はno-autospaceなので、
+     normalを明示して初めて効く(Chrome 140以降 / Safari 18.4以降)。未対応のブラウザは
+     宣言ごと無視するため、これまでどおりの字間になるだけ。
+     インライン要素をまたぐ境目にも効くので、地の文とインラインコードの間にもアキが入る。 */
+  text-autospace: normal;
+  /* 行頭に来た開き括弧の左半分を詰めて、段落の左端を揃える。初期値のnormalは1行目だけ
+     詰めないため、「で始まる文の左端が他の行とずれる。句点ごとの改行が有効だと1文ずつが
+     1行目になってずれが目立つので、1行目も詰めるtrim-startにする。 */
+  text-spacing-trim: trim-start;
 }
 
 /* markdown-bodyとmdecho-comment-view-bodyはdangerouslySetInnerHTMLで挿入される生HTMLなので、
@@ -249,6 +258,9 @@ body {
 }
 
 .markdown-body pre {
+  /* コードブロックは書いたとおりの桁で見せたいので、bodyのtext-autospaceを打ち消す。
+     内側の<code>や行のspanへは継承で伝わるため、ここだけで足りる。 */
+  text-autospace: no-autospace;
   /* Preflightがpreのmarginを0にリセットするため、元のUAデフォルト相当を明示する。 */
   margin: 1em 0;
   padding: 1em;
@@ -462,6 +474,8 @@ body {
 }
 
 .mdecho-comment-view-body pre {
+  /* 本文のコードブロックと同じ理由で、ここでもtext-autospaceを打ち消す。 */
+  text-autospace: no-autospace;
   margin-top: 0;
   margin-bottom: 0.6em;
   padding: 0.8em;
