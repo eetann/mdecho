@@ -15,12 +15,20 @@ import {
 import { defaultConfigFile, isWritableConfigFile, saveConfig } from "./config-writer.ts";
 import { isMarkdownPath, resolveDoc } from "./doc-path.ts";
 import { buildFontCss } from "./font-css.ts";
+import { buildLayoutCss } from "./layout-css.ts";
 import { listSystemFonts } from "./system-fonts.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
 import { renderNotFoundPage, renderShell } from "./render-shell.ts";
 
 const CLIENT_TEMPLATE_PATH = join(import.meta.dirname, "..", "dist", "client", "index.html");
+
+/** 設定から組み立てる、<head>の末尾に差し込むCSS。styles.cssの既定値を上書きする。 */
+function buildHeadCss(config: MdechoConfig): string {
+  return [buildFontCss(config.font), buildLayoutCss(config.layout)]
+    .filter((css) => css.length > 0)
+    .join("\n");
+}
 
 export interface StartServerResult {
   server: ServerType;
@@ -61,7 +69,7 @@ export async function startServer(
   } = options;
   // 設定モーダルからの保存で変わるため、リクエストごとではなく保存時に組み立て直す。
   let currentConfig = config;
-  let headCss = buildFontCss(currentConfig.font);
+  let headCss = buildHeadCss(currentConfig);
   const configEditable = isWritableConfigFile(configFile);
 
   // `-f`で指定したファイル。`/`へのリクエストと、ホームへ戻る導線の行き先になる。
@@ -118,8 +126,13 @@ export async function startServer(
     // 以降のページ読み込みで新しい設定が当たるようにする。
     // ただしlineBreakOverrideはCLIで明示された指定なので、保存後も優先し続ける。
     currentConfig = normalized;
-    headCss = buildFontCss(currentConfig.font);
-    return c.json({ font: normalized.font, lineBreak: normalized.lineBreak, warnings });
+    headCss = buildHeadCss(currentConfig);
+    return c.json({
+      font: normalized.font,
+      lineBreak: normalized.lineBreak,
+      layout: normalized.layout,
+      warnings,
+    });
   });
 
   app.post("/api/render-comment", async (c) => {
@@ -169,6 +182,7 @@ export async function startServer(
           font: currentConfig.font,
           lineBreak: currentConfig.lineBreak,
           lineBreakOverride,
+          layout: currentConfig.layout,
           configFile,
           editable: configEditable,
         },

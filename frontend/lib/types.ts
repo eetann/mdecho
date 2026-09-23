@@ -17,6 +17,12 @@ export interface LineBreakSettings {
   singleNewline: boolean;
 }
 
+/** src/layout-css.tsのLayoutConfigと対応する */
+export interface LayoutSettings {
+  /** 本文の最大幅(px)。画面がこれより広いときは左右に均等な余白が付く */
+  contentWidth: number;
+}
+
 export interface MdechoSettings {
   font: FontSettings;
   /** 設定ファイルに書かれている改行の設定(モーダルが編集する対象) */
@@ -26,6 +32,8 @@ export interface MdechoSettings {
    * 保存してもこの起動中の表示は変わらない。
    */
   lineBreakOverride: Partial<LineBreakSettings>;
+  /** 本文の幅など、見た目のレイアウトに関する設定 */
+  layout: LayoutSettings;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */

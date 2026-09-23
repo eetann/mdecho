@@ -7,6 +7,8 @@ export interface ShellSettings {
    * 保存してもこの起動中の表示は変わらない(モーダルでその旨を伝えるために渡す)。
    */
   lineBreakOverride: Partial<{ splitSentences: boolean; singleNewline: boolean }>;
+  /** 本文の幅など、見た目のレイアウトに関する設定 */
+  layout: { contentWidth: number };
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */

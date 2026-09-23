@@ -10,6 +10,7 @@ function configOf(overrides: Partial<MdechoConfig>): MdechoConfig {
 }
 
 const DEFAULT_LINE_BREAK_JSON = { splitSentences: true, singleNewline: true };
+const DEFAULT_LAYOUT_JSON = { contentWidth: 1024 };
 
 let dir: string | undefined;
 
@@ -74,6 +75,21 @@ describe("applyConfigEdits", () => {
     expect(updated).toContain('"singleNewline": true');
   });
 
+  test("layoutも書き戻す", () => {
+    const source = `{
+  // 本文の幅
+  "layout": {
+    "contentWidth": 1024,
+  },
+}
+`;
+
+    const updated = applyConfigEdits(source, configOf({ layout: { contentWidth: 1440 } }));
+
+    expect(updated).toContain("// 本文の幅");
+    expect(updated).toContain('"contentWidth": 1440');
+  });
+
   test("mdechoが扱わないキーは残す", () => {
     const updated = applyConfigEdits(
       '{ "future": { "a": 1 } }',
@@ -84,6 +100,7 @@ describe("applyConfigEdits", () => {
       future: { a: 1 },
       font: { body: ["Inter"], code: [] },
       lineBreak: DEFAULT_LINE_BREAK_JSON,
+      layout: DEFAULT_LAYOUT_JSON,
     });
   });
 
@@ -96,6 +113,7 @@ describe("applyConfigEdits", () => {
     expect(JSON.parse(updated)).toEqual({
       font: { body: ["Inter"], code: ["Consolas"] },
       lineBreak: DEFAULT_LINE_BREAK_JSON,
+      layout: DEFAULT_LAYOUT_JSON,
     });
   });
 });
@@ -110,6 +128,7 @@ describe("saveConfig", () => {
     expect(JSON.parse(await readFile(configFile, "utf-8"))).toEqual({
       font: { body: ["Inter"], code: [] },
       lineBreak: DEFAULT_LINE_BREAK_JSON,
+      layout: DEFAULT_LAYOUT_JSON,
     });
   });
 

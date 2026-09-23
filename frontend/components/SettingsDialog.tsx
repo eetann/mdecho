@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
+import { clampContentWidth, CONTENT_WIDTH_MAX, CONTENT_WIDTH_MIN } from "../../src/layout-css.ts";
 import type { SettingsApi } from "../hooks/useSettings.ts";
 import type { LineBreakSettings } from "../lib/types.ts";
 import { FontCombobox } from "./FontCombobox.tsx";
@@ -51,6 +52,81 @@ const FONT_SECTIONS: FontSection[] = [
     sample: 'const greeting = "こんにちは"; // Il1 O0',
   },
 ];
+
+/** スライダーの刻み(px)。細かく合わせたいときは隣の数値入力を使う。 */
+const CONTENT_WIDTH_STEP = 8;
+
+function ContentWidthField({ settings }: { settings: SettingsApi }) {
+  const { contentWidth } = settings.layoutDraft;
+  // 入力途中の「5」を最小値へ丸めてしまわないよう、数値入力の見た目だけ文字列で持つ。
+  const [typed, setTyped] = useState(String(contentWidth));
+
+  // スライダー側で動かしたときは数値入力も追従させる。入力中(同じ数値)は書き換えない。
+  useEffect(() => {
+    setTyped((current) => (Number(current) === contentWidth ? current : String(contentWidth)));
+  }, [contentWidth]);
+
+  function handleTyped(value: string) {
+    setTyped(value);
+    const parsed = Number(value);
+    // 範囲に収まった時点だけプレビューへ渡す。桁の途中は確定(blur)まで待つ。
+    if (Number.isFinite(parsed) && parsed >= CONTENT_WIDTH_MIN && parsed <= CONTENT_WIDTH_MAX) {
+      settings.setContentWidth(Math.round(parsed));
+    }
+  }
+
+  function commitTyped() {
+    const parsed = Number(typed);
+    const next =
+      Number.isFinite(parsed) && typed.trim() !== "" ? clampContentWidth(parsed) : contentWidth;
+    setTyped(String(next));
+    settings.setContentWidth(next);
+  }
+
+  return (
+    <div className="mt-2">
+      <span className="text-sm">本文の幅</span>
+      <span className="block text-xs text-base-content/60">
+        行番号と左右の余白を含めた、本文の列全体の幅です
+      </span>
+      <div className="mt-1 flex items-center gap-3">
+        <input
+          type="range"
+          className="range range-sm min-w-0 flex-1"
+          aria-label="本文の幅"
+          min={CONTENT_WIDTH_MIN}
+          max={CONTENT_WIDTH_MAX}
+          step={CONTENT_WIDTH_STEP}
+          value={contentWidth}
+          onChange={(event) => settings.setContentWidth(Number(event.target.value))}
+        />
+        <input
+          type="number"
+          className="input input-sm w-24 shrink-0"
+          aria-label="本文の幅(px)"
+          min={CONTENT_WIDTH_MIN}
+          max={CONTENT_WIDTH_MAX}
+          value={typed}
+          onChange={(event) => handleTyped(event.target.value)}
+          onBlur={commitTyped}
+        />
+        <span className="shrink-0 text-xs text-base-content/60">px</span>
+      </div>
+    </div>
+  );
+}
+
+function LayoutSection({ settings }: { settings: SettingsApi }) {
+  return (
+    <section className="mdecho-layout-section">
+      <h3 className="font-semibold">レイアウト</h3>
+      <p className="mt-1 text-xs text-base-content/60">
+        目次のぶんを空けた残りの幅に対して、本文を中央寄せします。動かすとすぐ背景の表示に反映されます。
+      </p>
+      <ContentWidthField settings={settings} />
+    </section>
+  );
+}
 
 function moveItem(fonts: string[], from: number, to: number): string[] {
   if (to < 0 || to >= fonts.length) {
@@ -212,6 +288,8 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
 
         <div className="my-4 flex flex-col gap-6">
           <LineBreakList settings={settings} />
+
+          <LayoutSection settings={settings} />
 
           <section>
             <h3 className="font-semibold">フォント</h3>

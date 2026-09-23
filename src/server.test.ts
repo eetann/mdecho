@@ -112,11 +112,13 @@ describe("startServer", () => {
     expect(await res.json()).toEqual({
       font: { body: ["Meiryo"], code: ["Consolas"] },
       lineBreak: { splitSentences: true, singleNewline: true },
+      layout: { contentWidth: 1024 },
       warnings: [],
     });
     expect(JSON.parse(await readFile(configFile, "utf-8"))).toEqual({
       font: { body: ["Meiryo"], code: ["Consolas"] },
       lineBreak: { splitSentences: true, singleNewline: true },
+      layout: { contentWidth: 1024 },
     });
 
     const html = await (await fetch(running.url)).text();

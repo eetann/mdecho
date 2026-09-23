@@ -46,6 +46,25 @@ describe("normalizeConfig", () => {
     expect(config.font.code).toEqual(["Fira Code"]);
   });
 
+  test("layout.contentWidthを読み込む", () => {
+    const config = normalizeConfig({ layout: { contentWidth: 1440 } });
+    expect(config.layout.contentWidth).toBe(1440);
+  });
+
+  test("layout.contentWidthが範囲外なら警告して頭打ちにする", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ layout: { contentWidth: 10 } }, (m) => warnings.push(m));
+    expect(config.layout.contentWidth).toBe(480);
+    expect(warnings).toHaveLength(1);
+  });
+
+  test("layout.contentWidthが数値でなければ警告して既定値を使う", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ layout: { contentWidth: "800px" } }, (m) => warnings.push(m));
+    expect(config.layout.contentWidth).toBe(1024);
+    expect(warnings).toHaveLength(1);
+  });
+
   test("未知のキーを警告する", () => {
     const warnings: string[] = [];
     normalizeConfig({ fonts: { body: ["Inter"] } }, (message) => warnings.push(message));

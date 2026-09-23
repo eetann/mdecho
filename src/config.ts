@@ -4,6 +4,13 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import { type FontFamilies, toFontFamilyToken } from "./font-css.ts";
+import {
+  clampContentWidth,
+  CONTENT_WIDTH_MAX,
+  CONTENT_WIDTH_MIN,
+  DEFAULT_CONTENT_WIDTH,
+  type LayoutConfig,
+} from "./layout-css.ts";
 
 /** 表示上の改行をどこで入れるか。 */
 export interface LineBreakConfig {
@@ -16,15 +23,22 @@ export interface LineBreakConfig {
 export interface MdechoConfig {
   font: FontFamilies;
   lineBreak: LineBreakConfig;
+  layout: LayoutConfig;
 }
 
-const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak"]);
+const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout"]);
 const KNOWN_FONT_KEYS = new Set(["body", "code"]);
 const KNOWN_LINE_BREAK_KEYS = new Set(["splitSentences", "singleNewline"]);
+const KNOWN_LAYOUT_KEYS = new Set(["contentWidth"]);
 
 export const DEFAULT_FONT: FontFamilies = { body: [], code: [] };
 export const DEFAULT_LINE_BREAK: LineBreakConfig = { splitSentences: true, singleNewline: true };
-export const DEFAULT_CONFIG: MdechoConfig = { font: DEFAULT_FONT, lineBreak: DEFAULT_LINE_BREAK };
+export const DEFAULT_LAYOUT: LayoutConfig = { contentWidth: DEFAULT_CONTENT_WIDTH };
+export const DEFAULT_CONFIG: MdechoConfig = {
+  font: DEFAULT_FONT,
+  lineBreak: DEFAULT_LINE_BREAK,
+  layout: DEFAULT_LAYOUT,
+};
 
 export type WarnFn = (message: string) => void;
 
@@ -159,6 +173,37 @@ function normalizeLineBreak(raw: unknown, warn: WarnFn): LineBreakConfig {
   };
 }
 
+function normalizeContentWidth(value: unknown, warn: WarnFn): number {
+  if (value === undefined || value === null) {
+    return DEFAULT_CONTENT_WIDTH;
+  }
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    warn("layout.contentWidthはピクセル数(数値)で指定してください。この設定は無視します");
+    return DEFAULT_CONTENT_WIDTH;
+  }
+  const clamped = clampContentWidth(value);
+  if (clamped !== value) {
+    warn(
+      `layout.contentWidthは${CONTENT_WIDTH_MIN}〜${CONTENT_WIDTH_MAX}の整数で指定してください。${clamped}として扱います`,
+    );
+  }
+  return clamped;
+}
+
+function normalizeLayout(raw: unknown, warn: WarnFn): LayoutConfig {
+  if (raw === undefined || raw === null) {
+    return DEFAULT_LAYOUT;
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    warn("layoutはオブジェクトで指定してください。この設定は無視します");
+    return DEFAULT_LAYOUT;
+  }
+  warnUnknownKeys(raw, KNOWN_LAYOUT_KEYS, "layout", warn);
+  return {
+    contentWidth: normalizeContentWidth((raw as { contentWidth?: unknown }).contentWidth, warn),
+  };
+}
+
 /** 設定ファイルから読んだ生の値を検証し、扱いやすい形へ正規化する。 */
 export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): MdechoConfig {
   if (raw === undefined || raw === null) {
@@ -173,6 +218,7 @@ export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): Mdech
   return {
     font: normalizeFont((raw as { font?: unknown }).font, warn),
     lineBreak: normalizeLineBreak((raw as { lineBreak?: unknown }).lineBreak, warn),
+    layout: normalizeLayout((raw as { layout?: unknown }).layout, warn),
   };
 }
 

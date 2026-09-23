@@ -42,6 +42,23 @@
   /* スクロールで行や見出しを画面に寄せるとき、sticky配置のツールバー(高さ4rem)の
      下に潜らないよう上側に空ける余白。 */
   --mdecho-scroll-margin-top: 4.5rem;
+
+  /* 本文(ツールバー・行番号ガターを含む列)の最大幅。設定のlayout.contentWidthがあれば、
+     サーバーが<head>の末尾で上書きする(src/layout-css.ts)。 */
+  --mdecho-content-width: 1024px;
+
+  /* 目次のために右側へ空けておく幅。目次はfixedで right-8(2rem) + w-48(12rem) を
+     占めるため、本文との間に余白が残るよう14remより広く取る。 */
+  --mdecho-toc-column: 16rem;
+}
+
+/* 目次はfixedで右端に浮いていて場所を取らないため、本文が下に潜らないよう右側を空ける。
+   .mdecho-pageはこの中でmx-autoするので、残った幅の中で左右の余白が揃う。
+   目次が出る画面幅(xl)で、かつ見出しがあって目次が描画されているときだけ空ける。 */
+@media (min-width: 80rem) {
+  .mdecho-layout:has(~ .mdecho-toc) {
+    padding-right: var(--mdecho-toc-column);
+  }
 }
 
 body {

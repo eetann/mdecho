@@ -29,6 +29,7 @@ export function applyConfigEdits(source: string, config: MdechoConfig): string {
     [["font", "code"], config.font.code],
     [["lineBreak", "splitSentences"], config.lineBreak.splitSentences],
     [["lineBreak", "singleNewline"], config.lineBreak.singleNewline],
+    [["layout", "contentWidth"], config.layout.contentWidth],
   ];
   for (const [path, value] of entries) {
     text = applyEdits(text, modify(text, path, value, { formattingOptions: FORMATTING_OPTIONS }));

@@ -34,36 +34,40 @@ export function App({
 
   return (
     <CursorLineProvider markdownBodyRef={markdownBodyRef}>
-      <div className="mdecho-page w-full max-w-5xl p-8 mx-auto">
-        <Toolbar
-          relPath={relPath}
-          filePath={filePath}
-          entryRelPath={entryRelPath}
-          commentGroups={commentsApi.commentGroups}
-          otherFileCount={commentsApi.otherFileCount}
-          deleteAllComments={commentsApi.deleteAllComments}
-          openSettings={settingsApi.openDialog}
-        />
-        <div className="mdecho-content mb-1 flex">
-          <LineNumberGutter
-            markdownBodyRef={markdownBodyRef}
-            openEditor={commentsApi.openEditor}
+      {/* 目次は fixed なので場所を取らない。その分の幅をここで空け、残った幅の中で
+          本文を中央寄せして左右の余白を揃える(余白の取り方はstyles.css)。 */}
+      <div className="mdecho-layout">
+        <div className="mdecho-page mx-auto w-full max-w-[var(--mdecho-content-width)] p-8">
+          <Toolbar
+            relPath={relPath}
+            filePath={filePath}
+            entryRelPath={entryRelPath}
+            commentGroups={commentsApi.commentGroups}
+            otherFileCount={commentsApi.otherFileCount}
+            deleteAllComments={commentsApi.deleteAllComments}
+            openSettings={settingsApi.openDialog}
+          />
+          <div className="mdecho-content mb-1 flex">
+            <LineNumberGutter
+              markdownBodyRef={markdownBodyRef}
+              openEditor={commentsApi.openEditor}
+              comments={commentsApi.comments}
+              editingKey={commentsApi.editingKey}
+            />
+            <MarkdownBody ref={markdownBodyRef} html={bodyHtml} />
+          </div>
+          <CommentLayer
             comments={commentsApi.comments}
             editingKey={commentsApi.editingKey}
+            editingInitialText={commentsApi.editingInitialText}
+            openEditor={commentsApi.openEditor}
+            cancelEditing={commentsApi.cancelEditing}
+            save={commentsApi.save}
+            deleteComment={commentsApi.deleteComment}
           />
-          <MarkdownBody ref={markdownBodyRef} html={bodyHtml} />
+          <TableTools tables={tables} />
+          <SettingsDialog settings={settingsApi} />
         </div>
-        <CommentLayer
-          comments={commentsApi.comments}
-          editingKey={commentsApi.editingKey}
-          editingInitialText={commentsApi.editingInitialText}
-          openEditor={commentsApi.openEditor}
-          cancelEditing={commentsApi.cancelEditing}
-          save={commentsApi.save}
-          deleteComment={commentsApi.deleteComment}
-        />
-        <TableTools tables={tables} />
-        <SettingsDialog settings={settingsApi} />
       </div>
       <TableOfContents />
     </CursorLineProvider>

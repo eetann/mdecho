@@ -22,7 +22,7 @@ bun run start -- -f <file>
 
 ## 設定
 
-ツールバー右上の歯車アイコンから、改行の扱いと本文・コードブロックのフォントを変更できます。保存すると `~/.config/mdecho/config.jsonc` に書き込まれます。
+ツールバー右上の歯車アイコンから、改行の扱い・本文の幅・本文とコードブロックのフォントを変更できます。保存すると `~/.config/mdecho/config.jsonc` に書き込まれます。
 
 設定ファイルを直接書くこともできます。
 
@@ -38,6 +38,10 @@ bun run start -- -f <file>
     "splitSentences": true,
     // 単一改行(Enterキー1回)をそのまま表示上の改行にする
     "singleNewline": true,
+  },
+  "layout": {
+    // 本文の幅(px)。右の目次を除いた残りの幅に対して中央寄せされる
+    "contentWidth": 1024,
   },
 }
 ```
