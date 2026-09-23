@@ -165,6 +165,25 @@ body {
   list-style: revert;
 }
 
+/* 項目どうしの間隔。AIが生成したMarkdownは一項目が複数行に折り返すことが多く、
+   項目の中の行間と同じ間隔で並ぶと項目の切れ目が読み取れない。
+   行間(1.75 = 28px)より狭い0.5emにして、項目の中は詰まったまま外側だけを離す。
+   項目の中に段落を持つリストでは、liの中の最後の段落のmargin-bottom(1em)と
+   相殺されるため、そちらは今までどおり1emのままになる。 */
+.markdown-body li + li {
+  margin-top: 0.5em;
+}
+
+/* ネストしたリスト。親の項目との間隔は項目どうしと揃え、下側はli + liのmarginに
+   任せることで、階層を戻るところだけ余分に空くのを防ぐ。
+   左の罫線はネストの深さを示すガイド線で、親の項目のテキストの左端に沿う。 */
+.markdown-body li > ul,
+.markdown-body li > ol {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  border-left: 1px solid #d8dee4;
+}
+
 .markdown-body blockquote {
   margin: 0 0 1em;
   padding: 0 1em;
