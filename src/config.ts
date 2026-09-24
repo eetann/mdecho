@@ -6,10 +6,18 @@ import { extname, join } from "node:path";
 import { type FontFamilies, toFontFamilyToken } from "./font-css.ts";
 import {
   clampContentWidth,
+  clampFontSize,
+  clampLineHeight,
   CONTENT_WIDTH_MAX,
   CONTENT_WIDTH_MIN,
   DEFAULT_CONTENT_WIDTH,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_LINE_HEIGHT,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
   type LayoutConfig,
+  LINE_HEIGHT_MAX,
+  LINE_HEIGHT_MIN,
 } from "./layout-css.ts";
 
 /** 表示上の改行をどこで入れるか。 */
@@ -29,11 +37,15 @@ export interface MdechoConfig {
 const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout"]);
 const KNOWN_FONT_KEYS = new Set(["body", "code"]);
 const KNOWN_LINE_BREAK_KEYS = new Set(["splitSentences", "singleNewline"]);
-const KNOWN_LAYOUT_KEYS = new Set(["contentWidth"]);
+const KNOWN_LAYOUT_KEYS = new Set(["contentWidth", "fontSize", "lineHeight"]);
 
 export const DEFAULT_FONT: FontFamilies = { body: [], code: [] };
 export const DEFAULT_LINE_BREAK: LineBreakConfig = { splitSentences: true, singleNewline: true };
-export const DEFAULT_LAYOUT: LayoutConfig = { contentWidth: DEFAULT_CONTENT_WIDTH };
+export const DEFAULT_LAYOUT: LayoutConfig = {
+  contentWidth: DEFAULT_CONTENT_WIDTH,
+  fontSize: DEFAULT_FONT_SIZE,
+  lineHeight: DEFAULT_LINE_HEIGHT,
+};
 export const DEFAULT_CONFIG: MdechoConfig = {
   font: DEFAULT_FONT,
   lineBreak: DEFAULT_LINE_BREAK,
@@ -173,19 +185,53 @@ function normalizeLineBreak(raw: unknown, warn: WarnFn): LineBreakConfig {
   };
 }
 
-function normalizeContentWidth(value: unknown, warn: WarnFn): number {
+/** layoutの数値項目1つぶんの、既定値と受け付ける書き方。 */
+interface NumberSpec {
+  keyPath: string;
+  fallback: number;
+  /** 数値でなかったときに案内する書き方(例: 「ピクセル数(数値)」) */
+  expected: string;
+  /** 丸めや頭打ちが起きたときに案内する範囲(例: 「480〜2400の整数」) */
+  range: string;
+  clamp: (value: number) => number;
+}
+
+const LAYOUT_NUMBER_SPECS = {
+  contentWidth: {
+    keyPath: "layout.contentWidth",
+    fallback: DEFAULT_CONTENT_WIDTH,
+    expected: "ピクセル数(数値)",
+    range: `${CONTENT_WIDTH_MIN}〜${CONTENT_WIDTH_MAX}の整数`,
+    clamp: clampContentWidth,
+  },
+  fontSize: {
+    keyPath: "layout.fontSize",
+    fallback: DEFAULT_FONT_SIZE,
+    expected: "ピクセル数(数値)",
+    range: `${FONT_SIZE_MIN}〜${FONT_SIZE_MAX}の整数`,
+    clamp: clampFontSize,
+  },
+  lineHeight: {
+    keyPath: "layout.lineHeight",
+    fallback: DEFAULT_LINE_HEIGHT,
+    expected: "文字サイズに対する倍率(数値)",
+    range: `${LINE_HEIGHT_MIN}〜${LINE_HEIGHT_MAX}の数値(小数2桁まで)`,
+    clamp: clampLineHeight,
+  },
+} as const satisfies Record<string, NumberSpec>;
+
+/** 範囲外や書き方の違う値でも起動は止めず、警告を出して使える値へ寄せる。 */
+function normalizeLayoutNumber(value: unknown, spec: NumberSpec, warn: WarnFn): number {
   if (value === undefined || value === null) {
-    return DEFAULT_CONTENT_WIDTH;
+    return spec.fallback;
   }
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    warn("layout.contentWidthはピクセル数(数値)で指定してください。この設定は無視します");
-    return DEFAULT_CONTENT_WIDTH;
+    warn(`${spec.keyPath}は${spec.expected}で指定してください。この設定は無視します`);
+    return spec.fallback;
   }
-  const clamped = clampContentWidth(value);
+  const clamped = spec.clamp(value);
   if (clamped !== value) {
-    warn(
-      `layout.contentWidthは${CONTENT_WIDTH_MIN}〜${CONTENT_WIDTH_MAX}の整数で指定してください。${clamped}として扱います`,
-    );
+    warn(`${spec.keyPath}は${spec.range}で指定してください。${clamped}として扱います`);
   }
   return clamped;
 }
@@ -199,8 +245,15 @@ function normalizeLayout(raw: unknown, warn: WarnFn): LayoutConfig {
     return DEFAULT_LAYOUT;
   }
   warnUnknownKeys(raw, KNOWN_LAYOUT_KEYS, "layout", warn);
+  const layout = raw as Partial<Record<keyof LayoutConfig, unknown>>;
   return {
-    contentWidth: normalizeContentWidth((raw as { contentWidth?: unknown }).contentWidth, warn),
+    contentWidth: normalizeLayoutNumber(
+      layout.contentWidth,
+      LAYOUT_NUMBER_SPECS.contentWidth,
+      warn,
+    ),
+    fontSize: normalizeLayoutNumber(layout.fontSize, LAYOUT_NUMBER_SPECS.fontSize, warn),
+    lineHeight: normalizeLayoutNumber(layout.lineHeight, LAYOUT_NUMBER_SPECS.lineHeight, warn),
   };
 }
 

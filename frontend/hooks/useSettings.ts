@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { buildFontFamilyValue, FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
-import { buildContentWidthValue, CONTENT_WIDTH_VARIABLE } from "../../src/layout-css.ts";
+import {
+  buildContentWidthValue,
+  buildFontSizeValue,
+  buildLineHeightValue,
+  CONTENT_WIDTH_VARIABLE,
+  FONT_SIZE_VARIABLE,
+  LINE_HEIGHT_VARIABLE,
+} from "../../src/layout-css.ts";
 import type {
   FontSettings,
   LayoutSettings,
@@ -23,7 +30,7 @@ export interface SettingsApi {
   lineBreakOverride: Partial<LineBreakSettings>;
   /** 編集中のレイアウト設定。保存前でもページには即座に反映される */
   layoutDraft: LayoutSettings;
-  setContentWidth: (contentWidth: number) => void;
+  setLayout: (key: keyof LayoutSettings, value: number) => void;
   systemFonts: SystemFont[];
   systemFontsLoading: boolean;
   systemFontsError: string | undefined;
@@ -49,7 +56,9 @@ function isSameLineBreak(a: LineBreakSettings, b: LineBreakSettings): boolean {
 }
 
 function isSameLayout(a: LayoutSettings, b: LayoutSettings): boolean {
-  return a.contentWidth === b.contentWidth;
+  return (
+    a.contentWidth === b.contentWidth && a.fontSize === b.fontSize && a.lineHeight === b.lineHeight
+  );
 }
 
 export function useSettings(initial: MdechoSettings): SettingsApi {
@@ -80,12 +89,16 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     }
   }, [fontDraft]);
 
-  // 幅もフォントと同じく、保存しなくてもスライダーを動かした結果をその場で確かめられるようにする。
+  // 幅や文字サイズもフォントと同じく、保存しなくてもスライダーを動かした結果を
+  // その場で確かめられるようにする。
   useEffect(() => {
-    document.documentElement.style.setProperty(
+    const root = document.documentElement;
+    root.style.setProperty(
       CONTENT_WIDTH_VARIABLE,
       buildContentWidthValue(layoutDraft.contentWidth),
     );
+    root.style.setProperty(FONT_SIZE_VARIABLE, buildFontSizeValue(layoutDraft.fontSize));
+    root.style.setProperty(LINE_HEIGHT_VARIABLE, buildLineHeightValue(layoutDraft.lineHeight));
   }, [layoutDraft]);
 
   const openDialog = useCallback(() => {
@@ -109,8 +122,8 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLineBreakDraft((current) => ({ ...current, [key]: value }));
   }, []);
 
-  const setContentWidth = useCallback((contentWidth: number) => {
-    setLayoutDraft({ contentWidth });
+  const setLayout = useCallback((key: keyof LayoutSettings, value: number) => {
+    setLayoutDraft((current) => ({ ...current, [key]: value }));
   }, []);
 
   const save = useCallback(async () => {
@@ -181,7 +194,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLineBreak,
     lineBreakOverride: initial.lineBreakOverride,
     layoutDraft,
-    setContentWidth,
+    setLayout,
     systemFonts,
     systemFontsLoading,
     systemFontsError,

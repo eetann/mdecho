@@ -10,7 +10,7 @@ function configOf(overrides: Partial<MdechoConfig>): MdechoConfig {
 }
 
 const DEFAULT_LINE_BREAK_JSON = { splitSentences: true, singleNewline: true };
-const DEFAULT_LAYOUT_JSON = { contentWidth: 1024 };
+const DEFAULT_LAYOUT_JSON = { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 };
 
 let dir: string | undefined;
 
@@ -77,17 +77,24 @@ describe("applyConfigEdits", () => {
 
   test("layoutも書き戻す", () => {
     const source = `{
-  // 本文の幅
+  // 本文の見え方
   "layout": {
     "contentWidth": 1024,
+    "fontSize": 16,
+    "lineHeight": 1.75,
   },
 }
 `;
 
-    const updated = applyConfigEdits(source, configOf({ layout: { contentWidth: 1440 } }));
+    const updated = applyConfigEdits(
+      source,
+      configOf({ layout: { contentWidth: 1440, fontSize: 18, lineHeight: 1.9 } }),
+    );
 
-    expect(updated).toContain("// 本文の幅");
+    expect(updated).toContain("// 本文の見え方");
     expect(updated).toContain('"contentWidth": 1440');
+    expect(updated).toContain('"fontSize": 18');
+    expect(updated).toContain('"lineHeight": 1.9');
   });
 
   test("mdechoが扱わないキーは残す", () => {

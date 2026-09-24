@@ -65,6 +65,32 @@ describe("normalizeConfig", () => {
     expect(warnings).toHaveLength(1);
   });
 
+  test("layout.fontSizeとlayout.lineHeightを読み込む", () => {
+    const config = normalizeConfig({ layout: { fontSize: 18, lineHeight: 1.9 } });
+    expect(config.layout.fontSize).toBe(18);
+    expect(config.layout.lineHeight).toBe(1.9);
+  });
+
+  test("layout.fontSizeが範囲外なら警告して頭打ちにする", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ layout: { fontSize: 99 } }, (m) => warnings.push(m));
+    expect(config.layout.fontSize).toBe(32);
+    expect(warnings).toHaveLength(1);
+  });
+
+  test("layout.lineHeightが範囲外なら警告して頭打ちにする", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ layout: { lineHeight: 5 } }, (m) => warnings.push(m));
+    expect(config.layout.lineHeight).toBe(2.4);
+    expect(warnings).toHaveLength(1);
+  });
+
+  test("layoutを書いても他の項目は既定値のままにする", () => {
+    const config = normalizeConfig({ layout: { fontSize: 18 } });
+    expect(config.layout.contentWidth).toBe(1024);
+    expect(config.layout.lineHeight).toBe(1.75);
+  });
+
   test("未知のキーを警告する", () => {
     const warnings: string[] = [];
     normalizeConfig({ fonts: { body: ["Inter"] } }, (message) => warnings.push(message));
