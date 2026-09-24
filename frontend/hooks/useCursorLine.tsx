@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { comparePriority } from "../lib/cursor-priority.ts";
 import { findRestoreIndex, formatCursorKey, parseCursorKey } from "../lib/cursor-restore.ts";
@@ -27,6 +28,10 @@ export interface CursorLineApi {
   getSentenceIndex: (el: Element) => number;
   getTargetForElement: (el: Element | null) => Element | null;
   setCursorToElement: (el: Element) => void;
+  /** カーソルがtargetsの何番目にいるかを読む。まだ決まっていなければ-1 */
+  getCursorIndex: () => number;
+  /** カーソルが動いたときに呼ばれるリスナーを登録する。戻り値で解除する */
+  subscribeCursorIndex: (listener: () => void) => () => void;
 }
 
 const CursorLineContext = createContext<CursorLineApi | null>(null);
@@ -110,6 +115,9 @@ export function CursorLineProvider({
   const [targets, setTargets] = useState<Element[]>([]);
   const targetsRef = useRef<Element[]>([]);
   const cursorIndexRef = useRef(-1);
+  // カーソルの移動でProvider全体を再描画すると、行数ぶんの要素を持つ行番号ガターまで
+  // 巻き込まれる。カーソル位置を知りたいものだけが再描画されるよう、購読の形で配る。
+  const cursorListenersRef = useRef(new Set<() => void>());
 
   const setCursor = useCallback((index: number, scrollBlock: ScrollLogicalPosition = "nearest") => {
     const currentTargets = targetsRef.current;
@@ -121,17 +129,19 @@ export function CursorLineProvider({
     }
     cursorIndexRef.current = clamped;
     const el = currentTargets[clamped];
-    if (!el) return;
-    el.setAttribute(CURSOR_ATTR, "");
-    el.scrollIntoView({ block: scrollBlock, inline: "nearest" });
-    try {
-      const line = Number(el.getAttribute("data-line"));
-      const lines = currentTargets.map((t) => Number(t.getAttribute("data-line")));
-      const part = groupIndexAt(lines, clamped);
-      sessionStorage.setItem(STORAGE_KEY, formatCursorKey(line, part));
-    } catch {
-      // sessionStorageが使えない環境(プライベートブラウジング等)は無視
+    if (el) {
+      el.setAttribute(CURSOR_ATTR, "");
+      el.scrollIntoView({ block: scrollBlock, inline: "nearest" });
+      try {
+        const line = Number(el.getAttribute("data-line"));
+        const lines = currentTargets.map((t) => Number(t.getAttribute("data-line")));
+        const part = groupIndexAt(lines, clamped);
+        sessionStorage.setItem(STORAGE_KEY, formatCursorKey(line, part));
+      } catch {
+        // sessionStorageが使えない環境(プライベートブラウジング等)は無視
+      }
     }
+    for (const listener of cursorListenersRef.current) listener();
   }, []);
 
   const moveCursor = useCallback(
@@ -237,6 +247,14 @@ export function CursorLineProvider({
     },
     [setCursor],
   );
+  const getCursorIndex = useCallback(() => cursorIndexRef.current, []);
+  const subscribeCursorIndex = useCallback((listener: () => void) => {
+    const listeners = cursorListenersRef.current;
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
 
   const api = useMemo<CursorLineApi>(
     () => ({
@@ -247,6 +265,8 @@ export function CursorLineProvider({
       getSentenceIndex,
       getTargetForElement,
       setCursorToElement,
+      getCursorIndex,
+      subscribeCursorIndex,
     }),
     [
       targets,
@@ -256,6 +276,8 @@ export function CursorLineProvider({
       getSentenceIndex,
       getTargetForElement,
       setCursorToElement,
+      getCursorIndex,
+      subscribeCursorIndex,
     ],
   );
 
@@ -268,4 +290,13 @@ export function useCursorLine(): CursorLineApi {
     throw new Error("useCursorLine must be used within a CursorLineProvider");
   }
   return ctx;
+}
+
+/**
+ * カーソルがtargetsの何番目にいるかを、移動に追従して返す。まだ決まっていなければ-1。
+ * これを呼んだコンポーネントだけがカーソルの移動で再描画される。
+ */
+export function useCursorIndex(): number {
+  const { getCursorIndex, subscribeCursorIndex } = useCursorLine();
+  return useSyncExternalStore(subscribeCursorIndex, getCursorIndex);
 }
