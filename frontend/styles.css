@@ -272,15 +272,33 @@ body {
   border: 1px solid #d1d9e0;
 }
 
+/* ゼブラ縞(#f6f8fa)を足したので、ヘッダーは一段濃い#eaeef2にして縞より強い色に置く。
+   同じ色のままだと、拡大モーダルのsticky headerの真下へ偶数行が流れてきたときに、
+   境目がinset shadowの1pxだけになって見出しの行が縞に埋もれる。
+   #eaeef2はコメント欄のヘッダー(.mdecho-comment-view-body th)と同じ値。 */
 .markdown-body th {
   font-weight: 600;
+  background: #eaeef2;
+}
+
+/* 行方向の手がかり。横に長い表ではカラム幅を詰めても1行が画面幅いっぱいまで伸びるため、
+   縞がないと目で追っている行を右端で見失う。
+   ヘッダーの直下(1行目)は白のままにして、ヘッダーとの境目をはっきりさせる。
+   `of :not(.mdecho-comment-row)`で、useCommentSlotsが行間に差し込む吹き出しの`tr`を
+   数から外す。単なる:nth-child(even)だと、コメントを1つ開いた時点でその下の縞が
+   すべて反転してしまう。 */
+.markdown-body tbody tr:nth-child(even of :not(.mdecho-comment-row)) {
   background: #f6f8fa;
 }
 
 .markdown-body code {
   padding: 0.2em 0.4em;
   font-size: 0.9em;
-  background: #f6f8fa;
+  /* 不透明な#f6f8faだと、同じ色のゼブラ縞の行に乗ったセル内のインラインコードが
+     背景に溶けて消える。下地を透かすグレーにすると、縞の行でも下地ごと暗くなるので
+     チップとして残る。#d2dce6を20%で白に重ねるとちょうど#f6f8faになるため、
+     表の外にあるインラインコードの見え方はこれまでと変わらない。 */
+  background: rgb(210 220 230 / 0.2);
   border-radius: 6px;
   font-family: var(--font-mono);
 }
