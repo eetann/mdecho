@@ -14,11 +14,13 @@ import { comparePriority } from "../lib/cursor-priority.ts";
 import { findRestoreIndex, formatCursorKey, parseCursorKey } from "../lib/cursor-restore.ts";
 import { computeLineParts, groupIndexAt, positionOfGroupIndex } from "../lib/line-group.ts";
 import { isModalOpen } from "../lib/modal.ts";
+import { useScrollRestore } from "./useScrollRestore.ts";
 
 const CANDIDATE_SELECTOR =
   "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr,.mdecho-sentence,.mdecho-mermaid";
 const CURSOR_ATTR = "data-mdecho-cursor";
-const STORAGE_KEY = "mdecho:cursorLine";
+// ファイルをまたいで読み進められるため、カーソル位置も表示中のファイルごとに分けて持つ。
+const STORAGE_KEY_PREFIX = "mdecho:cursorLine:";
 
 export interface CursorLineApi {
   targets: Element[];
@@ -107,9 +109,12 @@ function collectTargets(root: Element): Element[] {
 
 export function CursorLineProvider({
   markdownBodyRef,
+  relPath,
   children,
 }: {
   markdownBodyRef: RefObject<HTMLElement | null>;
+  /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス(保存キーに使う) */
+  relPath: string;
   children: ReactNode;
 }) {
   const [targets, setTargets] = useState<Element[]>([]);
@@ -119,30 +124,33 @@ export function CursorLineProvider({
   // 巻き込まれる。カーソル位置を知りたいものだけが再描画されるよう、購読の形で配る。
   const cursorListenersRef = useRef(new Set<() => void>());
 
-  const setCursor = useCallback((index: number, scrollBlock: ScrollLogicalPosition = "nearest") => {
-    const currentTargets = targetsRef.current;
-    if (currentTargets.length === 0) return;
-    const clamped = Math.max(0, Math.min(index, currentTargets.length - 1));
-    const previous = currentTargets[cursorIndexRef.current];
-    if (cursorIndexRef.current >= 0 && previous) {
-      previous.removeAttribute(CURSOR_ATTR);
-    }
-    cursorIndexRef.current = clamped;
-    const el = currentTargets[clamped];
-    if (el) {
-      el.setAttribute(CURSOR_ATTR, "");
-      el.scrollIntoView({ block: scrollBlock, inline: "nearest" });
-      try {
-        const line = Number(el.getAttribute("data-line"));
-        const lines = currentTargets.map((t) => Number(t.getAttribute("data-line")));
-        const part = groupIndexAt(lines, clamped);
-        sessionStorage.setItem(STORAGE_KEY, formatCursorKey(line, part));
-      } catch {
-        // sessionStorageが使えない環境(プライベートブラウジング等)は無視
+  const setCursor = useCallback(
+    (index: number, scrollBlock: ScrollLogicalPosition = "nearest") => {
+      const currentTargets = targetsRef.current;
+      if (currentTargets.length === 0) return;
+      const clamped = Math.max(0, Math.min(index, currentTargets.length - 1));
+      const previous = currentTargets[cursorIndexRef.current];
+      if (cursorIndexRef.current >= 0 && previous) {
+        previous.removeAttribute(CURSOR_ATTR);
       }
-    }
-    for (const listener of cursorListenersRef.current) listener();
-  }, []);
+      cursorIndexRef.current = clamped;
+      const el = currentTargets[clamped];
+      if (el) {
+        el.setAttribute(CURSOR_ATTR, "");
+        el.scrollIntoView({ block: scrollBlock, inline: "nearest" });
+        try {
+          const line = Number(el.getAttribute("data-line"));
+          const lines = currentTargets.map((t) => Number(t.getAttribute("data-line")));
+          const part = groupIndexAt(lines, clamped);
+          sessionStorage.setItem(`${STORAGE_KEY_PREFIX}${relPath}`, formatCursorKey(line, part));
+        } catch {
+          // sessionStorageが使えない環境(プライベートブラウジング等)は無視
+        }
+      }
+      for (const listener of cursorListenersRef.current) listener();
+    },
+    [relPath],
+  );
 
   const moveCursor = useCallback(
     (delta: number) => {
@@ -170,7 +178,7 @@ export function CursorLineProvider({
     if (hashIndex === -1) {
       let stored: ReturnType<typeof parseCursorKey> = null;
       try {
-        stored = parseCursorKey(sessionStorage.getItem(STORAGE_KEY));
+        stored = parseCursorKey(sessionStorage.getItem(`${STORAGE_KEY_PREFIX}${relPath}`));
       } catch {
         // sessionStorageが使えない環境(プライベートブラウジング等)は無視
       }
@@ -210,7 +218,11 @@ export function CursorLineProvider({
       document.removeEventListener("keydown", handleKeydown);
       window.removeEventListener("hashchange", handleHashChange);
     };
-  }, [markdownBodyRef, setCursor, moveCursor]);
+  }, [markdownBodyRef, relPath, setCursor, moveCursor]);
+
+  // targetsが揃ってから動くよう、上のeffectより後に置く。カーソルの復元が寄せたスクロールを、
+  // このフックが読んでいた位置へ置き直す。
+  useScrollRestore(relPath, targets);
 
   const getCurrentTarget = useCallback(
     () => targetsRef.current[cursorIndexRef.current] ?? null,

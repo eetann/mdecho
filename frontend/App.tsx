@@ -33,7 +33,7 @@ export function App({
   const settingsApi = useSettings(settings);
 
   return (
-    <CursorLineProvider markdownBodyRef={markdownBodyRef}>
+    <CursorLineProvider markdownBodyRef={markdownBodyRef} relPath={relPath}>
       {/* 目次は fixed なので場所を取らない。その分の幅をここで空け、残った幅の中で
           本文を中央寄せして左右の余白を揃える(余白の取り方はstyles.css)。 */}
       <div className="mdecho-layout">
