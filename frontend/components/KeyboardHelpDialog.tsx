@@ -28,8 +28,16 @@ const SECTIONS: ShortcutSection[] = [
     ],
   },
   {
+    title: "表の拡大表示",
+    shortcuts: [
+      { keys: [["j"], ["k"]], description: "表の中だけで行を移動(↑↓も同じ)" },
+      { keys: [["Enter"]], description: "カーソル行にコメントを書く" },
+      { keys: [["Esc"]], description: "拡大表示を閉じる" },
+    ],
+  },
+  {
     title: "モーダル",
-    shortcuts: [{ keys: [["Esc"]], description: "設定や表の拡大表示を閉じる" }],
+    shortcuts: [{ keys: [["Esc"]], description: "設定やヘルプを閉じる" }],
   },
 ];
 

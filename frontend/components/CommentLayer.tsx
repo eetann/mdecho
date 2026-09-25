@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useCommentSlots } from "../hooks/useCommentSlots.ts";
 import { useCursorLine } from "../hooks/useCursorLine.tsx";
 import { parseKey } from "../lib/comment-keys.ts";
-import { isModalOpen } from "../lib/modal.ts";
+import { getOpenTableModal, isDialogOpen } from "../lib/modal.ts";
 import type { Comment } from "../lib/types.ts";
 import { CommentSlot } from "./CommentSlot.tsx";
 import { QuoteButton } from "./QuoteButton.tsx";
@@ -131,15 +131,17 @@ export function CommentLayer({
       if (event.defaultPrevented) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(document.activeElement)) return;
-      if (isModalOpen()) return;
+      if (isDialogOpen()) return;
       if (event.key !== "Enter") return;
       const target = cursor.getCurrentTarget();
-      if (target) {
-        event.preventDefault();
-        const line = Number(target.getAttribute("data-line"));
-        const sentenceIndex = cursor.getSentenceIndex(target);
-        openEditor(line, line, sentenceIndex);
-      }
+      if (!target) return;
+      // 表の拡大中は、その表の行にだけ反応する。外の行はモーダルの裏でエディタが開くだけになる。
+      const tableModal = getOpenTableModal();
+      if (tableModal && !tableModal.contains(target)) return;
+      event.preventDefault();
+      const line = Number(target.getAttribute("data-line"));
+      const sentenceIndex = cursor.getSentenceIndex(target);
+      openEditor(line, line, sentenceIndex);
     }
 
     function handleSelectionChange() {

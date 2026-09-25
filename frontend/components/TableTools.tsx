@@ -6,7 +6,9 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useCursorLine } from "../hooks/useCursorLine.tsx";
 import type { TableHandle } from "../hooks/useTableTools.ts";
+import { isDialogOpen } from "../lib/modal.ts";
 
 /** 環境によって字形が無い記号(⤢など)を避けるため、拡大アイコンはSVGで描く。 */
 function ExpandIcon() {
@@ -56,6 +58,7 @@ function ColumnResizer({ handle, index }: { handle: TableHandle; index: number }
 
 function TableModal({ handle, onClose }: { handle: TableHandle; onClose: () => void }) {
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const { targets, getCurrentTarget, setCursorToElement } = useCursorLine();
 
   useLayoutEffect(() => {
     const body = bodyRef.current;
@@ -74,8 +77,22 @@ function TableModal({ handle, onClose }: { handle: TableHandle; onClose: () => v
     };
   }, [handle]);
 
+  // 拡大した時点でカーソルが表の外にいると、j/kを押しても動く先が見えない。表の先頭行へ寄せる。
+  // テーブルを移す上のeffectより後に置いて、モーダルの中でスクロールさせる。
+  useLayoutEffect(() => {
+    const { scroll } = handle;
+    const current = getCurrentTarget();
+    if (current && scroll.contains(current)) return;
+    const firstRow = targets.find((el) => scroll.contains(el));
+    if (firstRow) setCursorToElement(firstRow);
+  }, [handle, targets, getCurrentTarget, setCursorToElement]);
+
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
+      // コメントの編集中に押されたEscは、そちらのキャンセルで使い切る(拡大まで閉じない)
+      if (event.defaultPrevented) return;
+      // 削除確認などが上に重なっているときは、そちらが先に閉じる
+      if (isDialogOpen()) return;
       if (event.key !== "Escape") return;
       event.preventDefault();
       onClose();

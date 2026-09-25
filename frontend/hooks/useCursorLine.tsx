@@ -12,8 +12,9 @@ import {
 } from "react";
 import { comparePriority } from "../lib/cursor-priority.ts";
 import { findRestoreIndex, formatCursorKey, parseCursorKey } from "../lib/cursor-restore.ts";
+import { clampToCursorScope, findCursorScope } from "../lib/cursor-scope.ts";
 import { computeLineParts, groupIndexAt, positionOfGroupIndex } from "../lib/line-group.ts";
-import { isModalOpen } from "../lib/modal.ts";
+import { getOpenTableModal, isDialogOpen } from "../lib/modal.ts";
 import { useScrollRestore } from "./useScrollRestore.ts";
 
 const CANDIDATE_SELECTOR =
@@ -154,11 +155,19 @@ export function CursorLineProvider({
 
   const moveCursor = useCallback(
     (delta: number) => {
+      // 表を拡大している間は、その中の行だけを行き来する。外の行はモーダルの裏に隠れていて、
+      // 送っても動いたことが分からない。
+      const modal = getOpenTableModal();
+      const scope = modal
+        ? findCursorScope(targetsRef.current.map((el) => modal.contains(el)))
+        : null;
+      if (modal && !scope) return;
       if (cursorIndexRef.current === -1) {
-        setCursor(0);
+        setCursor(scope ? scope.start : 0);
         return;
       }
-      setCursor(cursorIndexRef.current + delta);
+      const next = cursorIndexRef.current + delta;
+      setCursor(scope ? clampToCursorScope(next, scope) : next);
     },
     [setCursor],
   );
@@ -195,7 +204,8 @@ export function CursorLineProvider({
       if (event.defaultPrevented) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (isEditableTarget(document.activeElement)) return;
-      if (isModalOpen()) return;
+      // 表の拡大表示だけは、開いている間もj/kを生かす(moveCursorが表の中に閉じ込める)
+      if (isDialogOpen()) return;
 
       if (event.key === "ArrowDown" || event.key === "j") {
         event.preventDefault();
