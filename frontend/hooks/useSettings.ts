@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buildFontFamilyValue, FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
 import {
   buildContentWidthValue,
@@ -8,6 +8,13 @@ import {
   FONT_SIZE_VARIABLE,
   LINE_HEIGHT_VARIABLE,
 } from "../../src/layout-css.ts";
+import {
+  type ResolvedTheme,
+  resolveThemeMode,
+  THEME_ATTRIBUTE,
+  type ThemeColors,
+  type ThemeMode,
+} from "../../src/theme-css.ts";
 import type {
   FontSettings,
   LayoutSettings,
@@ -15,6 +22,12 @@ import type {
   MdechoSettings,
   SystemFont,
 } from "../lib/types.ts";
+
+const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
+
+function prefersDarkNow(): boolean {
+  return window.matchMedia(DARK_MEDIA_QUERY).matches;
+}
 
 export interface SettingsApi {
   open: boolean;
@@ -31,6 +44,14 @@ export interface SettingsApi {
   /** 編集中のレイアウト設定。保存前でもページには即座に反映される */
   layoutDraft: LayoutSettings;
   setLayout: (key: keyof LayoutSettings, value: number) => void;
+  /**
+   * 配色をライト/ダークに固定するか、OSに合わせるか。
+   * フォントやレイアウトと違いドラフトを持たず、押した時点で反映して保存する。
+   */
+  themeMode: ThemeMode;
+  /** systemを解決したあとの、いま実際に当たっている配色 */
+  resolvedTheme: ResolvedTheme;
+  setThemeMode: (mode: ThemeMode) => void;
   systemFonts: SystemFont[];
   systemFontsLoading: boolean;
   systemFontsError: string | undefined;
@@ -74,6 +95,15 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
   const [systemFontsError, setSystemFontsError] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(initial.theme.mode);
+  const [prefersDark, setPrefersDark] = useState(prefersDarkNow);
+  // 色の上書きはUIから編集しないが、保存のたびに送り返さないとサーバー側の設定から
+  // 消えてしまうため、受け取ったものをそのまま持っておく。
+  const themeColors = useRef<{ light: ThemeColors; dark: ThemeColors }>({
+    light: initial.theme.light,
+    dark: initial.theme.dark,
+  });
+  const resolvedTheme = resolveThemeMode(themeMode, prefersDark);
 
   // 保存しなくても見た目で選べるよう、編集中の値をそのままCSS変数へ流し込む。
   // サーバーが<head>に注入したスタイルより、この要素側の指定が優先される。
@@ -101,6 +131,19 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     root.style.setProperty(LINE_HEIGHT_VARIABLE, buildLineHeightValue(layoutDraft.lineHeight));
   }, [layoutDraft]);
 
+  // OS側の設定変更に追従する。mode === "system" のときだけ見た目が変わる。
+  useEffect(() => {
+    const media = window.matchMedia(DARK_MEDIA_QUERY);
+    const handleChange = (event: MediaQueryListEvent) => setPrefersDark(event.matches);
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
+
+  // <head>のブートスクリプトが初回の描画前に書いた値を、ここから先は引き継いで更新する。
+  useEffect(() => {
+    document.documentElement.setAttribute(THEME_ATTRIBUTE, resolvedTheme);
+  }, [resolvedTheme]);
+
   const openDialog = useCallback(() => {
     setOpen(true);
     setSaveError(undefined);
@@ -126,19 +169,72 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLayoutDraft((current) => ({ ...current, [key]: value }));
   }, []);
 
-  const save = useCallback(async () => {
-    setSaving(true);
-    setSaveError(undefined);
-    try {
+  /**
+   * 設定ファイルへ書き戻す。サーバーは受け取った内容で設定をまるごと差し替えるため、
+   * 1項目だけ変えたいときも、残りは保存済みの値をそのまま載せて送る。
+   */
+  const postConfig = useCallback(
+    async (next: {
+      font: FontSettings;
+      lineBreak: LineBreakSettings;
+      layout: LayoutSettings;
+      themeMode: ThemeMode;
+    }) => {
       const res = await fetch("/api/config", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ font: fontDraft, lineBreak: lineBreakDraft, layout: layoutDraft }),
+        body: JSON.stringify({
+          font: next.font,
+          lineBreak: next.lineBreak,
+          layout: next.layout,
+          // 色はUIから編集しないが、載せずに送るとサーバーが持っている設定から消えてしまう
+          // (設定ファイルへは書き戻さないので、ファイル側のコメントや並びは壊れない)。
+          theme: { mode: next.themeMode, ...themeColors.current },
+        }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(body.message ?? `保存に失敗しました (HTTP ${res.status})`);
       }
+    },
+    [],
+  );
+
+  const setThemeMode = useCallback(
+    (mode: ThemeMode) => {
+      // フォントやレイアウトと違い、押した瞬間に反映して保存まで済ませる。
+      // 保存できなくてもこの起動中の見た目は変えたままにして、理由はモーダルのエラー欄で伝える。
+      setThemeModeState(mode);
+      if (!initial.editable) return;
+      void (async () => {
+        try {
+          // 編集中のドラフトではなく保存済みの値を載せる。設定モーダルでフォントをいじっている
+          // 最中にここが走っても、まだ保存していない内容を書き込んでしまわないようにする。
+          await postConfig({
+            font: savedFonts,
+            lineBreak: savedLineBreak,
+            layout: savedLayout,
+            themeMode: mode,
+          });
+          setSaveError(undefined);
+        } catch (error) {
+          setSaveError(error instanceof Error ? error.message : String(error));
+        }
+      })();
+    },
+    [initial.editable, postConfig, savedFonts, savedLayout, savedLineBreak],
+  );
+
+  const save = useCallback(async () => {
+    setSaving(true);
+    setSaveError(undefined);
+    try {
+      await postConfig({
+        font: fontDraft,
+        lineBreak: lineBreakDraft,
+        layout: layoutDraft,
+        themeMode,
+      });
       // 改行の扱いはサーバー側のHTML生成で決まるため、フォントと違って読み込み直さないと反映されない。
       if (!isSameLineBreak(lineBreakDraft, savedLineBreak)) {
         location.reload();
@@ -152,7 +248,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     } finally {
       setSaving(false);
     }
-  }, [fontDraft, layoutDraft, lineBreakDraft, savedLineBreak]);
+  }, [fontDraft, layoutDraft, lineBreakDraft, postConfig, savedLineBreak, themeMode]);
 
   // モーダルを開いた時点から取りに行くと、候補が出るまでの一拍が操作の邪魔になるため、
   // 表示時に先に取っておく。サーバー側はプロセス内でキャッシュしている。
@@ -195,6 +291,9 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     lineBreakOverride: initial.lineBreakOverride,
     layoutDraft,
     setLayout,
+    themeMode,
+    resolvedTheme,
+    setThemeMode,
     systemFonts,
     systemFontsLoading,
     systemFontsError,

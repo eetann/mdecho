@@ -9,6 +9,7 @@ import { Toolbar } from "./components/Toolbar.tsx";
 import { useComments } from "./hooks/useComments.ts";
 import { CursorLineProvider } from "./hooks/useCursorLine.tsx";
 import { useLiveReload } from "./hooks/useLiveReload.ts";
+import { useMermaid } from "./hooks/useMermaid.ts";
 import { useSettings } from "./hooks/useSettings.ts";
 import { useTableTools } from "./hooks/useTableTools.ts";
 import type { MdechoSettings } from "./lib/types.ts";
@@ -31,6 +32,8 @@ export function App({
   const commentsApi = useComments(relPath, filePath);
   const tables = useTableTools(markdownBodyRef, bodyHtml);
   const settingsApi = useSettings(settings);
+  // 図の色はmermaid側のテーマが持っているので、本文の配色に合わせて描き直す
+  useMermaid(markdownBodyRef, bodyHtml, settingsApi.resolvedTheme);
 
   return (
     <CursorLineProvider markdownBodyRef={markdownBodyRef} relPath={relPath}>
@@ -46,6 +49,8 @@ export function App({
             otherFileCount={commentsApi.otherFileCount}
             deleteAllComments={commentsApi.deleteAllComments}
             openSettings={settingsApi.openDialog}
+            themeMode={settingsApi.themeMode}
+            setThemeMode={settingsApi.setThemeMode}
           />
           <div className="mdecho-content mb-1 flex">
             <LineNumberGutter

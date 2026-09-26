@@ -38,7 +38,7 @@ export function CommentView({
   }, [text]);
 
   return (
-    <div className="mdecho-comment-view card card-border cursor-pointer border-l-[3px] border-l-[#9a6700] bg-base-200 p-3">
+    <div className="mdecho-comment-view card card-border cursor-pointer border-l-[3px] border-l-warning bg-base-200 p-3">
       <div className="mdecho-comment-line-ref flex items-center gap-2 font-mono text-xs text-base-content/60 after:flex-1 after:border-t after:border-dashed after:border-base-300 after:content-['']">
         {formatLineRef(startLine, endLine)}
       </div>

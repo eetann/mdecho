@@ -17,6 +17,7 @@ import { isMarkdownPath, resolveDoc } from "./doc-path.ts";
 import { buildFontCss } from "./font-css.ts";
 import { buildLayoutCss } from "./layout-css.ts";
 import { listSystemFonts } from "./system-fonts.ts";
+import { buildThemeCss } from "./theme-css.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
 import { renderNotFoundPage, renderShell } from "./render-shell.ts";
@@ -25,7 +26,7 @@ const CLIENT_TEMPLATE_PATH = join(import.meta.dirname, "..", "dist", "client", "
 
 /** 設定から組み立てる、<head>の末尾に差し込むCSS。styles.cssの既定値を上書きする。 */
 function buildHeadCss(config: MdechoConfig): string {
-  return [buildFontCss(config.font), buildLayoutCss(config.layout)]
+  return [buildFontCss(config.font), buildLayoutCss(config.layout), buildThemeCss(config.theme)]
     .filter((css) => css.length > 0)
     .join("\n");
 }
@@ -131,6 +132,7 @@ export async function startServer(
       font: normalized.font,
       lineBreak: normalized.lineBreak,
       layout: normalized.layout,
+      theme: normalized.theme,
       warnings,
     });
   });
@@ -183,6 +185,7 @@ export async function startServer(
           lineBreak: currentConfig.lineBreak,
           lineBreakOverride,
           layout: currentConfig.layout,
+          theme: currentConfig.theme,
           configFile,
           editable: configEditable,
         },

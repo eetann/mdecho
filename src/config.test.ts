@@ -138,6 +138,76 @@ describe("normalizeConfig", () => {
     normalizeConfig({ lineBreak: { splitSentence: true } }, (m) => warnings.push(m));
     expect(warnings).toEqual(["lineBreakに未知のキーがあります: splitSentence"]);
   });
+
+  test("themeを書かなければOS追従・色の上書きなしになる", () => {
+    const config = normalizeConfig({});
+    expect(config.theme).toEqual({ mode: "system", light: {}, dark: {} });
+  });
+
+  test("モードと色の上書きを読む", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig(
+      {
+        theme: {
+          mode: "dark",
+          light: { primary: "#1f6feb" },
+          dark: { "base-100": "#000000", primary: "oklch(70% 0.15 200)" },
+        },
+      },
+      (m) => warnings.push(m),
+    );
+    expect(config.theme).toEqual({
+      mode: "dark",
+      light: { primary: "#1f6feb" },
+      dark: { "base-100": "#000000", primary: "oklch(70% 0.15 200)" },
+    });
+    expect(warnings).toEqual([]);
+  });
+
+  test("知らないモードは警告してsystemにする", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ theme: { mode: "auto" } }, (m) => warnings.push(m));
+    expect(config.theme.mode).toBe("system");
+    expect(warnings).toEqual([
+      "theme.modeはsystem / light / darkのいずれかで指定してください。systemとして扱います",
+    ]);
+  });
+
+  test("知らない色の名前を警告して読み飛ばす", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig(
+      { theme: { dark: { "base-999": "#fff", primary: "#4493f8" } } },
+      (m) => warnings.push(m),
+    );
+    expect(config.theme.dark).toEqual({ primary: "#4493f8" });
+    expect(warnings).toEqual(["theme.darkに未知の色の名前があります: base-999"]);
+  });
+
+  test("CSSを壊しうる値を警告して読み飛ばす", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig(
+      { theme: { dark: { primary: "red; } body { display: none", "base-100": "#000" } } },
+      (m) => warnings.push(m),
+    );
+    expect(config.theme.dark).toEqual({ "base-100": "#000" });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("theme.dark.primaryに色として使えない値");
+  });
+
+  test("色に文字列以外を書くと警告して読み飛ばす", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ theme: { light: { warning: 123 } } }, (m) => warnings.push(m));
+    expect(config.theme.light).toEqual({});
+    expect(warnings).toEqual([
+      "theme.light.warningは文字列で指定してください。この設定は無視します",
+    ]);
+  });
+
+  test("themeの未知のキーを警告する", () => {
+    const warnings: string[] = [];
+    normalizeConfig({ theme: { modes: "dark" } }, (m) => warnings.push(m));
+    expect(warnings).toEqual(["themeに未知のキーがあります: modes"]);
+  });
 });
 
 describe("resolveLineBreak", () => {

@@ -98,7 +98,7 @@ export function LineNumberGutter({
             key={mark.key}
             aria-hidden="true"
             className={`${MARK_BAR_CLASS} ${
-              mark.key === editingKey ? "bg-primary" : "bg-[#9a6700]/60"
+              mark.key === editingKey ? "bg-primary" : "bg-warning/60"
             }`}
             style={{ top: bar.top, height: bar.height }}
           />

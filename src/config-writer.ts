@@ -32,6 +32,9 @@ export function applyConfigEdits(source: string, config: MdechoConfig): string {
     [["layout", "contentWidth"], config.layout.contentWidth],
     [["layout", "fontSize"], config.layout.fontSize],
     [["layout", "lineHeight"], config.layout.lineHeight],
+    // 色(theme.light / theme.dark)はUIから編集しないため、ここでは書き戻さない。
+    // オブジェクトごと差し替えると、その中に書かれたコメントや並びが消えてしまう。
+    [["theme", "mode"], config.theme.mode],
   ];
   for (const [path, value] of entries) {
     text = applyEdits(text, modify(text, path, value, { formattingOptions: FORMATTING_OPTIONS }));

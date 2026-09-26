@@ -11,6 +11,8 @@ function configOf(overrides: Partial<MdechoConfig>): MdechoConfig {
 
 const DEFAULT_LINE_BREAK_JSON = { splitSentences: true, singleNewline: true };
 const DEFAULT_LAYOUT_JSON = { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 };
+// 色(theme.light / theme.dark)はUIから編集しないため書き戻さない。modeだけが出る。
+const DEFAULT_THEME_JSON = { mode: "system" };
 
 let dir: string | undefined;
 
@@ -97,6 +99,28 @@ describe("applyConfigEdits", () => {
     expect(updated).toContain('"lineHeight": 1.9');
   });
 
+  test("配色はmodeだけ書き戻し、手書きした色とコメントはそのまま残す", () => {
+    const source = `{
+  "theme": {
+    "mode": "system",
+    "dark": {
+      // 目に優しい黒
+      "base-100": "#000000",
+    },
+  },
+}
+`;
+
+    const updated = applyConfigEdits(
+      source,
+      configOf({ theme: { mode: "dark", light: {}, dark: { "base-100": "#000000" } } }),
+    );
+
+    expect(updated).toContain('"mode": "dark"');
+    expect(updated).toContain("// 目に優しい黒");
+    expect(updated).toContain('"base-100": "#000000"');
+  });
+
   test("mdechoが扱わないキーは残す", () => {
     const updated = applyConfigEdits(
       '{ "future": { "a": 1 } }',
@@ -108,6 +132,7 @@ describe("applyConfigEdits", () => {
       font: { body: ["Inter"], code: [] },
       lineBreak: DEFAULT_LINE_BREAK_JSON,
       layout: DEFAULT_LAYOUT_JSON,
+      theme: DEFAULT_THEME_JSON,
     });
   });
 
@@ -121,6 +146,7 @@ describe("applyConfigEdits", () => {
       font: { body: ["Inter"], code: ["Consolas"] },
       lineBreak: DEFAULT_LINE_BREAK_JSON,
       layout: DEFAULT_LAYOUT_JSON,
+      theme: DEFAULT_THEME_JSON,
     });
   });
 });
@@ -136,6 +162,7 @@ describe("saveConfig", () => {
       font: { body: ["Inter"], code: [] },
       lineBreak: DEFAULT_LINE_BREAK_JSON,
       layout: DEFAULT_LAYOUT_JSON,
+      theme: DEFAULT_THEME_JSON,
     });
   });
 

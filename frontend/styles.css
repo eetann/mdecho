@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: light --default;
+  themes:
+    light --default,
+    dark;
 }
 
+/* 配色の語彙はdaisyUIの色トークンに揃えてある。~/.config/mdecho/config.jsonc の
+   theme.light / theme.dark に同じ名前で色を書くと、サーバーが<head>の末尾へ
+   [data-theme="…"] { --color-…: … } を注入してこの既定値を上書きする(src/theme-css.ts)。
+   どちらのテーマを当てるかはhtml要素の data-theme で決まり、system(OS追従)のときも
+   <head>のブートスクリプトが解決済みの値を書くので、ここは2値だけを考えればよい。
+   色はGitHubのLight/Darkに合わせている。 */
 @plugin "daisyui/theme" {
   name: "light";
   default: true;
@@ -14,6 +22,47 @@
   --color-base-content: #1f2328;
   --color-primary: #0969da;
   --color-primary-content: #ffffff;
+  --color-secondary: #8250df;
+  --color-secondary-content: #ffffff;
+  --color-accent: #bf3989;
+  --color-accent-content: #ffffff;
+  --color-neutral: #24292f;
+  --color-neutral-content: #ffffff;
+  --color-info: #0969da;
+  --color-info-content: #ffffff;
+  --color-success: #1a7f37;
+  --color-success-content: #ffffff;
+  --color-warning: #9a6700;
+  --color-warning-content: #ffffff;
+  --color-error: #cf222e;
+  --color-error-content: #ffffff;
+  --radius-field: 6px;
+  --radius-box: 6px;
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+  color-scheme: dark;
+  --color-base-100: #0d1117;
+  --color-base-200: #161b22;
+  --color-base-300: #30363d;
+  --color-base-content: #e6edf3;
+  --color-primary: #4493f8;
+  --color-primary-content: #0d1117;
+  --color-secondary: #a371f7;
+  --color-secondary-content: #0d1117;
+  --color-accent: #db61a2;
+  --color-accent-content: #0d1117;
+  --color-neutral: #6e7681;
+  --color-neutral-content: #f0f6fc;
+  --color-info: #4493f8;
+  --color-info-content: #0d1117;
+  --color-success: #3fb950;
+  --color-success-content: #0d1117;
+  --color-warning: #d29922;
+  --color-warning-content: #0d1117;
+  --color-error: #f85149;
+  --color-error-content: #0d1117;
   --radius-field: 6px;
   --radius-box: 6px;
 }
@@ -66,6 +115,65 @@
   /* 目次のために右側へ空けておく幅。目次はfixedで right-8(2rem) + w-48(12rem) を
      占めるため、本文との間に余白が残るよう14remより広く取る。 */
   --mdecho-toc-column: 16rem;
+}
+
+/* ここから下は、上のテーマが持つ色トークンから導き出す本文用の色。
+   元の色(--color-*)を参照しているので、テーマを切り替えても設定で色を上書きしても
+   まとめて追従する。ユーザーが例えばprimaryを1色変えるだけで、リンクから
+   カーソル行の下地までが揃って変わる。
+
+   1宣言ごとにルールを分けているのは、Tailwind v4のcolor-mixポリフィルが
+   1つのルールにつき先頭の1宣言しか@supportsブロックへ複製しないため。
+   まとめて書くと2つ目以降がポリフィル用のフォールバック(mixする前の色そのまま)で
+   固定されてしまい、例えばカーソル行の下地がprimaryのベタ塗りになる。
+   見た目が崩れるので、ここのルールは1つにまとめないこと。 */
+
+/* 罫線(base-300)よりさらに一段薄い線。ネストしたリストのガイド線に使う。
+   base-100(地の色)へ寄せるので、ライトでは明るく、ダークでは暗い方向へ薄まる。 */
+:root {
+  --mdecho-border-subtle: color-mix(in oklab, var(--color-base-300) 83%, var(--color-base-100));
+}
+
+/* ゼブラ縞(base-200)より一段濃い下地。表のヘッダーに使う。
+   縞より強い色でないと、拡大モーダルのsticky headerの真下へ偶数行が流れてきたときに
+   見出しの行が縞に埋もれる。 */
+:root {
+  --mdecho-surface-strong: color-mix(in oklab, var(--color-base-300) 45%, var(--color-base-100));
+}
+
+/* インラインコードのチップ。不透明な下地だと、同じ色のゼブラ縞の行に乗ったセル内の
+   インラインコードが背景に溶けて消える。下地を透かす色にすると、縞の行でも
+   下地ごと暗く(ダークでは明るく)なるのでチップとして残る。 */
+:root {
+  --mdecho-code-chip: color-mix(in oklab, var(--color-base-300) 20%, transparent);
+}
+
+/* チップだけは同じ比率を両テーマで使えない。ライトは地の色が明るいので20%で十分沈むが、
+   ダークはbase-300(#30363d)とbase-100(#0d1117)の差が小さく、20%だとチップが見えない。 */
+[data-theme="dark"] {
+  --mdecho-code-chip: color-mix(in oklab, var(--color-base-300) 55%, transparent);
+}
+
+/* 本文より落とした文字色。引用に使う。落としすぎると読めず、落とさないと引用だと分からない。
+   地の色(base-100)ではなく罫線の色(base-300)へ寄せるのは、そのほうがテーマが持つ
+   グレーの色味に乗るため。base-100へ寄せると色味の無いグレーになって、
+   青みがかった周りの罫線から浮く。 */
+:root {
+  --mdecho-muted: color-mix(in oklab, var(--color-base-content) 61%, var(--color-base-300));
+}
+
+/* カーソル行とコメント関連の下地。どれもprimaryを透かした色で、
+   濃さは range(ドラッグ中) > active(入力中) ≒ cursor の順。 */
+:root {
+  --mdecho-cursor-bg: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+:root {
+  --mdecho-comment-active-bg: color-mix(in oklab, var(--color-primary) 9%, transparent);
+}
+
+:root {
+  --mdecho-comment-range-bg: color-mix(in oklab, var(--color-primary) 16%, transparent);
 }
 
 /* 目次はfixedで右端に浮いていて場所を取らないため、本文が下に潜らないよう右側を空ける。
@@ -132,13 +240,13 @@ body {
 .markdown-body h1 {
   font-size: 2em;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid #d1d9e0;
+  border-bottom: 1px solid var(--color-base-300);
 }
 
 .markdown-body h2 {
   font-size: 1.5em;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid #d1d9e0;
+  border-bottom: 1px solid var(--color-base-300);
 }
 
 .markdown-body h3 {
@@ -165,7 +273,7 @@ body {
 }
 
 .markdown-body a {
-  color: #0969da;
+  color: var(--color-primary);
   text-decoration: underline;
 }
 
@@ -198,7 +306,7 @@ body {
 .markdown-body li > ol {
   margin-top: 0.5em;
   margin-bottom: 0;
-  border-left: 1px solid #d8dee4;
+  border-left: 1px solid var(--mdecho-border-subtle);
 }
 
 /* 段落と箇条書きの境目。AIが生成したMarkdownは「説明の段落→箇条書き→次の段落」の
@@ -227,8 +335,8 @@ body {
 .markdown-body blockquote {
   margin: 0 0 1em;
   padding: 0 1em;
-  color: #59636e;
-  border-left: 0.25em solid #d1d9e0;
+  color: var(--mdecho-muted);
+  border-left: 0.25em solid var(--color-base-300);
 }
 
 .markdown-body table {
@@ -285,7 +393,7 @@ body {
 }
 
 .mdecho-col-resizer:hover::after {
-  background: #0969da;
+  background: var(--color-primary);
 }
 
 /* 拡大モーダル中は、移動してきた .mdecho-table-scroll が縦横両方のスクロールを担当する。 */
@@ -302,43 +410,39 @@ body {
   /* border-collapse下ではstickyなセルのborderがスクロールと一緒に消えるため、
      内側shadowで枠線を描き直す。 */
   box-shadow:
-    inset 0 1px 0 #d1d9e0,
-    inset 0 -1px 0 #d1d9e0;
+    inset 0 1px 0 var(--color-base-300),
+    inset 0 -1px 0 var(--color-base-300);
 }
 
 .markdown-body th,
 .markdown-body td {
   padding: 0.4em 0.8em;
-  border: 1px solid #d1d9e0;
+  border: 1px solid var(--color-base-300);
 }
 
-/* ゼブラ縞(#f6f8fa)を足したので、ヘッダーは一段濃い#eaeef2にして縞より強い色に置く。
+/* ゼブラ縞(base-200)を足したので、ヘッダーは一段濃い色にして縞より強い色に置く。
    同じ色のままだと、拡大モーダルのsticky headerの真下へ偶数行が流れてきたときに、
    境目がinset shadowの1pxだけになって見出しの行が縞に埋もれる。
-   #eaeef2はコメント欄のヘッダー(.mdecho-comment-view-body th)と同じ値。 */
+   コメント欄のヘッダー(.mdecho-comment-view-body th)と同じ値。 */
 .markdown-body th {
   font-weight: 600;
-  background: #eaeef2;
+  background: var(--mdecho-surface-strong);
 }
 
 /* 行方向の手がかり。横に長い表ではカラム幅を詰めても1行が画面幅いっぱいまで伸びるため、
    縞がないと目で追っている行を右端で見失う。
-   ヘッダーの直下(1行目)は白のままにして、ヘッダーとの境目をはっきりさせる。
+   ヘッダーの直下(1行目)は地の色のままにして、ヘッダーとの境目をはっきりさせる。
    `of :not(.mdecho-comment-row)`で、useCommentSlotsが行間に差し込む吹き出しの`tr`を
    数から外す。単なる:nth-child(even)だと、コメントを1つ開いた時点でその下の縞が
    すべて反転してしまう。 */
 .markdown-body tbody tr:nth-child(even of :not(.mdecho-comment-row)) {
-  background: #f6f8fa;
+  background: var(--color-base-200);
 }
 
 .markdown-body code {
   padding: 0.2em 0.4em;
   font-size: 0.9em;
-  /* 不透明な#f6f8faだと、同じ色のゼブラ縞の行に乗ったセル内のインラインコードが
-     背景に溶けて消える。下地を透かすグレーにすると、縞の行でも下地ごと暗くなるので
-     チップとして残る。#d2dce6を20%で白に重ねるとちょうど#f6f8faになるため、
-     表の外にあるインラインコードの見え方はこれまでと変わらない。 */
-  background: rgb(210 220 230 / 0.2);
+  background: var(--mdecho-code-chip);
   border-radius: 6px;
   font-family: var(--font-mono);
 }
@@ -351,7 +455,7 @@ body {
   margin: 1em 0;
   padding: 1em;
   overflow-x: auto;
-  border: 1px solid #d1d9e0;
+  border: 1px solid var(--color-base-300);
   border-radius: 6px;
   line-height: 1.45;
 }
@@ -367,14 +471,28 @@ body {
   width: 100%;
 }
 
+/* Shikiには2テーマ分の色をCSS変数として持たせてある(src/markdown.tsのdefaultColor: false)。
+   どちらを使うかをここで決めるので、配色を切り替えてもサーバーでHTMLを作り直さずに済む。
+   背景(--shiki-*-bg)はあえて使わない。透かしてページの地の色を出すことで、
+   罫線1本でブロックを示す今の見え方を両テーマで保てる。 */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+}
+
+[data-theme="dark"] .shiki,
+[data-theme="dark"] .shiki span {
+  color: var(--shiki-dark);
+}
+
 .markdown-body .mdecho-mermaid {
   margin: 1em 0;
   padding: 1em;
   overflow-x: auto;
   white-space: pre;
   text-align: center;
-  background: #ffffff;
-  border: 1px solid #d1d9e0;
+  background: var(--color-base-100);
+  border: 1px solid var(--color-base-300);
   border-radius: 6px;
 }
 
@@ -393,7 +511,7 @@ body {
 }
 
 .markdown-body .mdecho-mermaid-error {
-  color: #cf222e;
+  color: var(--color-error);
   text-align: left;
   font-weight: 600;
 }
@@ -407,7 +525,7 @@ body {
   margin: 1.5em 0;
   height: 0;
   border: none;
-  border-top: 1px solid #d1d9e0;
+  border-top: 1px solid var(--color-base-300);
 }
 
 /* 目次の中の、カーソル行が属する見出し。本文のカーソル行(下)と同じ下地色にして、
@@ -415,13 +533,13 @@ body {
    Tailwindのbg-primary/10ではなくここに書くのは、罫線と太字で示す「今見ている節」と
    重なったときに、下地だけが増える関係を1か所で見比べられるようにするため。 */
 .mdecho-toc-item-cursor {
-  background: rgba(9, 105, 218, 0.08);
+  background: var(--mdecho-cursor-bg);
   border-radius: 4px;
 }
 
 .markdown-body [data-mdecho-cursor] {
-  background: rgba(9, 105, 218, 0.08);
-  box-shadow: inset 3px 0 0 #0969da;
+  background: var(--mdecho-cursor-bg);
+  box-shadow: inset 3px 0 0 var(--color-primary);
   border-radius: 4px;
   scroll-margin-top: var(--mdecho-scroll-margin-top);
   scroll-margin-bottom: 3rem;
@@ -439,8 +557,8 @@ body {
 
 .markdown-body tr[data-mdecho-cursor] > td,
 .markdown-body tr[data-mdecho-cursor] > th {
-  background: rgba(9, 105, 218, 0.08);
-  box-shadow: inset 3px 0 0 #0969da;
+  background: var(--mdecho-cursor-bg);
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 /* 吹き出しハンドルのドラッグ中に選択されている行。ドラッグ中だけの一時的な表示なので、
@@ -448,7 +566,7 @@ body {
 .markdown-body [data-mdecho-comment-range],
 .markdown-body tr[data-mdecho-comment-range] > td,
 .markdown-body tr[data-mdecho-comment-range] > th {
-  background: rgba(9, 105, 218, 0.16);
+  background: var(--mdecho-comment-range-bg);
   border-radius: 4px;
 }
 
@@ -457,7 +575,7 @@ body {
 .markdown-body [data-mdecho-comment-active],
 .markdown-body tr[data-mdecho-comment-active] > td,
 .markdown-body tr[data-mdecho-comment-active] > th {
-  background: rgba(9, 105, 218, 0.09);
+  background: var(--mdecho-comment-active-bg);
   border-radius: 4px;
 }
 
@@ -519,7 +637,7 @@ body {
 }
 
 .mdecho-comment-view-body a {
-  color: #0969da;
+  color: var(--color-primary);
   text-decoration: underline;
 }
 
@@ -538,8 +656,8 @@ body {
 .mdecho-comment-view-body blockquote {
   margin: 0 0 0.6em;
   padding: 0 0.8em;
-  color: #59636e;
-  border-left: 0.25em solid #d1d9e0;
+  color: var(--mdecho-muted);
+  border-left: 0.25em solid var(--color-base-300);
 }
 
 .mdecho-comment-view-body table {
@@ -552,18 +670,18 @@ body {
 .mdecho-comment-view-body th,
 .mdecho-comment-view-body td {
   padding: 0.3em 0.6em;
-  border: 1px solid #d1d9e0;
+  border: 1px solid var(--color-base-300);
 }
 
 .mdecho-comment-view-body th {
   font-weight: 600;
-  background: #eaeef2;
+  background: var(--mdecho-surface-strong);
 }
 
 .mdecho-comment-view-body code {
   padding: 0.15em 0.35em;
   font-size: 0.9em;
-  background: #eaeef2;
+  background: var(--mdecho-surface-strong);
   border-radius: 6px;
   font-family: var(--font-mono);
 }
@@ -576,7 +694,7 @@ body {
   padding: 0.8em;
   overflow-x: auto;
   white-space: pre;
-  border: 1px solid #d1d9e0;
+  border: 1px solid var(--color-base-300);
   border-radius: 6px;
   line-height: 1.45;
 }

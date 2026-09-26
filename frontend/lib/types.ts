@@ -1,3 +1,5 @@
+import type { ThemeConfig } from "../../src/theme-css.ts";
+
 export interface Comment {
   startLine: number;
   endLine: number;
@@ -27,6 +29,9 @@ export interface LayoutSettings {
   lineHeight: number;
 }
 
+/** src/theme-css.tsのThemeConfigと対応する */
+export type ThemeSettings = ThemeConfig;
+
 export interface MdechoSettings {
   font: FontSettings;
   /** 設定ファイルに書かれている改行の設定(モーダルが編集する対象) */
@@ -38,6 +43,11 @@ export interface MdechoSettings {
   lineBreakOverride: Partial<LineBreakSettings>;
   /** 本文の幅・文字サイズ・行間 */
   layout: LayoutSettings;
+  /**
+   * 配色。色の上書き(light/dark)も持つのは、保存のたびに設定をまるごと送り返す必要が
+   * あるため。送らないとサーバー側が保持している設定から色が消えてしまう。
+   */
+  theme: ThemeSettings;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */

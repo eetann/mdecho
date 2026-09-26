@@ -78,6 +78,53 @@ describe("startServer", () => {
     expect(html).not.toContain("mdecho-config-style");
   });
 
+  test("設定した色を<head>のCSSとして注入する", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+
+    running = await startServer(filePath, {
+      lineBreakOverride: NO_SPLIT,
+      config: {
+        ...DEFAULT_CONFIG,
+        theme: { mode: "dark", light: { primary: "#1f6feb" }, dark: { "base-100": "#000000" } },
+      },
+    });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).toContain('[data-theme="light"] {\n  --color-primary: #1f6feb;');
+    expect(html).toContain('[data-theme="dark"] {\n  --color-base-100: #000000;');
+  });
+
+  test("配色を決めるスクリプトを<head>に入れる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+
+    running = await startServer(filePath, {
+      lineBreakOverride: NO_SPLIT,
+      config: { ...DEFAULT_CONFIG, theme: { mode: "dark", light: {}, dark: {} } },
+    });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).toContain('<script id="mdecho-theme-boot">');
+    expect(html).toContain('var m="dark"');
+    // 最初の描画より前に決まらないとダークで開いたときに一瞬ライトが見える
+    expect(html.indexOf("mdecho-theme-boot")).toBeLessThan(html.indexOf("</head>"));
+  });
+
+  test("色の上書きが無くてもブートスクリプトだけは入れる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).not.toContain("mdecho-config-style");
+    expect(html).toContain('var m="system"');
+  });
+
   test("設定モーダル用の設定を初期データに埋め込む", async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
     const filePath = join(dir, "doc.md");
@@ -113,16 +160,49 @@ describe("startServer", () => {
       font: { body: ["Meiryo"], code: ["Consolas"] },
       lineBreak: { splitSentences: true, singleNewline: true },
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
+      theme: { mode: "system", light: {}, dark: {} },
       warnings: [],
     });
+    // 色はUIから編集しないため、書き戻されるのはtheme.modeだけ。
     expect(JSON.parse(await readFile(configFile, "utf-8"))).toEqual({
       font: { body: ["Meiryo"], code: ["Consolas"] },
       lineBreak: { splitSentences: true, singleNewline: true },
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
+      theme: { mode: "system" },
     });
 
     const html = await (await fetch(running.url)).text();
     expect(html).toContain("--font-sans: Meiryo, var(--mdecho-default-font-body);");
+  });
+
+  test("配色の保存で、送り返された色の上書きが消えない", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+    const configFile = join(dir, "config.jsonc");
+    const theme = { mode: "system" as const, light: {}, dark: { "base-100": "#000000" } };
+
+    running = await startServer(filePath, {
+      lineBreakOverride: NO_SPLIT,
+      config: { ...DEFAULT_CONFIG, theme },
+      configFile,
+    });
+
+    // クライアントはモードだけ変えて、色はそのまま載せ直して送る。
+    const res = await fetch(new URL("./api/config", running.url), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ theme: { ...theme, mode: "dark" } }),
+    });
+    expect(res.status).toBe(200);
+
+    // ファイルへ書き戻すのはmodeだけ(色は手書きの領分なのでjsoncを触らない)。
+    expect(JSON.parse(await readFile(configFile, "utf-8")).theme).toEqual({ mode: "dark" });
+
+    // 保存後の表示でも色の上書きが効き続ける。
+    const html = await (await fetch(running.url)).text();
+    expect(html).toContain('[data-theme="dark"] {\n  --color-base-100: #000000;');
+    expect(html).toContain('var m="dark"');
   });
 
   test("POST /api/configは使えないフォント名を弾いて警告を返す", async () => {

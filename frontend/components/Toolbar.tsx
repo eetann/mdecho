@@ -1,5 +1,6 @@
-import { House, Keyboard, Settings, Trash2 } from "lucide-react";
+import { House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-react";
 import { useState } from "react";
+import type { ThemeMode } from "../../src/theme-css.ts";
 import { buildClipboardText, type CommentGroup } from "../lib/clipboard-text.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { KeyboardHelpDialog } from "./KeyboardHelpDialog.tsx";
@@ -7,6 +8,26 @@ import { KeyboardHelpDialog } from "./KeyboardHelpDialog.tsx";
 const COPIED_LABEL_DURATION_MS = 1500;
 
 type CopyState = "idle" | "copied" | "failed";
+
+/** ボタンを押すたびにこの順で巡回する。設定モーダルの「配色」も同じ並び。 */
+export const THEME_MODE_ORDER: ThemeMode[] = ["system", "light", "dark"];
+
+export const THEME_MODE_LABELS: Record<ThemeMode, string> = {
+  system: "OSに合わせる",
+  light: "ライト",
+  dark: "ダーク",
+};
+
+const THEME_MODE_ICONS: Record<ThemeMode, typeof Monitor> = {
+  system: Monitor,
+  light: Sun,
+  dark: Moon,
+};
+
+export function nextThemeMode(mode: ThemeMode): ThemeMode {
+  const index = THEME_MODE_ORDER.indexOf(mode);
+  return THEME_MODE_ORDER[(index + 1) % THEME_MODE_ORDER.length] ?? "system";
+}
 
 export function Toolbar({
   relPath,
@@ -16,6 +37,8 @@ export function Toolbar({
   otherFileCount,
   deleteAllComments,
   openSettings,
+  themeMode,
+  setThemeMode,
 }: {
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
@@ -29,11 +52,15 @@ export function Toolbar({
   otherFileCount: number;
   deleteAllComments: () => void;
   openSettings: () => void;
+  /** いま選ばれている配色の指定(system/light/dark) */
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
 }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
   const isEntry = relPath === entryRelPath;
+  const ThemeIcon = THEME_MODE_ICONS[themeMode];
 
   const totalCount = commentGroups.reduce(
     (total, group) => total + Array.from(group.comments).length,
@@ -102,6 +129,18 @@ export function Toolbar({
         onClick={() => setConfirmingDeleteAll(true)}
       >
         <Trash2 className="size-[1.1em]" />
+      </button>
+      {/* 1クリックで切り替えたいので、3つの状態を巡回するボタンにする。
+          いま何が選ばれているかはアイコンで、次に何になるかはtitleで伝える。 */}
+      <button
+        type="button"
+        id="mdecho-theme-button"
+        className="btn btn-sm btn-ghost"
+        aria-label={`color theme: ${themeMode}`}
+        title={`配色: ${THEME_MODE_LABELS[themeMode]}(押すと${THEME_MODE_LABELS[nextThemeMode(themeMode)]}へ)`}
+        onClick={() => setThemeMode(nextThemeMode(themeMode))}
+      >
+        <ThemeIcon className="size-[1.1em]" />
       </button>
       <button
         type="button"

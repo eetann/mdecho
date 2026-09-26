@@ -1,3 +1,5 @@
+import { buildThemeBootScript, type ThemeConfig } from "./theme-css.ts";
+
 export interface ShellSettings {
   font: { body: string[]; code: string[] };
   /** 設定ファイルに書かれている改行の設定(設定モーダルが編集する対象) */
@@ -9,6 +11,12 @@ export interface ShellSettings {
   lineBreakOverride: Partial<{ splitSentences: boolean; singleNewline: boolean }>;
   /** 本文の幅・文字サイズ・行間 */
   layout: { contentWidth: number; fontSize: number; lineHeight: number };
+  /**
+   * 配色。色の上書き(light/dark)もそのまま渡すのは、設定モーダルやツールバーからの
+   * 保存でクライアントがこれを送り返す必要があるため(送り返さないと、サーバー側の
+   * 保持している設定から色が消えてしまう)。
+   */
+  theme: ThemeConfig;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */
@@ -67,15 +75,13 @@ export function renderShell(clientTemplate: string, data: ShellData): string {
       `${open}${escapeHtml(title)}${close}`,
   );
 
-  const trimmedCss = headCss?.trim();
-  if (!trimmedCss) {
-    return withTitle;
-  }
   // styles.cssは<head>のこれより前に置かれるため、同じ詳細度の後勝ちで上書きできる。
-  return withTitle.replace(
-    HEAD_CLOSE_PATTERN,
-    () => `<style id="mdecho-config-style">\n${trimmedCss}\n</style></head>`,
-  );
+  const trimmedCss = headCss?.trim();
+  const styleTag = trimmedCss ? `<style id="mdecho-config-style">\n${trimmedCss}\n</style>` : "";
+  // 最初の描画より前にhtml要素へ解決済みの配色を書く。Reactのバンドルの中でやると、
+  // ダークで開いたときに一瞬ライトの画面が見えてしまう。
+  const bootScript = `<script id="mdecho-theme-boot">${buildThemeBootScript(settings.theme.mode)}</script>`;
+  return withTitle.replace(HEAD_CLOSE_PATTERN, () => `${styleTag}${bootScript}</head>`);
 }
 
 /**

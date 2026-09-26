@@ -38,7 +38,17 @@ const restoreDataLineTransformer: ShikiTransformer = {
 };
 
 const shikiOptions = {
-  theme: "github-light",
+  /**
+   * 2テーマ分の色を同時に載せる。`defaultColor: false`にすると各spanのstyleが
+   * `--shiki-light` / `--shiki-dark`のCSS変数だけになり、どちらを使うかは
+   * frontend/styles.cssの`[data-theme="dark"]`が決める。
+   * こうしておくと配色の切り替えでHTMLを作り直さずに済む。
+   * ダーク側にgithub-dark-defaultを選ぶのは、その背景(#0d1117)が
+   * styles.cssのダークテーマの`--color-base-100`と揃うため
+   * (github-darkは#24292eで、本文の地の色から浮いてしまう)。
+   */
+  themes: { light: "github-light", dark: "github-dark-default" },
+  defaultColor: false as const,
   defaultLanguage: "text",
   fallbackLanguage: "text",
   onError: (error: unknown) => {

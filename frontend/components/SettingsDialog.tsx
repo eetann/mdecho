@@ -15,6 +15,7 @@ import {
 import type { SettingsApi } from "../hooks/useSettings.ts";
 import type { LayoutSettings, LineBreakSettings } from "../lib/types.ts";
 import { FontCombobox } from "./FontCombobox.tsx";
+import { THEME_MODE_LABELS, THEME_MODE_ORDER } from "./Toolbar.tsx";
 
 interface LineBreakItem {
   key: keyof LineBreakSettings;
@@ -185,6 +186,41 @@ function LayoutSection({ settings }: { settings: SettingsApi }) {
   );
 }
 
+function ThemeSection({ settings }: { settings: SettingsApi }) {
+  return (
+    <section className="mdecho-theme-section">
+      <h3 className="font-semibold">配色</h3>
+      <p className="mt-1 text-xs text-base-content/60">
+        押すとすぐ反映し、そのまま設定ファイルへ保存します(下の「保存」を押す必要はありません)。
+        ツールバーのアイコンからも切り替えられます。
+      </p>
+      <div className="join mt-2">
+        {THEME_MODE_ORDER.map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            className={`btn join-item btn-sm ${settings.themeMode === mode ? "btn-primary" : ""}`}
+            aria-pressed={settings.themeMode === mode}
+            onClick={() => settings.setThemeMode(mode)}
+          >
+            {THEME_MODE_LABELS[mode]}
+          </button>
+        ))}
+      </div>
+      {settings.themeMode === "system" && (
+        <p className="mt-1 text-xs text-base-content/60">
+          いまOSは{settings.resolvedTheme === "dark" ? "ダーク" : "ライト"}です。
+        </p>
+      )}
+      <p className="mt-2 text-xs text-base-content/60">
+        色そのものは設定ファイルの <code>theme.light</code> / <code>theme.dark</code>{" "}
+        で変えられます(<code>primary</code> や <code>base-100</code>{" "}
+        などのdaisyUIの色の名前で指定)。
+      </p>
+    </section>
+  );
+}
+
 function moveItem(fonts: string[], from: number, to: number): string[] {
   if (to < 0 || to >= fonts.length) {
     return fonts;
@@ -344,6 +380,8 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
         <h2 className="text-lg font-semibold">設定</h2>
 
         <div className="my-4 flex flex-col gap-6">
+          <ThemeSection settings={settings} />
+
           <LineBreakList settings={settings} />
 
           <LayoutSection settings={settings} />

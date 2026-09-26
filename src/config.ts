@@ -19,6 +19,18 @@ import {
   LINE_HEIGHT_MAX,
   LINE_HEIGHT_MIN,
 } from "./layout-css.ts";
+import {
+  DEFAULT_THEME,
+  DEFAULT_THEME_MODE,
+  isThemeColorValue,
+  isThemeMode,
+  THEME_COLOR_KEYS,
+  type ThemeColorKey,
+  type ThemeColors,
+  type ThemeConfig,
+  type ThemeMode,
+  THEME_MODES,
+} from "./theme-css.ts";
 
 /** 表示上の改行をどこで入れるか。 */
 export interface LineBreakConfig {
@@ -32,12 +44,15 @@ export interface MdechoConfig {
   font: FontFamilies;
   lineBreak: LineBreakConfig;
   layout: LayoutConfig;
+  theme: ThemeConfig;
 }
 
-const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout"]);
+const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout", "theme"]);
 const KNOWN_FONT_KEYS = new Set(["body", "code"]);
 const KNOWN_LINE_BREAK_KEYS = new Set(["splitSentences", "singleNewline"]);
 const KNOWN_LAYOUT_KEYS = new Set(["contentWidth", "fontSize", "lineHeight"]);
+const KNOWN_THEME_KEYS = new Set(["mode", "light", "dark"]);
+const THEME_COLOR_KEY_SET: ReadonlySet<string> = new Set(THEME_COLOR_KEYS);
 
 export const DEFAULT_FONT: FontFamilies = { body: [], code: [] };
 export const DEFAULT_LINE_BREAK: LineBreakConfig = { splitSentences: true, singleNewline: true };
@@ -50,6 +65,7 @@ export const DEFAULT_CONFIG: MdechoConfig = {
   font: DEFAULT_FONT,
   lineBreak: DEFAULT_LINE_BREAK,
   layout: DEFAULT_LAYOUT,
+  theme: DEFAULT_THEME,
 };
 
 export type WarnFn = (message: string) => void;
@@ -257,6 +273,74 @@ function normalizeLayout(raw: unknown, warn: WarnFn): LayoutConfig {
   };
 }
 
+/**
+ * 1つのモードぶんの色の上書き。キー名はdaisyUIの色トークンなので、
+ * 知らないキーはタイポとして知らせる。CSSに書けない値も、黙って消えると
+ * 原因が分からないため弾いて知らせる(src/font-css.tsと同じ方針)。
+ */
+function normalizeThemeColors(raw: unknown, keyPath: string, warn: WarnFn): ThemeColors {
+  if (raw === undefined || raw === null) {
+    return {};
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    warn(`${keyPath}はオブジェクトで指定してください。この設定は無視します`);
+    return {};
+  }
+
+  const colors: ThemeColors = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (key.startsWith("$") || key === "extends") {
+      continue;
+    }
+    if (!THEME_COLOR_KEY_SET.has(key)) {
+      warn(`${keyPath}に未知の色の名前があります: ${key}`);
+      continue;
+    }
+    if (typeof value !== "string") {
+      warn(`${keyPath}.${key}は文字列で指定してください。この設定は無視します`);
+      continue;
+    }
+    if (!isThemeColorValue(value)) {
+      warn(
+        `${keyPath}.${key}に色として使えない値が指定されています。この設定は無視します: ${JSON.stringify(value)}`,
+      );
+      continue;
+    }
+    colors[key as ThemeColorKey] = value.trim();
+  }
+  return colors;
+}
+
+function normalizeThemeMode(raw: unknown, warn: WarnFn): ThemeMode {
+  if (raw === undefined || raw === null) {
+    return DEFAULT_THEME_MODE;
+  }
+  if (!isThemeMode(raw)) {
+    warn(
+      `theme.modeは${THEME_MODES.join(" / ")}のいずれかで指定してください。${DEFAULT_THEME_MODE}として扱います`,
+    );
+    return DEFAULT_THEME_MODE;
+  }
+  return raw;
+}
+
+function normalizeTheme(raw: unknown, warn: WarnFn): ThemeConfig {
+  if (raw === undefined || raw === null) {
+    return DEFAULT_THEME;
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    warn("themeはオブジェクトで指定してください。この設定は無視します");
+    return DEFAULT_THEME;
+  }
+  warnUnknownKeys(raw, KNOWN_THEME_KEYS, "theme", warn);
+  const theme = raw as Partial<Record<keyof ThemeConfig, unknown>>;
+  return {
+    mode: normalizeThemeMode(theme.mode, warn),
+    light: normalizeThemeColors(theme.light, "theme.light", warn),
+    dark: normalizeThemeColors(theme.dark, "theme.dark", warn),
+  };
+}
+
 /** 設定ファイルから読んだ生の値を検証し、扱いやすい形へ正規化する。 */
 export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): MdechoConfig {
   if (raw === undefined || raw === null) {
@@ -272,6 +356,7 @@ export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): Mdech
     font: normalizeFont((raw as { font?: unknown }).font, warn),
     lineBreak: normalizeLineBreak((raw as { lineBreak?: unknown }).lineBreak, warn),
     layout: normalizeLayout((raw as { layout?: unknown }).layout, warn),
+    theme: normalizeTheme((raw as { theme?: unknown }).theme, warn),
   };
 }
 
