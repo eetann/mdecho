@@ -8,6 +8,7 @@ import remarkRehype from "remark-rehype";
 import type { ShikiTransformer } from "shiki";
 import { type PluggableList, unified } from "unified";
 import { DEFAULT_LINE_BREAK, type LineBreakConfig } from "../config/defaults.ts";
+import { rehypeBlockUnsafeUrl } from "./plugins/rehype-block-unsafe-url.ts";
 import { rehypeExternalLinks } from "./plugins/rehype-external-links.ts";
 import { rehypeHeadingId } from "./plugins/rehype-heading-id.ts";
 import { remarkDataLine } from "./plugins/remark-data-line.ts";
@@ -72,6 +73,7 @@ function createBodyProcessor(lineBreak: LineBreakConfig) {
     .use(remarkDataLine)
     .use(remarkMermaid)
     .use(remarkRehype)
+    .use(rehypeBlockUnsafeUrl)
     .use(rehypeHeadingId)
     .use(rehypeExternalLinks)
     .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
@@ -98,6 +100,7 @@ const commentProcessor = unified()
   .use(remarkGfm)
   .use(remarkBreaks)
   .use(remarkRehype)
+  .use(rehypeBlockUnsafeUrl)
   .use(rehypeExternalLinks)
   .use(rehypeShiki, shikiOptions)
   .use(rehypeStringify);

@@ -270,6 +270,120 @@ describe("renderMarkdown - links", () => {
   });
 });
 
+describe("renderMarkdown - unsafe url", () => {
+  test("javascript:リンクはhrefを失い、テキストだけが残る", async () => {
+    const html = await renderMarkdown("[click](javascript:alert(1))");
+    expect(html).not.toContain("href=");
+    expect(html).toContain("data-mdecho-blocked");
+    expect(html).toContain(">click</a>");
+  });
+
+  test("弾いたリンクには元のURLを載せたtitleが付く", async () => {
+    const html = await renderMarkdown("[click](javascript:alert(1))");
+    expect(html).toContain('title="mdechoが安全でないURLを弾きました: javascript:alert(1)"');
+  });
+
+  test("自動リンク(<javascript:...>)も弾く", async () => {
+    const html = await renderMarkdown("<javascript:alert(1)>");
+    expect(html).not.toContain("href=");
+    expect(html).toContain("data-mdecho-blocked");
+  });
+
+  test("実体参照で綴りを隠したjavascript:も弾く", async () => {
+    const html = await renderMarkdown("[x](java&#115;cript:alert(1))");
+    expect(html).not.toContain("href=");
+    expect(html).toContain("data-mdecho-blocked");
+  });
+
+  test("大文字混ぜのJaVaScRiPt:も弾く", async () => {
+    const html = await renderMarkdown("[x](JaVaScRiPt:alert(1))");
+    expect(html).not.toContain("href=");
+    expect(html).toContain("data-mdecho-blocked");
+  });
+
+  test("先頭に空白を挟んだjavascript:も弾く", async () => {
+    const html = await renderMarkdown("[x](  javascript:alert(1))");
+    expect(html).not.toContain("href=");
+    expect(html).toContain("data-mdecho-blocked");
+  });
+
+  test("vbscript:とfile:とdata:text/htmlも弾く", async () => {
+    for (const url of ["vbscript:msgbox(1)", "file:///etc/passwd", "data:text/html,x"]) {
+      const html = await renderMarkdown(`[x](${url})`);
+      expect(html).not.toContain("href=");
+      expect(html).toContain("data-mdecho-blocked");
+    }
+  });
+
+  test("弾いたリンクにはtarget=_blankが付かない", async () => {
+    const html = await renderMarkdown("[x](javascript:alert(1))");
+    expect(html).not.toContain("target=");
+    expect(html).not.toContain("rel=");
+  });
+
+  test("javascript:の画像はaltテキストのspanへ差し替わる", async () => {
+    const html = await renderMarkdown("![説明](javascript:alert(1))");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("src=");
+    expect(html).toContain("data-mdecho-blocked");
+    expect(html).toContain(">説明</span>");
+  });
+
+  test("altが空の画像を弾くとspanの中身は空になる(文言はCSSが補う)", async () => {
+    const html = await renderMarkdown("![](javascript:alert(1))");
+    expect(html).not.toContain("<img");
+    expect(html).toMatch(/<span[^>]*data-mdecho-blocked[^>]*><\/span>/);
+  });
+
+  test("data:image/svg+xmlの画像は弾く(SVGはscriptを持てるため)", async () => {
+    const html = await renderMarkdown("![x](data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=)");
+    expect(html).not.toContain("<img");
+    expect(html).toContain("data-mdecho-blocked");
+  });
+
+  test("data:image/pngの画像はそのまま表示する", async () => {
+    const html = await renderMarkdown("![x](data:image/png;base64,iVBORw0KGgo=)");
+    expect(html).toContain('src="data:image/png;base64,iVBORw0KGgo="');
+    expect(html).not.toContain("data-mdecho-blocked");
+  });
+
+  test("data:はリンクとしては画像MIMEでも通さない", async () => {
+    const html = await renderMarkdown("[x](data:image/png;base64,iVBORw0KGgo=)");
+    expect(html).not.toContain("href=");
+    expect(html).toContain("data-mdecho-blocked");
+  });
+
+  test("相対パス・ページ内リンク・http(s)・mailtoは弾かない", async () => {
+    const source =
+      "[a](./foo.md) ![b](./a.png) [c](#head) [d](https://example.com) [e](mailto:a@b.c)";
+    const html = await renderMarkdown(source);
+    expect(html).not.toContain("data-mdecho-blocked");
+    expect(html).toContain('href="./foo.md"');
+    expect(html).toContain('src="./a.png"');
+    expect(html).toContain('href="#head"');
+    expect(html).toContain('href="mailto:a@b.c"');
+  });
+
+  test("リンク内の強調などの子要素は残る", async () => {
+    const html = await renderMarkdown("[**bold**](javascript:alert(1))");
+    expect(html).toContain("<strong");
+    expect(html).toContain("bold");
+  });
+
+  test("コメント本文のjavascript:リンクと画像も弾く", async () => {
+    const html = await renderCommentMarkdown("[c](javascript:alert(1)) ![ci](javascript:alert(1))");
+    expect(html).not.toContain("href=");
+    expect(html).not.toContain("<img");
+    expect(html.match(/data-mdecho-blocked/g)?.length).toBe(2);
+  });
+
+  test("splitSentences:falseでも弾く", async () => {
+    const html = await renderMarkdown("[x](javascript:alert(1))", { splitSentences: false });
+    expect(html).not.toContain("href=");
+    expect(html).toContain("data-mdecho-blocked");
+  });
+});
+
 describe("renderMarkdown - heading id", () => {
   test("見出しにGitHubと同じ規則のidが付く", async () => {
     const html = await renderMarkdown("## My Heading!");

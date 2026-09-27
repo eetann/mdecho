@@ -281,6 +281,33 @@ body {
   text-decoration: none;
 }
 
+/* rehype-block-unsafe-urlが弾いたリンク・画像。弾いた元のURLはtitle属性に載っている。
+   本文とコメント本文のどちらにも出るので両方書く。属性セレクタ1つだけだと
+   上の`.markdown-body a`に詳細度で負けて、弾いたリンクが普通のリンクの色のままになる。 */
+.markdown-body [data-mdecho-blocked],
+.mdecho-comment-view-body [data-mdecho-blocked] {
+  color: var(--color-error);
+  text-decoration: line-through;
+  cursor: help;
+}
+
+/* text-decorationは祖先が引くため子では消せないが、inline-blockにすると
+   打ち消し線の対象から外れる。警告マークまで消された見た目にならないようにする。 */
+.markdown-body [data-mdecho-blocked]::before,
+.mdecho-comment-view-body [data-mdecho-blocked]::before {
+  content: "⚠";
+  /* inline-blockにすると末尾の空白が潰れるため、間隔はmarginで空ける。 */
+  display: inline-block;
+  margin-right: 0.25em;
+}
+
+/* altが空の画像を弾くと中身が無くなるので、ここで文言を補う。
+   ::beforeは:emptyの判定に影響しないため、警告マークと併せて出る。 */
+.markdown-body [data-mdecho-blocked]:empty::after,
+.mdecho-comment-view-body [data-mdecho-blocked]:empty::after {
+  content: "安全でないURLの画像";
+}
+
 .markdown-body ul,
 .markdown-body ol {
   padding-left: 2em;
