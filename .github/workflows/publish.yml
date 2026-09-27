@@ -1,0 +1,108 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# ワークフロー全体の既定は読み取りのみ。必要なジョブで個別に足す。
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # npm側のTrusted Publisherにもこのenvironment名を登録する。
+    # GitHub側でrequired reviewersを設定しておくと、
+    # タグを打っただけではOIDCトークンが発行されない。
+    environment:
+      name: npm
+    permissions:
+      contents: read
+      id-token: write # Trusted Publishing(OIDC)用。長期トークンは使わない
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.x"
+          registry-url: "https://registry.npmjs.org"
+          # bun.lockしか無いのでsetup-node側のnpmキャッシュは使わない
+          package-manager-cache: false
+
+      - name: Verify tag matches package.json version
+        # タグとpackage.jsonのversionがずれたまま公開されるのを防ぐ
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} != package.json version ${pkg_version}"
+            exit 1
+          fi
+          echo "publishing version ${pkg_version}"
+
+      - name: Install dependencies
+        # bunは依存パッケージのライフサイクルスクリプトを既定で実行しない。
+        # --ignore-scriptsでこのリポジトリ自身のスクリプトも走らせない。
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bun run build
+
+      - name: Lint package contents (publint)
+        run: bunx publint@0.3.24
+
+      - name: Pin npm
+        # Staged Publishing(npm stage)とTrusted Publishingに対応したnpmが必要。
+        # サプライチェーン対策としてバージョンを固定する(更新は手動で行う)。
+        run: npm install -g npm@12.1.0
+
+      - name: Stage publish to npm
+        # 認証はOIDCのTrusted Publishingで行う。NPM_TOKENは使わない。
+        # ここではまだ公開されない。npmjs.comのStaged Packagesで
+        # 中身を確認し、2FA付きでapproveして初めて公開される。
+        # bunにはprovenanceが無いのでnpmを使う。
+        # https://github.com/oven-sh/bun/issues/15601
+        run: npm stage publish --provenance --access public
+
+      - name: Summary
+        run: |
+          {
+            echo "### ${GITHUB_REF_NAME} をstageしました"
+            echo
+            echo "npmjs.comのStaged Packagesで中身を確認し、2FA付きでapproveすると公開されます。"
+            echo
+            echo "- <https://www.npmjs.com/package/mdecho/access>"
+            echo '- CLIからの場合: `npm stage list` → `npm stage view <stage-id>` → `npm stage approve <stage-id>`'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  changelog:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # リリース作成用
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Create GitHub Release
+        run: bunx changelogithub@0.12
+        env:
+          # GitHub Actionsが自動で渡してくれる
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
