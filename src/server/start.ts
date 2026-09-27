@@ -14,9 +14,10 @@ import { buildFontCss } from "../styles/font.ts";
 import { buildLayoutCss } from "../styles/layout.ts";
 import { buildThemeCss } from "../styles/theme.ts";
 import { listSystemFonts } from "../system/fonts.ts";
-import { isMarkdownPath, resolveDoc } from "./doc-path.ts";
+import { isMarkdownPath, isRealPathWithinDir, resolveDoc } from "./doc-path.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { renderNotFoundPage, renderShell } from "./shell.ts";
+import { resolveServableAsset, STATIC_ASSET_HEADERS } from "./static-asset.ts";
 
 const CLIENT_TEMPLATE_PATH = join(PACKAGE_ROOT, "dist", "client", "index.html");
 
@@ -74,6 +75,9 @@ export async function startServer(
   if (!entryDoc) {
     throw new Error(`ファイルのパスを解決できません: ${filePath}\n${AGENT_HINT_TROUBLESHOOTING}`);
   }
+
+  // 配信して良いファイルの範囲。`-f`で指定したファイルのあるディレクトリの配下だけを見る。
+  const baseDir = dirname(resolve(filePath));
 
   const liveReload = createLiveReloadHub({
     onIdle: () => {
@@ -154,8 +158,16 @@ export async function startServer(
       return next();
     }
     // `-f`で渡されたファイル自体は拡張子に関わらず扱う(`-f notes.txt`のようなケース)。
-    if (doc.absPath !== entryDoc.absPath && !isMarkdownPath(doc.relPath)) {
-      return next();
+    // ユーザーが明示的に指定したファイルなので、ディレクトリ外を指すsymlinkでも開く。
+    if (doc.absPath !== entryDoc.absPath) {
+      if (!isMarkdownPath(doc.relPath)) {
+        return next();
+      }
+      // ディレクトリの中に置かれた、外を指すsymlink(`link.md -> /etc/passwd`)は
+      // resolveDocの境界チェックを通り抜けるため、読む直前に実体で確かめ直す。
+      if (!(await isRealPathWithinDir(baseDir, doc.absPath))) {
+        return next();
+      }
     }
 
     const source = await readFile(doc.absPath, "utf-8").catch(() => undefined);
@@ -195,8 +207,19 @@ export async function startServer(
 
   // Markdown中の相対パス画像(![alt](./foo.png)など)を配信するため、
   // Markdownファイルと同じディレクトリを静的ファイルルートとして公開する。
-  const baseDir = dirname(resolve(filePath));
-  app.use("*", serveStatic({ root: baseDir }));
+  // ただし丸ごと公開すると.envやid_rsaまで読めてしまうため、resolveServableAssetを通して
+  // 画像の拡張子だけに絞り、symlinkでディレクトリ外へ出ていないかも確かめてから配信する。
+  const serveAsset = serveStatic({ root: baseDir });
+  app.use("*", async (c, next) => {
+    if ((await resolveServableAsset(filePath, c.req.path)) === undefined) {
+      return next();
+    }
+    // c.body()を組み立てるより前に積んでおく必要があるため、serveStaticのonFoundではなくここで付ける。
+    for (const [name, value] of Object.entries(STATIC_ASSET_HEADERS)) {
+      c.header(name, value);
+    }
+    return serveAsset(c, next);
+  });
 
   app.all("*", (c) => c.html(renderNotFoundPage(c.req.path, entryDoc.relPath), 404));
 

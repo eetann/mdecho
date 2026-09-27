@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
@@ -46,6 +46,81 @@ describe("startServer", () => {
     expect(imageRes.status).toBe(200);
     expect(imageRes.headers.get("content-type")).toBe("image/png");
     expect(await imageRes.bytes()).toEqual(pngBytes);
+  });
+
+  test("画像以外のファイルは同じディレクトリにあっても配信しない", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# エントリ\n");
+    await writeFile(join(dir, ".env"), "SECRET=topsecret\n");
+    await writeFile(join(dir, "code.ts"), "export const a = 1;\n");
+    await writeFile(join(dir, "archive.zip"), "zip");
+    await mkdir(join(dir, ".hidden"));
+    await writeFile(join(dir, ".hidden", "notes.txt"), "hidden notes\n");
+    await mkdir(join(dir, "sub"));
+    await writeFile(join(dir, "sub", "id_rsa"), "PRIVATE KEY\n");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+
+    for (const path of [
+      "./.env",
+      "./code.ts",
+      "./archive.zip",
+      "./.hidden/notes.txt",
+      "./sub/id_rsa",
+    ]) {
+      const res = await fetch(new URL(path, running.url));
+      expect(res.status).toBe(404);
+      const body = await res.text();
+      expect(body).not.toContain("topsecret");
+      expect(body).not.toContain("PRIVATE KEY");
+      expect(body).not.toContain("hidden notes");
+    }
+  });
+
+  test("ディレクトリ外を指す.mdのsymlinkも辿らない", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await writeFile(join(dir, "secret.md"), "# ひみつ\n\nSECRET-OUTSIDE\n");
+    await mkdir(join(dir, "docs"));
+    const filePath = join(dir, "docs", "doc.md");
+    await writeFile(filePath, "# エントリ\n");
+    await symlink(join(dir, "secret.md"), join(dir, "docs", "escape.md"));
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+
+    const res = await fetch(new URL("./escape.md", running.url));
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("SECRET-OUTSIDE");
+  });
+
+  test("ディレクトリ外を指すsymlinkは辿らない", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await writeFile(join(dir, "secret.png"), "outside secret");
+    await mkdir(join(dir, "docs"));
+    const filePath = join(dir, "docs", "doc.md");
+    await writeFile(filePath, "# エントリ\n");
+    await symlink(join(dir, "secret.png"), join(dir, "docs", "escape.png"));
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+
+    const res = await fetch(new URL("./escape.png", running.url));
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("outside secret");
+  });
+
+  test("配信する画像にはスクリプトを封じるヘッダを付ける", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# エントリ\n");
+    await writeFile(join(dir, "diagram.svg"), "<svg xmlns='http://www.w3.org/2000/svg'></svg>");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+
+    const res = await fetch(new URL("./diagram.svg", running.url));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("image/svg+xml");
+    expect(res.headers.get("content-security-policy")).toContain("sandbox");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
   });
 
   test("設定したフォントを<head>のCSSとして注入する", async () => {

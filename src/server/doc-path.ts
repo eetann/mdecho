@@ -1,3 +1,4 @@
+import { realpath } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
 const MARKDOWN_EXTENSION_PATTERN = /\.(?:md|markdown)$/i;
@@ -20,6 +21,37 @@ export interface ResolvedDoc {
 /** `./foo.md`のようなリンク先をmdechoがレンダリングする対象とみなすか */
 export function isMarkdownPath(path: string): boolean {
   return MARKDOWN_EXTENSION_PATTERN.test(path);
+}
+
+/**
+ * absPathがbaseDirそのものか、その配下にあるか。どちらも解決済みの絶対パスであること。
+ * baseDirがルートディレクトリのときは末尾が既に区切り文字なので、二重に足さない。
+ */
+export function isWithinDir(baseDir: string, absPath: string): boolean {
+  if (absPath === baseDir) {
+    return true;
+  }
+  const prefix = baseDir.endsWith(sep) ? baseDir : `${baseDir}${sep}`;
+  return absPath.startsWith(prefix);
+}
+
+/**
+ * symlinkを辿った先もbaseDir配下かを確かめる。実体を解決できないパスはfalse。
+ *
+ * `resolveDoc`の境界チェックはパスの表記だけを見るため、ディレクトリの中に置かれた
+ * 「外を指すsymlink」はそのまま通り抜ける(`sub/link.md -> /etc/passwd`が読めてしまう)。
+ * ファイルを実際に読む直前に、この関数で実体のパスを確かめ直すこと。
+ */
+export async function isRealPathWithinDir(baseDir: string, absPath: string): Promise<boolean> {
+  const [realBaseDir, realAbsPath] = await Promise.all([
+    realpath(baseDir).catch(() => undefined),
+    realpath(absPath).catch(() => undefined),
+  ]);
+  if (realBaseDir === undefined || realAbsPath === undefined) {
+    return false;
+  }
+  // baseDir自体がsymlink経由で辿られていることもあるため、両方を実体に揃えてから比べる。
+  return isWithinDir(realBaseDir, realAbsPath);
 }
 
 /**
@@ -47,9 +79,7 @@ export function resolveDoc(entryFilePath: string, urlPath: string): ResolvedDoc 
   }
 
   const absPath = resolve(baseDir, `./${requested}`);
-  // baseDirがルートディレクトリのときは末尾が既に区切り文字なので、二重に足さない。
-  const prefix = baseDir.endsWith(sep) ? baseDir : `${baseDir}${sep}`;
-  if (absPath !== baseDir && !absPath.startsWith(prefix)) {
+  if (!isWithinDir(baseDir, absPath)) {
     return undefined;
   }
 
