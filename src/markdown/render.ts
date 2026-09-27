@@ -7,7 +7,7 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import type { ShikiTransformer } from "shiki";
 import { type PluggableList, unified } from "unified";
-import { DEFAULT_LINE_BREAK, type LineBreakConfig } from "../config/load.ts";
+import { DEFAULT_LINE_BREAK, type LineBreakConfig } from "../config/defaults.ts";
 import { rehypeExternalLinks } from "./plugins/rehype-external-links.ts";
 import { rehypeHeadingId } from "./plugins/rehype-heading-id.ts";
 import { remarkDataLine } from "./plugins/remark-data-line.ts";

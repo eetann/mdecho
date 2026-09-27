@@ -425,6 +425,22 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
         </p>
 
         <div className="modal-action">
+          {/* 押しても書き込むのは「保存」を押したときだけなので(配色は配色欄と同じくすぐ保存)、
+              確認は挟まずキャンセルで戻せるようにしておく */}
+          <button
+            type="button"
+            id="mdecho-settings-reset-button"
+            className="btn btn-ghost mr-auto"
+            disabled={settings.isDefault}
+            title={
+              settings.isDefault
+                ? "すでにすべて既定値です"
+                : "改行・レイアウト・フォント・配色をmdechoの既定値に戻します(設定ファイルへ残すには「保存」を押してください)"
+            }
+            onClick={settings.resetDefaults}
+          >
+            デフォルトに戻す
+          </button>
           <button type="button" className="btn" onClick={settings.cancel}>
             キャンセル
           </button>

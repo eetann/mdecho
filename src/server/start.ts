@@ -5,13 +5,8 @@ import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { AGENT_HINT_TROUBLESHOOTING } from "../agent-hint.ts";
-import {
-  DEFAULT_CONFIG,
-  type LineBreakConfig,
-  type MdechoConfig,
-  normalizeConfig,
-  resolveLineBreak,
-} from "../config/load.ts";
+import { DEFAULT_CONFIG, type LineBreakConfig, type MdechoConfig } from "../config/defaults.ts";
+import { normalizeConfig, resolveLineBreak } from "../config/load.ts";
 import { defaultConfigFile, isWritableConfigFile, saveConfig } from "../config/save.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "../markdown/render.ts";
 import { PACKAGE_ROOT } from "../package-root.ts";

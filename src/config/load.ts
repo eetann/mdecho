@@ -5,6 +5,14 @@ import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import { type FontFamilies, toFontFamilyToken } from "../styles/font.ts";
 import {
+  DEFAULT_CONFIG,
+  DEFAULT_FONT,
+  DEFAULT_LAYOUT,
+  DEFAULT_LINE_BREAK,
+  type LineBreakConfig,
+  type MdechoConfig,
+} from "./defaults.ts";
+import {
   clampContentWidth,
   clampFontSize,
   clampLineHeight,
@@ -32,41 +40,12 @@ import {
   THEME_MODES,
 } from "../styles/theme.ts";
 
-/** 表示上の改行をどこで入れるか。 */
-export interface LineBreakConfig {
-  /** 句点(。)ごとに表示上の改行を入れる */
-  splitSentences: boolean;
-  /** 単一改行(Enterキー1回)をそのまま表示上の改行にする */
-  singleNewline: boolean;
-}
-
-export interface MdechoConfig {
-  font: FontFamilies;
-  lineBreak: LineBreakConfig;
-  layout: LayoutConfig;
-  theme: ThemeConfig;
-}
-
 const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout", "theme"]);
 const KNOWN_FONT_KEYS = new Set(["body", "code"]);
 const KNOWN_LINE_BREAK_KEYS = new Set(["splitSentences", "singleNewline"]);
 const KNOWN_LAYOUT_KEYS = new Set(["contentWidth", "fontSize", "lineHeight"]);
 const KNOWN_THEME_KEYS = new Set(["mode", "light", "dark"]);
 const THEME_COLOR_KEY_SET: ReadonlySet<string> = new Set(THEME_COLOR_KEYS);
-
-export const DEFAULT_FONT: FontFamilies = { body: [], code: [] };
-export const DEFAULT_LINE_BREAK: LineBreakConfig = { splitSentences: true, singleNewline: true };
-export const DEFAULT_LAYOUT: LayoutConfig = {
-  contentWidth: DEFAULT_CONTENT_WIDTH,
-  fontSize: DEFAULT_FONT_SIZE,
-  lineHeight: DEFAULT_LINE_HEIGHT,
-};
-export const DEFAULT_CONFIG: MdechoConfig = {
-  font: DEFAULT_FONT,
-  lineBreak: DEFAULT_LINE_BREAK,
-  layout: DEFAULT_LAYOUT,
-  theme: DEFAULT_THEME,
-};
 
 export type WarnFn = (message: string) => void;
 

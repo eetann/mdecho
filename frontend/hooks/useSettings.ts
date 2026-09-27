@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_FONT, DEFAULT_LAYOUT, DEFAULT_LINE_BREAK } from "../../src/config/defaults.ts";
 import { buildFontFamilyValue, FONT_VARIABLES, type FontKind } from "../../src/styles/font.ts";
 import {
   buildContentWidthValue,
@@ -9,6 +10,7 @@ import {
   LINE_HEIGHT_VARIABLE,
 } from "../../src/styles/layout.ts";
 import {
+  DEFAULT_THEME_MODE,
   type ResolvedTheme,
   resolveThemeMode,
   THEME_ATTRIBUTE,
@@ -58,6 +60,13 @@ export interface SettingsApi {
   saving: boolean;
   saveError: string | undefined;
   dirty: boolean;
+  /** 編集中の値と配色が、まとめてmdechoの既定値と同じか(「デフォルトに戻す」の出し入れに使う) */
+  isDefault: boolean;
+  /**
+   * 改行・レイアウト・フォント・配色を既定値へ戻す。配色以外はドラフトを書き換えるだけなので、
+   * 設定ファイルへ残すには保存が要る(キャンセルで押す前に戻せる)。
+   */
+  resetDefaults: () => void;
   save: () => Promise<void>;
   configFile: string;
   editable: boolean;
@@ -225,6 +234,15 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     [initial.editable, postConfig, savedFonts, savedLayout, savedLineBreak],
   );
 
+  const resetDefaults = useCallback(() => {
+    setFontDraft(DEFAULT_FONT);
+    setLineBreakDraft(DEFAULT_LINE_BREAK);
+    setLayoutDraft(DEFAULT_LAYOUT);
+    // 配色だけはドラフトを持たないため、ここでも押した時点で反映して保存まで済ませる。
+    // 色の上書き(theme.light / theme.dark)はUIの管轄外なので触らない。
+    setThemeMode(DEFAULT_THEME_MODE);
+  }, [setThemeMode]);
+
   const save = useCallback(async () => {
     setSaving(true);
     setSaveError(undefined);
@@ -303,6 +321,12 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       !isSameFonts(fontDraft, savedFonts) ||
       !isSameLineBreak(lineBreakDraft, savedLineBreak) ||
       !isSameLayout(layoutDraft, savedLayout),
+    isDefault:
+      isSameFonts(fontDraft, DEFAULT_FONT) &&
+      isSameLineBreak(lineBreakDraft, DEFAULT_LINE_BREAK) &&
+      isSameLayout(layoutDraft, DEFAULT_LAYOUT) &&
+      themeMode === DEFAULT_THEME_MODE,
+    resetDefaults,
     save,
     configFile: initial.configFile,
     editable: initial.editable,

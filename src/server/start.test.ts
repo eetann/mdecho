@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DEFAULT_CONFIG } from "../config/load.ts";
+import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import { startServer, type StartServerResult } from "./start.ts";
 
 // 句点分割はレンダリング結果のHTMLを膨らませるだけなので、関係ないテストでは切っておく。

@@ -21,7 +21,9 @@ src/
   agent-hint.ts       AIエージェント向けの案内文(CLIとサーバー双方から使う)
   package-root.ts     同梱docs/やdist/client/を解決するためのパッケージルート
   cli/                gunshiのサブコマンド定義と、その入力元
-  config/             設定の読み込み(load.ts)と保存(save.ts)
+  config/             設定の型と既定値(defaults.ts)、読み込み(load.ts)、保存(save.ts)
+                      defaults.tsは設定モーダルの「デフォルトに戻す」からも使うためfrontend/が読む。
+                      node依存(c12やnode:fs)を持ち込まないこと
   markdown/           MarkdownからHTMLへの変換。remark/rehypeプラグインはplugins/配下
   server/             HTTPサーバー、ライブリロード、HTMLシェル、パス解決
   styles/             <head>へ注入するCSSの組み立て。frontend/からも型と定数を共有する
