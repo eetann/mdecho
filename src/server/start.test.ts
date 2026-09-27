@@ -319,6 +319,57 @@ describe("startServer", () => {
     expect(res.status).toBe(400);
   });
 
+  test("外部サイトからのPOST /api/configは弾き、設定ファイルも作らない", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+    const configFile = join(dir, "config.jsonc");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, configFile });
+
+    // プリフライトの要らない単純リクエストの形。Content-Typeを見ずにJSONとして読めてしまう。
+    const res = await fetch(new URL("./api/config", running.url), {
+      method: "POST",
+      headers: { "content-type": "text/plain;charset=UTF-8", origin: "https://evil.example" },
+      body: JSON.stringify({ font: { body: ["Comic Sans MS"] } }),
+    });
+    expect(res.status).toBe(415);
+    expect(await readFile(configFile, "utf-8").catch(() => undefined)).toBeUndefined();
+
+    // JSONで送り直してもオリジンで落とす。
+    const jsonRes = await fetch(new URL("./api/config", running.url), {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://evil.example" },
+      body: JSON.stringify({ font: { body: ["Comic Sans MS"] } }),
+    });
+    expect(jsonRes.status).toBe(403);
+    expect(await readFile(configFile, "utf-8").catch(() => undefined)).toBeUndefined();
+  });
+
+  test("ブラウザが付けるヘッダのままのPOST /api/configは通す", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n");
+    const configFile = join(dir, "config.jsonc");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, configFile });
+
+    const res = await fetch(new URL("./api/config", running.url), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "sec-fetch-site": "same-origin",
+        origin: new URL(running.url).origin,
+      },
+      body: JSON.stringify({ font: { body: ["Meiryo"] } }),
+    });
+    expect(res.status).toBe(200);
+    expect(JSON.parse(await readFile(configFile, "utf-8")).font).toEqual({
+      body: ["Meiryo"],
+      code: [],
+    });
+  });
+
   test("設定ファイルのlineBreakがレンダリングに効く", async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
     const filePath = join(dir, "doc.md");

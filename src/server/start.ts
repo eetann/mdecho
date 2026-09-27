@@ -14,6 +14,7 @@ import { buildFontCss } from "../styles/font.ts";
 import { buildLayoutCss } from "../styles/layout.ts";
 import { buildThemeCss } from "../styles/theme.ts";
 import { listSystemFonts } from "../system/fonts.ts";
+import { csrfGuard } from "./csrf.ts";
 import { isMarkdownPath, isRealPathWithinDir, resolveDoc } from "./doc-path.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { renderNotFoundPage, renderShell } from "./shell.ts";
@@ -87,6 +88,9 @@ export async function startServer(
   });
 
   const app = new Hono<{ Bindings: HttpBindings }>();
+
+  // 設定を書き換えるAPIを持つため、他サイトからのリクエストは何よりも先に落とす。
+  app.use("*", csrfGuard);
 
   app.get("/events", (c) => {
     // タブごとに違うMarkdownを開けるため、そのタブが見ているファイルだけを監視対象にする。
