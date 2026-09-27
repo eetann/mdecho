@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildFontCss, toFontFamilyToken, toFontFamilyValue } from "./font-css.ts";
+import { buildFontCss, toFontFamilyToken, toFontFamilyValue } from "./font.ts";
 
 describe("toFontFamilyToken", () => {
   test("空白を含む名前は引用符で囲む", () => {

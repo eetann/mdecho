@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  parseFcListFonts,
-  parsePowerShellFonts,
-  parseSystemProfilerFonts,
-} from "./system-fonts.ts";
+import { parseFcListFonts, parsePowerShellFonts, parseSystemProfilerFonts } from "./fonts.ts";
 
 describe("parsePowerShellFonts", () => {
   test("タブ区切りの2つ目以降を別名として扱う", () => {

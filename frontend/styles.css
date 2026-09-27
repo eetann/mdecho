@@ -8,7 +8,7 @@
 
 /* 配色の語彙はdaisyUIの色トークンに揃えてある。~/.config/mdecho/config.jsonc の
    theme.light / theme.dark に同じ名前で色を書くと、サーバーが<head>の末尾へ
-   [data-theme="…"] { --color-…: … } を注入してこの既定値を上書きする(src/theme-css.ts)。
+   [data-theme="…"] { --color-…: … } を注入してこの既定値を上書きする(src/styles/theme.ts)。
    どちらのテーマを当てるかはhtml要素の data-theme で決まり、system(OS追従)のときも
    <head>のブートスクリプトが解決済みの値を書くので、ここは2値だけを考えればよい。
    色はGitHubのLight/Darkに合わせている。 */
@@ -74,7 +74,7 @@
 
 /* 既定のフォントスタック。~/.config/mdecho/config.jsonc でフォントを指定すると、
    サーバーが <head> の末尾に :root { --font-sans: <指定フォント>, var(--mdecho-default-font-body) }
-   を注入し、この既定スタックの手前へ差し込む(src/font-css.ts)。
+   を注入し、この既定スタックの手前へ差し込む(src/styles/font.ts)。
    @themeの外に置くのは、Tailwindの未使用テーマ変数の削除対象にしないため。 */
 :root {
   /* BIZ UDPGothicはWindows 11標準搭載のUDフォントで、Yu Gothicよりブラウザ上で
@@ -93,7 +93,7 @@
   --mdecho-scroll-margin-top: 4.5rem;
 
   /* 本文(ツールバー・行番号ガターを含む列)の最大幅。設定のlayout.contentWidthがあれば、
-     サーバーが<head>の末尾で上書きする(src/layout-css.ts)。 */
+     サーバーが<head>の末尾で上書きする(src/styles/layout.ts)。 */
   --mdecho-content-width: 1024px;
 
   /* 本文の文字サイズ。見出し・コード・行番号はどれもこれを基準にしたem指定なので、
@@ -471,7 +471,7 @@ body {
   width: 100%;
 }
 
-/* Shikiには2テーマ分の色をCSS変数として持たせてある(src/markdown.tsのdefaultColor: false)。
+/* Shikiには2テーマ分の色をCSS変数として持たせてある(src/markdown/render.tsのdefaultColor: false)。
    どちらを使うかをここで決めるので、配色を切り替えてもサーバーでHTMLを作り直さずに済む。
    背景(--shiki-*-bg)はあえて使わない。透かしてページの地の色を出すことで、
    罫線1本でブロックを示す今の見え方を両テーマで保てる。 */

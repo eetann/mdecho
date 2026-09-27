@@ -7,12 +7,12 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import type { ShikiTransformer } from "shiki";
 import { type PluggableList, unified } from "unified";
-import { DEFAULT_LINE_BREAK, type LineBreakConfig } from "./config.ts";
-import { rehypeExternalLinks } from "./rehype-external-links.ts";
-import { rehypeHeadingId } from "./rehype-heading-id.ts";
-import { remarkDataLine } from "./remark-data-line.ts";
-import { remarkMermaid } from "./remark-mermaid.ts";
-import { remarkSplitSentences } from "./remark-split-sentences.ts";
+import { DEFAULT_LINE_BREAK, type LineBreakConfig } from "../config/load.ts";
+import { rehypeExternalLinks } from "./plugins/rehype-external-links.ts";
+import { rehypeHeadingId } from "./plugins/rehype-heading-id.ts";
+import { remarkDataLine } from "./plugins/remark-data-line.ts";
+import { remarkMermaid } from "./plugins/remark-mermaid.ts";
+import { remarkSplitSentences } from "./plugins/remark-split-sentences.ts";
 
 const DATA_LINE_MARKER_PATTERN = /data-mdecho-line-start="(\d+)" data-mdecho-line-end="(\d+)"/;
 

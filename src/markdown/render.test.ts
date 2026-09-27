@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
+import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./render.ts";
 
 describe("renderMarkdown - line breaks", () => {
   test("単一改行(Enter1回)がそのまま<br>になる", async () => {

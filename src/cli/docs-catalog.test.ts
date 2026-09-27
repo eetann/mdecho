@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { listDocs, parseFrontmatterDescription, readDoc } from "./docs.ts";
+import { listDocs, parseFrontmatterDescription, readDoc } from "./docs-catalog.ts";
 
 describe("parseFrontmatterDescription", () => {
   test("frontmatterからdescriptionを抽出する", () => {

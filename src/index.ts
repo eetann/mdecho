@@ -2,12 +2,12 @@ import { access } from "node:fs/promises";
 import { cli, define } from "gunshi";
 import { renderHeader } from "gunshi/renderer";
 import { AGENT_HINT } from "./agent-hint.ts";
-import { loadMdechoConfig } from "./config.ts";
-import { defaultConfigFile } from "./config-writer.ts";
-import { docsCommand } from "./docs-command.ts";
-import { fontLsCommand } from "./font-command.ts";
-import { openBrowser } from "./open-browser.ts";
-import { startServer } from "./server.ts";
+import { docsCommand } from "./cli/docs-command.ts";
+import { fontLsCommand } from "./cli/font-command.ts";
+import { loadMdechoConfig } from "./config/load.ts";
+import { defaultConfigFile } from "./config/save.ts";
+import { startServer } from "./server/start.ts";
+import { openBrowser } from "./system/open-browser.ts";
 
 const command = define({
   name: "mdecho",

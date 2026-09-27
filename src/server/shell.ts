@@ -1,4 +1,4 @@
-import { buildThemeBootScript, type ThemeConfig } from "./theme-css.ts";
+import { buildThemeBootScript, type ThemeConfig } from "../styles/theme.ts";
 
 export interface ShellSettings {
   font: { body: string[]; code: string[] };

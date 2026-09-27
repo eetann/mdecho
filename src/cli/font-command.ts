@@ -1,5 +1,5 @@
 import { define } from "gunshi";
-import { listSystemFonts } from "./system-fonts.ts";
+import { listSystemFonts } from "../system/fonts.ts";
 
 export const fontLsCommand = define({
   name: "font-ls",

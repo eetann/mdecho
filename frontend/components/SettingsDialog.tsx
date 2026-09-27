@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
-import { FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
+import { FONT_VARIABLES, type FontKind } from "../../src/styles/font.ts";
 import {
   clampContentWidth,
   clampFontSize,
@@ -11,7 +11,7 @@ import {
   FONT_SIZE_MIN,
   LINE_HEIGHT_MAX,
   LINE_HEIGHT_MIN,
-} from "../../src/layout-css.ts";
+} from "../../src/styles/layout.ts";
 import type { SettingsApi } from "../hooks/useSettings.ts";
 import type { LayoutSettings, LineBreakSettings } from "../lib/types.ts";
 import { FontCombobox } from "./FontCombobox.tsx";

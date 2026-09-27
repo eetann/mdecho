@@ -3,7 +3,7 @@ import { parseJSONC } from "confbox/jsonc";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, join } from "node:path";
-import { type FontFamilies, toFontFamilyToken } from "./font-css.ts";
+import { type FontFamilies, toFontFamilyToken } from "../styles/font.ts";
 import {
   clampContentWidth,
   clampFontSize,
@@ -18,7 +18,7 @@ import {
   type LayoutConfig,
   LINE_HEIGHT_MAX,
   LINE_HEIGHT_MIN,
-} from "./layout-css.ts";
+} from "../styles/layout.ts";
 import {
   DEFAULT_THEME,
   DEFAULT_THEME_MODE,
@@ -30,7 +30,7 @@ import {
   type ThemeConfig,
   type ThemeMode,
   THEME_MODES,
-} from "./theme-css.ts";
+} from "../styles/theme.ts";
 
 /** 表示上の改行をどこで入れるか。 */
 export interface LineBreakConfig {

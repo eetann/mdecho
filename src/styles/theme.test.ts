@@ -8,7 +8,7 @@ import {
   resolveThemeMode,
   THEME_COLOR_KEYS,
   type ThemeConfig,
-} from "./theme-css.ts";
+} from "./theme.ts";
 
 describe("isThemeMode", () => {
   test("決まった3語だけを受け付ける", () => {

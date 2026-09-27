@@ -17,7 +17,7 @@ import {
   type LayoutConfig,
   LINE_HEIGHT_MAX,
   LINE_HEIGHT_MIN,
-} from "./layout-css.ts";
+} from "./layout.ts";
 
 const DEFAULTS: LayoutConfig = {
   contentWidth: DEFAULT_CONTENT_WIDTH,

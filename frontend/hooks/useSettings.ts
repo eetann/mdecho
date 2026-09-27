@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { buildFontFamilyValue, FONT_VARIABLES, type FontKind } from "../../src/font-css.ts";
+import { buildFontFamilyValue, FONT_VARIABLES, type FontKind } from "../../src/styles/font.ts";
 import {
   buildContentWidthValue,
   buildFontSizeValue,
@@ -7,14 +7,14 @@ import {
   CONTENT_WIDTH_VARIABLE,
   FONT_SIZE_VARIABLE,
   LINE_HEIGHT_VARIABLE,
-} from "../../src/layout-css.ts";
+} from "../../src/styles/layout.ts";
 import {
   type ResolvedTheme,
   resolveThemeMode,
   THEME_ATTRIBUTE,
   type ThemeColors,
   type ThemeMode,
-} from "../../src/theme-css.ts";
+} from "../../src/styles/theme.ts";
 import type {
   FontSettings,
   LayoutSettings,

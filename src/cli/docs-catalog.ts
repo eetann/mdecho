@@ -1,7 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
+import { PACKAGE_ROOT } from "../package-root.ts";
 
-const DOCS_DIR = join(import.meta.dirname, "..", "docs");
+const DOCS_DIR = join(PACKAGE_ROOT, "docs");
 const FRONTMATTER_DELIMITER = "---";
 const DESCRIPTION_LINE_PATTERN = /^description:\s*(.+)$/;
 

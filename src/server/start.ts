@@ -4,25 +4,26 @@ import { watch } from "chokidar";
 import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
-import { AGENT_HINT_TROUBLESHOOTING } from "./agent-hint.ts";
+import { AGENT_HINT_TROUBLESHOOTING } from "../agent-hint.ts";
 import {
   DEFAULT_CONFIG,
   type LineBreakConfig,
   type MdechoConfig,
   normalizeConfig,
   resolveLineBreak,
-} from "./config.ts";
-import { defaultConfigFile, isWritableConfigFile, saveConfig } from "./config-writer.ts";
+} from "../config/load.ts";
+import { defaultConfigFile, isWritableConfigFile, saveConfig } from "../config/save.ts";
+import { extractTitle, renderCommentMarkdown, renderMarkdown } from "../markdown/render.ts";
+import { PACKAGE_ROOT } from "../package-root.ts";
+import { buildFontCss } from "../styles/font.ts";
+import { buildLayoutCss } from "../styles/layout.ts";
+import { buildThemeCss } from "../styles/theme.ts";
+import { listSystemFonts } from "../system/fonts.ts";
 import { isMarkdownPath, resolveDoc } from "./doc-path.ts";
-import { buildFontCss } from "./font-css.ts";
-import { buildLayoutCss } from "./layout-css.ts";
-import { listSystemFonts } from "./system-fonts.ts";
-import { buildThemeCss } from "./theme-css.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
-import { extractTitle, renderCommentMarkdown, renderMarkdown } from "./markdown.ts";
-import { renderNotFoundPage, renderShell } from "./render-shell.ts";
+import { renderNotFoundPage, renderShell } from "./shell.ts";
 
-const CLIENT_TEMPLATE_PATH = join(import.meta.dirname, "..", "dist", "client", "index.html");
+const CLIENT_TEMPLATE_PATH = join(PACKAGE_ROOT, "dist", "client", "index.html");
 
 /** 設定から組み立てる、<head>の末尾に差し込むCSS。styles.cssの既定値を上書きする。 */
 function buildHeadCss(config: MdechoConfig): string {

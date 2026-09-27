@@ -1,6 +1,6 @@
 import mermaid from "mermaid";
 import { type RefObject, useEffect } from "react";
-import type { ResolvedTheme } from "../../src/theme-css.ts";
+import type { ResolvedTheme } from "../../src/styles/theme.ts";
 
 let mermaidRenderIndex = 0;
 

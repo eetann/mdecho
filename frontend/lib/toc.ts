@@ -2,7 +2,7 @@ export interface TocSourceEntry {
   tagName: string;
   line: number;
   text: string;
-  /** 見出しに振られたid(src/rehype-heading-id.ts)。目次のリンク先になる */
+  /** 見出しに振られたid(src/markdown/plugins/rehype-heading-id.ts)。目次のリンク先になる */
   id: string;
 }
 

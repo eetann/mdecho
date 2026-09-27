@@ -1,4 +1,4 @@
-import type { ThemeConfig } from "../../src/theme-css.ts";
+import type { ThemeConfig } from "../../src/styles/theme.ts";
 
 export interface Comment {
   startLine: number;
@@ -11,7 +11,7 @@ export interface FontSettings {
   code: string[];
 }
 
-/** src/config.tsのLineBreakConfigと対応する */
+/** src/config/load.tsのLineBreakConfigと対応する */
 export interface LineBreakSettings {
   /** 句点(。)ごとに表示上の改行を入れる */
   splitSentences: boolean;
@@ -19,7 +19,7 @@ export interface LineBreakSettings {
   singleNewline: boolean;
 }
 
-/** src/layout-css.tsのLayoutConfigと対応する */
+/** src/styles/layout.tsのLayoutConfigと対応する */
 export interface LayoutSettings {
   /** 本文の最大幅(px)。画面がこれより広いときは左右に均等な余白が付く */
   contentWidth: number;
@@ -29,7 +29,7 @@ export interface LayoutSettings {
   lineHeight: number;
 }
 
-/** src/theme-css.tsのThemeConfigと対応する */
+/** src/styles/theme.tsのThemeConfigと対応する */
 export type ThemeSettings = ThemeConfig;
 
 export interface MdechoSettings {
@@ -66,7 +66,7 @@ export interface MdechoInitialData {
   settings: MdechoSettings;
 }
 
-/** GET /api/fonts のレスポンス(src/system-fonts.tsのSystemFontと対応する) */
+/** GET /api/fonts のレスポンス(src/system/fonts.tsのSystemFontと対応する) */
 export interface SystemFont {
   name: string;
   aliases: string[];

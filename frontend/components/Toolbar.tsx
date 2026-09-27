@@ -1,6 +1,6 @@
 import { House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-react";
 import { useState } from "react";
-import type { ThemeMode } from "../../src/theme-css.ts";
+import type { ThemeMode } from "../../src/styles/theme.ts";
 import { buildClipboardText, type CommentGroup } from "../lib/clipboard-text.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { KeyboardHelpDialog } from "./KeyboardHelpDialog.tsx";

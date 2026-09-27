@@ -1,7 +1,7 @@
 import { applyEdits, modify } from "jsonc-parser";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
-import { type MdechoConfig, resolveConfigDir } from "./config.ts";
+import { type MdechoConfig, resolveConfigDir } from "./load.ts";
 
 /** UIから書き換えられる設定ファイルの拡張子。 */
 const WRITABLE_EXTENSIONS = new Set([".json", ".jsonc"]);

@@ -1,5 +1,5 @@
 import { define } from "gunshi";
-import { listDocs, readDoc } from "./docs.ts";
+import { listDocs, readDoc } from "./docs-catalog.ts";
 
 const docsListCommand = define({
   name: "list",

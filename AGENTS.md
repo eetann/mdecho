@@ -10,6 +10,32 @@ Default to using Bun instead of Node.js for development tooling (running scripts
 - Use `bunx <package> <command>` instead of `npx <package> <command>`
 - Bun automatically loads .env, so don't use dotenv.
 
+
+## ディレクトリ構成
+
+`src/`はドメインごとにディレクトリを切る。フラットに戻さないこと。
+
+```
+src/
+  index.ts            CLIのエントリ(binの実体)。gunshiの配線だけ
+  agent-hint.ts       AIエージェント向けの案内文(CLIとサーバー双方から使う)
+  package-root.ts     同梱docs/やdist/client/を解決するためのパッケージルート
+  cli/                gunshiのサブコマンド定義と、その入力元
+  config/             設定の読み込み(load.ts)と保存(save.ts)
+  markdown/           MarkdownからHTMLへの変換。remark/rehypeプラグインはplugins/配下
+  server/             HTTPサーバー、ライブリロード、HTMLシェル、パス解決
+  styles/             <head>へ注入するCSSの組み立て。frontend/からも型と定数を共有する
+  system/             OS依存の処理(フォント列挙、ブラウザ起動、WSL判定)
+```
+
+テストは対象ファイルの隣に`*.test.ts`として置く。
+
+`src/package-root.ts`は`import.meta.dirname`の1つ上をパッケージルートとみなす。
+開発時は`src/`直下、`bun run build:cli`後は1ファイルに畳まれて`dist/`直下に置かれるため
+どちらも1つ上で正しい。この前提があるのでこのファイルは`src/`直下から動かさないこと。
+同梱ファイルへのパスは必ず`PACKAGE_ROOT`経由で組み立て、各モジュールで
+`import.meta.dirname`を直接使わない(階層が深いと開発時だけ壊れる)。
+
 ## APIs
 
 These Bun-only APIs are fine for dev tooling/tests, but avoid them under `src/` (see note above):
