@@ -9,6 +9,9 @@ const COPIED_LABEL_DURATION_MS = 1500;
 
 type CopyState = "idle" | "copied" | "failed";
 
+/** 狭い画面で、目次(TableOfContents)が自分の開閉ボタンを差し込む置き場所 */
+export const TOOLBAR_SLOT_ID = "mdecho-toolbar-toc-slot";
+
 /** ボタンを押すたびにこの順で巡回する。設定モーダルの「配色」も同じ並び。 */
 export const THEME_MODE_ORDER: ThemeMode[] = ["system", "light", "dark"];
 
@@ -161,6 +164,8 @@ export function Toolbar({
       >
         <Settings className="size-[1.1em]" />
       </button>
+      {/* 空のあいだは隠して、ボタン間のgapが余計に空かないようにする */}
+      <div id={TOOLBAR_SLOT_ID} className="relative empty:hidden" />
       <KeyboardHelpDialog open={keyboardHelpOpen} onClose={() => setKeyboardHelpOpen(false)} />
       <ConfirmDialog
         open={confirmingDeleteAll}
