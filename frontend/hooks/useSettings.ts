@@ -31,6 +31,11 @@ function prefersDarkNow(): boolean {
   return window.matchMedia(DARK_MEDIA_QUERY).matches;
 }
 
+export type ThemeSaveStatus = "idle" | "saving" | "saved";
+
+/** 配色の保存後に「保存しました」を出しておく時間 */
+const THEME_SAVED_DISPLAY_MS = 2000;
+
 export interface SettingsApi {
   open: boolean;
   openDialog: () => void;
@@ -54,6 +59,11 @@ export interface SettingsApi {
   /** systemを解決したあとの、いま実際に当たっている配色 */
   resolvedTheme: ResolvedTheme;
   setThemeMode: (mode: ThemeMode) => void;
+  /**
+   * 配色の即時保存の進み具合。「保存」ボタンを通らないため、保存が済んだことを配色欄で伝えるのに使う。
+   * 失敗したら"idle"に戻し、理由はsaveErrorで伝える。
+   */
+  themeSaveStatus: ThemeSaveStatus;
   systemFonts: SystemFont[];
   systemFontsLoading: boolean;
   systemFontsError: string | undefined;
@@ -106,6 +116,10 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
   const [saveError, setSaveError] = useState<string>();
   const [themeMode, setThemeModeState] = useState<ThemeMode>(initial.theme.mode);
   const [prefersDark, setPrefersDark] = useState(prefersDarkNow);
+  const [themeSaveStatus, setThemeSaveStatus] = useState<ThemeSaveStatus>("idle");
+  // 続けて押されたとき、先に押した分の保存結果で表示を上書きしないよう、最後に押した分だけを見る。
+  const themeSaveSeq = useRef(0);
+  const themeSavedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // 色の上書きはUIから編集しないが、保存のたびに送り返さないとサーバー側の設定から
   // 消えてしまうため、受け取ったものをそのまま持っておく。
   const themeColors = useRef<{ light: ThemeColors; dark: ThemeColors }>({
@@ -139,6 +153,8 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     root.style.setProperty(FONT_SIZE_VARIABLE, buildFontSizeValue(layoutDraft.fontSize));
     root.style.setProperty(LINE_HEIGHT_VARIABLE, buildLineHeightValue(layoutDraft.lineHeight));
   }, [layoutDraft]);
+
+  useEffect(() => () => clearTimeout(themeSavedTimer.current), []);
 
   // OS側の設定変更に追従する。mode === "system" のときだけ見た目が変わる。
   useEffect(() => {
@@ -215,6 +231,9 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       // 保存できなくてもこの起動中の見た目は変えたままにして、理由はモーダルのエラー欄で伝える。
       setThemeModeState(mode);
       if (!initial.editable) return;
+      const seq = ++themeSaveSeq.current;
+      clearTimeout(themeSavedTimer.current);
+      setThemeSaveStatus("saving");
       void (async () => {
         try {
           // 編集中のドラフトではなく保存済みの値を載せる。設定モーダルでフォントをいじっている
@@ -225,9 +244,17 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
             layout: savedLayout,
             themeMode: mode,
           });
+          if (seq !== themeSaveSeq.current) return;
           setSaveError(undefined);
+          setThemeSaveStatus("saved");
+          themeSavedTimer.current = setTimeout(
+            () => setThemeSaveStatus("idle"),
+            THEME_SAVED_DISPLAY_MS,
+          );
         } catch (error) {
+          if (seq !== themeSaveSeq.current) return;
           setSaveError(error instanceof Error ? error.message : String(error));
+          setThemeSaveStatus("idle");
         }
       })();
     },
@@ -312,6 +339,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     themeMode,
     resolvedTheme,
     setThemeMode,
+    themeSaveStatus,
     systemFonts,
     systemFontsLoading,
     systemFontsError,

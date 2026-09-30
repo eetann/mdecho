@@ -194,18 +194,30 @@ function ThemeSection({ settings }: { settings: SettingsApi }) {
         押すとすぐ反映し、そのまま設定ファイルへ保存します(下の「保存」を押す必要はありません)。
         ツールバーのアイコンからも切り替えられます。
       </p>
-      <div className="join mt-2">
-        {THEME_MODE_ORDER.map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            className={`btn join-item btn-sm ${settings.themeMode === mode ? "btn-primary" : ""}`}
-            aria-pressed={settings.themeMode === mode}
-            onClick={() => settings.setThemeMode(mode)}
-          >
-            {THEME_MODE_LABELS[mode]}
-          </button>
-        ))}
+      <div className="mt-2 flex items-center gap-3">
+        <div className="join">
+          {THEME_MODE_ORDER.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={`btn join-item btn-sm ${settings.themeMode === mode ? "btn-primary" : ""}`}
+              aria-pressed={settings.themeMode === mode}
+              onClick={() => settings.setThemeMode(mode)}
+            >
+              {THEME_MODE_LABELS[mode]}
+            </button>
+          ))}
+        </div>
+        {/* 下の「保存」ボタンは押せないままなので、保存が済んだことはここで伝える */}
+        <span
+          id="mdecho-theme-save-status"
+          className="text-xs text-success"
+          role="status"
+          aria-live="polite"
+        >
+          {settings.themeSaveStatus === "saving" && "保存中..."}
+          {settings.themeSaveStatus === "saved" && "保存しました ✓"}
+        </span>
       </div>
       {settings.themeMode === "system" && (
         <p className="mt-1 text-xs text-base-content/60">
