@@ -15,6 +15,7 @@ const UI_SELECTORS = [
   ".mdecho-line-number-gutter",
   ".mdecho-toc",
   ".mdecho-col-resizer",
+  ".mdecho-outdated-comments",
 ];
 
 interface PendingSelection {

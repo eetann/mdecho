@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { keyOf, parseKey } from "../lib/comment-keys.ts";
+import { remapComments, sliceLines } from "../lib/comment-remap.ts";
 import { buildInitialCommentText } from "../lib/comment-text.ts";
 import {
   clearAllComments,
@@ -13,6 +14,8 @@ import type { Comment } from "../lib/types.ts";
 
 interface CommentsState {
   comments: Map<string, Comment>;
+  /** 本文が書き換わって付け先を失ったコメント。コピーの対象には含めない */
+  outdated: Comment[];
   editingKey: string | null;
   editingInitialText: string;
 }
@@ -20,9 +23,10 @@ interface CommentsState {
 type CommentsAction =
   | { type: "open"; key: string; quotedText?: string }
   | { type: "cancel" }
-  | { type: "save"; key: string; text: string }
+  | { type: "save"; key: string; text: string; source: string }
   | { type: "delete"; key: string }
-  | { type: "deleteAll" };
+  | { type: "deleteAll" }
+  | { type: "clearOutdated" };
 
 function reducer(state: CommentsState, action: CommentsAction): CommentsState {
   switch (action.type) {
@@ -47,9 +51,11 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
         next.delete(action.key);
       } else {
         const { startLine, endLine } = parseKey(action.key);
-        next.set(action.key, { startLine, endLine, text });
+        const originalText = sliceLines(action.source, startLine, endLine);
+        next.set(action.key, { startLine, endLine, text, originalText });
       }
       return {
+        ...state,
         comments: next,
         editingKey: state.editingKey === action.key ? null : state.editingKey,
         editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
@@ -60,14 +66,19 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
       const next = new Map(state.comments);
       next.delete(action.key);
       return {
+        ...state,
         comments: next,
         editingKey: state.editingKey === action.key ? null : state.editingKey,
         editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
       };
     }
     case "deleteAll": {
-      if (state.comments.size === 0) return state;
-      return { comments: new Map(), editingKey: null, editingInitialText: "" };
+      if (state.comments.size === 0 && state.outdated.length === 0) return state;
+      return { comments: new Map(), outdated: [], editingKey: null, editingInitialText: "" };
+    }
+    case "clearOutdated": {
+      if (state.outdated.length === 0) return state;
+      return { ...state, outdated: [] };
     }
     default:
       return state;
@@ -77,20 +88,32 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
 /**
  * relPath: Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス
  * filePath: `-f`に渡したパスと同じ書き方で表した、表示中ファイルのパス
+ * source: 表示中ファイルのMarkdown原文
  */
-export function useComments(relPath: string, filePath: string) {
-  const [state, dispatch] = useReducer(reducer, undefined, () => ({
-    comments: loadComments(relPath),
-    editingKey: null,
-    editingInitialText: "",
-  }));
+export function useComments(relPath: string, filePath: string, source: string) {
+  const [state, dispatch] = useReducer(reducer, undefined, (): CommentsState => {
+    const loaded = loadComments(relPath);
+    // 前回保存してから原文が変わっていれば、行のずれに追従させ、書き換わった箇所はoutdatedに回す。
+    // 原文を持たない古いデータは、比べようがないのでそのまま使う。
+    const remapped =
+      loaded.source === undefined
+        ? { comments: loaded.comments, outdated: [] }
+        : remapComments(loaded.comments, loaded.source, source);
+    return {
+      comments: remapped.comments,
+      outdated: [...loaded.outdated, ...remapped.outdated],
+      editingKey: null,
+      editingInitialText: "",
+    };
+  });
   // リンクを辿った先で書いたコメントもまとめてコピーできるようにする。
   // 他のファイルの分はそのファイルを開いている間しか変わらないため、初回に読むだけでよい。
   const [otherStores, setOtherStores] = useState<CommentStore[]>(() => loadOtherStores(relPath));
 
   useEffect(() => {
-    saveComments(relPath, filePath, state.comments);
-  }, [state.comments, relPath, filePath]);
+    // 付け替え後の行番号は今の原文に対するものなので、原文も今のものに揃えて保存する。
+    saveComments(relPath, filePath, state.comments, { outdated: state.outdated, source });
+  }, [state.comments, state.outdated, relPath, filePath, source]);
 
   const openEditor = useCallback(
     (startLine: number, endLine: number, sentenceIndex = 0, selectedText?: string) => {
@@ -104,11 +127,13 @@ export function useComments(relPath: string, filePath: string) {
   const cancelEditing = useCallback(() => dispatch({ type: "cancel" }), []);
 
   const save = useCallback(
-    (key: string, text: string) => dispatch({ type: "save", key, text }),
-    [],
+    (key: string, text: string) => dispatch({ type: "save", key, text, source }),
+    [source],
   );
 
   const deleteComment = useCallback((key: string) => dispatch({ type: "delete", key }), []);
+
+  const clearOutdatedComments = useCallback(() => dispatch({ type: "clearOutdated" }), []);
 
   const deleteAllComments = useCallback(() => {
     clearAllComments();
@@ -132,6 +157,7 @@ export function useComments(relPath: string, filePath: string) {
 
   return {
     comments: state.comments,
+    outdatedComments: state.outdated,
     editingKey: state.editingKey,
     editingInitialText: state.editingInitialText,
     /** コピー対象。表示中のファイルと、リンク先で書いたコメントを合わせたもの */
@@ -143,5 +169,6 @@ export function useComments(relPath: string, filePath: string) {
     save,
     deleteComment,
     deleteAllComments,
+    clearOutdatedComments,
   };
 }

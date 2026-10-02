@@ -4,6 +4,8 @@ export interface Comment {
   startLine: number;
   endLine: number;
   text: string;
+  /** コメントを付けた時点の、その範囲の原文。outdatedになったときに元の文として見せる */
+  originalText?: string;
 }
 
 export interface FontSettings {
@@ -57,6 +59,8 @@ export interface MdechoSettings {
 export interface MdechoInitialData {
   title: string;
   bodyHtml: string;
+  /** Markdownの原文。リロードをまたいでコメントの行番号を付け替えるのに使う */
+  source: string;
   /** `-f`に渡したパスと同じ書き方で表した、表示中ファイルのパス(クリップボードに載る) */
   filePath: string;
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */

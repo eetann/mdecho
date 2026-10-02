@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { CommentLayer } from "./components/CommentLayer.tsx";
 import { LineNumberGutter } from "./components/LineNumberGutter.tsx";
 import { MarkdownBody } from "./components/MarkdownBody.tsx";
+import { OutdatedComments } from "./components/OutdatedComments.tsx";
 import { TableOfContents } from "./components/TableOfContents.tsx";
 import { TableTools } from "./components/TableTools.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
@@ -16,12 +17,14 @@ import type { MdechoSettings } from "./lib/types.ts";
 
 export function App({
   bodyHtml,
+  source,
   filePath,
   relPath,
   entryRelPath,
   settings,
 }: {
   bodyHtml: string;
+  source: string;
   filePath: string;
   relPath: string;
   entryRelPath: string;
@@ -29,7 +32,7 @@ export function App({
 }) {
   useLiveReload();
   const markdownBodyRef = useRef<HTMLElement | null>(null);
-  const commentsApi = useComments(relPath, filePath);
+  const commentsApi = useComments(relPath, filePath, source);
   const tables = useTableTools(markdownBodyRef, bodyHtml);
   const settingsApi = useSettings(settings);
   // 図の色はmermaid側のテーマが持っているので、本文の配色に合わせて描き直す
@@ -69,6 +72,10 @@ export function App({
             cancelEditing={commentsApi.cancelEditing}
             save={commentsApi.save}
             deleteComment={commentsApi.deleteComment}
+          />
+          <OutdatedComments
+            comments={commentsApi.outdatedComments}
+            clearOutdated={commentsApi.clearOutdatedComments}
           />
           <TableTools tables={tables} />
           <SettingsDialog settings={settingsApi} />

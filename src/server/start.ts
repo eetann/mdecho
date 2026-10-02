@@ -188,6 +188,7 @@ export async function startServer(
       const html = renderShell(clientTemplate, {
         title,
         bodyHtml,
+        source,
         filePath: doc.displayPath,
         relPath: doc.relPath,
         entryRelPath: entryDoc.relPath,

@@ -475,6 +475,17 @@ describe("startServer", () => {
     expect(html).toContain('"entryRelPath":"doc.md"');
   });
 
+  test("コメントの行番号を付け替えられるよう、原文を初期データに埋め込む", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# エントリ\n\n本文\n");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).toContain('"source":"# エントリ\\n\\n本文\\n"');
+  });
+
   test("エントリのディレクトリの外にあるファイルは開けない", async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
     await writeFile(join(dir, "secret.md"), "# ひみつ\n");

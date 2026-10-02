@@ -44,21 +44,43 @@ describe("saveComments / loadComments", () => {
   test("保存したコメントを読み戻せる", () => {
     const comments = new Map([["9-9", comment(9, "ここ直して")]]);
     saveComments("doc.md", "docs/doc.md", comments);
-    expect(loadComments("doc.md")).toEqual(comments);
+    expect(loadComments("doc.md").comments).toEqual(comments);
   });
 
   test("保存していないファイルは空のMapになる", () => {
-    expect(loadComments("doc.md").size).toBe(0);
+    expect(loadComments("doc.md").comments.size).toBe(0);
   });
 
   test("壊れたデータは空のMapとして扱う", () => {
     sessionStorage.setItem("mdecho:comments:doc.md", "{{");
-    expect(loadComments("doc.md").size).toBe(0);
+    expect(loadComments("doc.md").comments.size).toBe(0);
   });
 
   test("形式の違うデータも空のMapとして扱う", () => {
     sessionStorage.setItem("mdecho:comments:doc.md", JSON.stringify([["9-9", comment(9, "旧")]]));
-    expect(loadComments("doc.md").size).toBe(0);
+    expect(loadComments("doc.md").comments.size).toBe(0);
+  });
+
+  test("原文とoutdatedも一緒に読み戻せる", () => {
+    const outdated = [comment(3, "消えた行へのコメント")];
+    saveComments("doc.md", "docs/doc.md", new Map([["9-9", comment(9, "A")]]), {
+      outdated,
+      source: "# doc",
+    });
+    const loaded = loadComments("doc.md");
+    expect(loaded.outdated).toEqual(outdated);
+    expect(loaded.source).toBe("# doc");
+  });
+
+  test("原文もoutdatedも無い古い形式は、空のoutdatedとして読む", () => {
+    sessionStorage.setItem(
+      "mdecho:comments:doc.md",
+      JSON.stringify({ filePath: "docs/doc.md", comments: [["9-9", comment(9, "A")]] }),
+    );
+    const loaded = loadComments("doc.md");
+    expect(loaded.comments.size).toBe(1);
+    expect(loaded.outdated).toEqual([]);
+    expect(loaded.source).toBeUndefined();
   });
 });
 
@@ -95,7 +117,7 @@ describe("clearAllComments", () => {
 
     clearAllComments();
 
-    expect(loadComments("index.md").size).toBe(0);
+    expect(loadComments("index.md").comments.size).toBe(0);
     expect(loadOtherStores("index.md")).toEqual([]);
     expect(sessionStorage.getItem("mdecho:cursorLine")).toBe("12");
   });
@@ -106,5 +128,15 @@ describe("saveComments - 空になったとき", () => {
     saveComments("doc.md", "docs/doc.md", new Map([["9-9", comment(9, "ここ直して")]]));
     saveComments("doc.md", "docs/doc.md", new Map());
     expect(sessionStorage.getItem("mdecho:comments:doc.md")).toBeNull();
+  });
+
+  test("outdatedが残っていればエントリは消さない", () => {
+    saveComments("doc.md", "docs/doc.md", new Map(), { outdated: [comment(9, "A")] });
+    expect(loadComments("doc.md").outdated).toHaveLength(1);
+  });
+
+  test("outdatedしか無いファイルは、他のファイルのコピー対象に含めない", () => {
+    saveComments("doc.md", "docs/doc.md", new Map(), { outdated: [comment(9, "A")] });
+    expect(loadOtherStores("index.md")).toEqual([]);
   });
 });

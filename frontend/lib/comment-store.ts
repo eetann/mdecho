@@ -18,6 +18,17 @@ export interface CommentStore {
 interface StoredValue {
   filePath: string;
   comments: [string, Comment][];
+  /** 最後に保存したときの原文。次に開いたときの行番号の付け替えに使う */
+  source?: string;
+  /** 本文が書き換わって付け先を失ったコメント */
+  outdated?: Comment[];
+}
+
+export interface LoadedComments {
+  comments: Map<string, Comment>;
+  outdated: Comment[];
+  /** 最後に保存したときの原文。古い形式のデータには無い */
+  source?: string;
 }
 
 function keyOf(relPath: string): string {
@@ -27,20 +38,34 @@ function keyOf(relPath: string): string {
 function parseStored(raw: string): StoredValue | undefined {
   const value: unknown = JSON.parse(raw);
   if (typeof value !== "object" || value === null) return undefined;
-  const { filePath, comments } = value as Partial<StoredValue>;
+  const { filePath, comments, source, outdated } = value as Partial<StoredValue>;
   if (typeof filePath !== "string" || !Array.isArray(comments)) return undefined;
-  return { filePath, comments };
+  return {
+    filePath,
+    comments,
+    source: typeof source === "string" ? source : undefined,
+    outdated: Array.isArray(outdated) ? outdated : undefined,
+  };
 }
 
-export function loadComments(relPath: string): Map<string, Comment> {
+function emptyLoaded(): LoadedComments {
+  return { comments: new Map(), outdated: [] };
+}
+
+export function loadComments(relPath: string): LoadedComments {
   try {
     const raw = sessionStorage.getItem(keyOf(relPath));
-    if (raw === null) return new Map();
+    if (raw === null) return emptyLoaded();
     const stored = parseStored(raw);
-    return stored === undefined ? new Map() : new Map(stored.comments);
+    if (stored === undefined) return emptyLoaded();
+    return {
+      comments: new Map(stored.comments),
+      outdated: stored.outdated ?? [],
+      source: stored.source,
+    };
   } catch {
     // sessionStorageが使えない、または壊れたデータは無視
-    return new Map();
+    return emptyLoaded();
   }
 }
 
@@ -48,11 +73,17 @@ export function saveComments(
   relPath: string,
   filePath: string,
   comments: Map<string, Comment>,
+  { outdated = [], source }: { outdated?: Comment[]; source?: string } = {},
 ): void {
-  const value: StoredValue = { filePath, comments: Array.from(comments.entries()) };
+  const value: StoredValue = {
+    filePath,
+    comments: Array.from(comments.entries()),
+    source,
+    outdated,
+  };
   try {
     // 全部消したファイルのエントリを残さないようにする。
-    if (comments.size === 0) {
+    if (comments.size === 0 && outdated.length === 0) {
       sessionStorage.removeItem(keyOf(relPath));
       return;
     }

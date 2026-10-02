@@ -26,6 +26,8 @@ export interface ShellSettings {
 export interface ShellData {
   title: string;
   bodyHtml: string;
+  /** Markdownの原文。クライアントがリロードをまたいでコメントの行番号を付け替えるのに使う */
+  source: string;
   /** `-f`に渡したパスと同じ書き方で表した、表示中ファイルのパス(クリップボード用) */
   filePath: string;
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
@@ -63,11 +65,11 @@ function toInlineJson(value: unknown): string {
  * 属性/タグ名をアンカーにした正規表現で置換する。
  */
 export function renderShell(clientTemplate: string, data: ShellData): string {
-  const { title, bodyHtml, filePath, relPath, entryRelPath, settings, headCss } = data;
+  const { title, bodyHtml, source, filePath, relPath, entryRelPath, settings, headCss } = data;
   const withData = clientTemplate.replace(
     DATA_SCRIPT_PATTERN,
     (_match, open: string, _oldContent: string, close: string) =>
-      `${open}${toInlineJson({ title, bodyHtml, filePath, relPath, entryRelPath, settings })}${close}`,
+      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entryRelPath, settings })}${close}`,
   );
   const withTitle = withData.replace(
     TITLE_TAG_PATTERN,
