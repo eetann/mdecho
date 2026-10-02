@@ -414,3 +414,35 @@ describe("renderMarkdown - heading id", () => {
     expect(html).not.toContain("id=");
   });
 });
+
+describe("renderMarkdown resolveRelativeUrl", () => {
+  const resolveRelativeUrl = async (path: string) => `/resolved/${path}`;
+
+  test("相対パスのリンクと画像を解決し、`?`や`#`以降は残す", async () => {
+    const html = await renderMarkdown(
+      "[a](./a.md#見出し) ![b](img/b.png?v=1)",
+      {},
+      { resolveRelativeUrl },
+    );
+    expect(html).toContain(`href="/resolved/./a.md#${encodeURIComponent("見出し")}"`);
+    expect(html).toContain('src="/resolved/img/b.png?v=1"');
+  });
+
+  test("ページ内リンク・外部URL・先頭が`/`のパスは書き換えない", async () => {
+    const html = await renderMarkdown(
+      "[a](#top) [b](https://example.com/x) [c](/abs.md) [d](mailto:a@example.com)",
+      {},
+      { resolveRelativeUrl },
+    );
+    expect(html).not.toContain("/resolved/");
+  });
+
+  test("解決できなかったものは書かれたまま残す", async () => {
+    const html = await renderMarkdown(
+      "[a](../out.md)",
+      {},
+      { resolveRelativeUrl: async () => undefined },
+    );
+    expect(html).toContain('href="../out.md"');
+  });
+});

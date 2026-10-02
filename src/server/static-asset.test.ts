@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createDocRoot, type DocRoot } from "./doc-path.ts";
 import { isServableAssetPath, resolveServableAsset } from "./static-asset.ts";
 
 describe("isServableAssetPath", () => {
@@ -25,11 +26,12 @@ describe("isServableAssetPath", () => {
  */
 describe("resolveServableAsset", () => {
   let dir: string;
-  let entry: string;
+  let root: DocRoot;
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-static-asset-"));
-    entry = join(dir, "doc.md");
+    const entry = join(dir, "doc.md");
+    root = createDocRoot(entry, dir);
     await mkdir(join(dir, "sub"), { recursive: true });
     await mkdir(join(dir, "dir.png"), { recursive: true });
     await writeFile(entry, "# doc\n");
@@ -48,28 +50,28 @@ describe("resolveServableAsset", () => {
   });
 
   test("同じディレクトリの画像は配信する", async () => {
-    await expect(resolveServableAsset(entry, "/image.png")).resolves.toBeDefined();
-    await expect(resolveServableAsset(entry, "/sub/nested.png")).resolves.toBeDefined();
-    await expect(resolveServableAsset(entry, "/diagram.svg")).resolves.toBeDefined();
+    await expect(resolveServableAsset(root, "/image.png")).resolves.toBeDefined();
+    await expect(resolveServableAsset(root, "/sub/nested.png")).resolves.toBeDefined();
+    await expect(resolveServableAsset(root, "/diagram.svg")).resolves.toBeDefined();
   });
 
   test(".envや拡張子の無いファイルは配信しない", async () => {
-    await expect(resolveServableAsset(entry, "/.env")).resolves.toBeUndefined();
-    await expect(resolveServableAsset(entry, "/code.ts")).resolves.toBeUndefined();
-    await expect(resolveServableAsset(entry, "/doc.md")).resolves.toBeUndefined();
+    await expect(resolveServableAsset(root, "/.env")).resolves.toBeUndefined();
+    await expect(resolveServableAsset(root, "/code.ts")).resolves.toBeUndefined();
+    await expect(resolveServableAsset(root, "/doc.md")).resolves.toBeUndefined();
   });
 
   test("存在しない画像は配信しない", async () => {
-    await expect(resolveServableAsset(entry, "/missing.png")).resolves.toBeUndefined();
+    await expect(resolveServableAsset(root, "/missing.png")).resolves.toBeUndefined();
   });
 
   test("ディレクトリ配下から出るパスは配信しない", async () => {
-    await expect(resolveServableAsset(entry, "/../outside.png")).resolves.toBeUndefined();
-    await expect(resolveServableAsset(entry, "/%2e%2e/outside.png")).resolves.toBeUndefined();
+    await expect(resolveServableAsset(root, "/../outside.png")).resolves.toBeUndefined();
+    await expect(resolveServableAsset(root, "/%2e%2e/outside.png")).resolves.toBeUndefined();
   });
 
   test("ディレクトリ内のsymlinkでも、実体が配下なら配信する", async () => {
-    await expect(resolveServableAsset(entry, "/inside-link.png")).resolves.toBeDefined();
+    await expect(resolveServableAsset(root, "/inside-link.png")).resolves.toBeDefined();
   });
 
   test("ディレクトリ外を指すsymlinkは配信しない", async () => {
@@ -78,13 +80,13 @@ describe("resolveServableAsset", () => {
     await writeFile(secret, "png");
     await symlink(secret, join(dir, "escape.png"));
     try {
-      await expect(resolveServableAsset(entry, "/escape.png")).resolves.toBeUndefined();
+      await expect(resolveServableAsset(root, "/escape.png")).resolves.toBeUndefined();
     } finally {
       await rm(outsideDir, { recursive: true, force: true });
     }
   });
 
   test("画像の拡張子を持つディレクトリは配信しない(中のindex.htmlが出るのを防ぐ)", async () => {
-    await expect(resolveServableAsset(entry, "/dir.png")).resolves.toBeUndefined();
+    await expect(resolveServableAsset(root, "/dir.png")).resolves.toBeUndefined();
   });
 });

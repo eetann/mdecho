@@ -11,6 +11,11 @@ import { DEFAULT_LINE_BREAK, type LineBreakConfig } from "../config/defaults.ts"
 import { rehypeBlockUnsafeUrl } from "./plugins/rehype-block-unsafe-url.ts";
 import { rehypeExternalLinks } from "./plugins/rehype-external-links.ts";
 import { rehypeHeadingId } from "./plugins/rehype-heading-id.ts";
+import {
+  RESOLVE_RELATIVE_URL_DATA_KEY,
+  type ResolveRelativeUrl,
+  rehypeResolveRelativeUrl,
+} from "./plugins/rehype-resolve-relative-url.ts";
 import { remarkDataLine } from "./plugins/remark-data-line.ts";
 import { remarkMermaid } from "./plugins/remark-mermaid.ts";
 import { remarkSplitSentences } from "./plugins/remark-split-sentences.ts";
@@ -74,6 +79,7 @@ function createBodyProcessor(lineBreak: LineBreakConfig) {
     .use(remarkMermaid)
     .use(remarkRehype)
     .use(rehypeBlockUnsafeUrl)
+    .use(rehypeResolveRelativeUrl)
     .use(rehypeHeadingId)
     .use(rehypeExternalLinks)
     .use(rehypeShiki, { ...shikiOptions, transformers: [restoreDataLineTransformer] })
@@ -134,13 +140,20 @@ export function extractTitle(markdownSource: string): string | undefined {
   return title.length > 0 ? title : undefined;
 }
 
+export interface RenderMarkdownOptions {
+  /** 相対リンク・画像のパスの解決方法。省略するとMarkdownに書かれたまま出す */
+  resolveRelativeUrl?: ResolveRelativeUrl;
+}
+
 export async function renderMarkdown(
   markdownSource: string,
   lineBreak: Partial<LineBreakConfig> = {},
+  options: RenderMarkdownOptions = {},
 ): Promise<string> {
-  const file = await getBodyProcessor({ ...DEFAULT_LINE_BREAK, ...lineBreak }).process(
-    markdownSource,
-  );
+  const file = await getBodyProcessor({ ...DEFAULT_LINE_BREAK, ...lineBreak }).process({
+    value: markdownSource,
+    data: { [RESOLVE_RELATIVE_URL_DATA_KEY]: options.resolveRelativeUrl },
+  });
   return String(file);
 }
 

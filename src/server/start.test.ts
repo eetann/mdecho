@@ -40,7 +40,8 @@ describe("startServer", () => {
     const indexRes = await fetch(running.url);
     const html = await indexRes.text();
     // bodyHtmlはJSON埋め込み時に"<"が"\u003c"へエスケープされるため、その後ろの部分だけ検証する
-    expect(html).toContain('img src=\\"./pic.png\\"');
+    // 相対パスは配信範囲のルートからの絶対URLへ書き換わる
+    expect(html).toContain('img src=\\"/pic.png\\"');
 
     const imageRes = await fetch(new URL("./pic.png", running.url));
     expect(imageRes.status).toBe(200);
@@ -496,6 +497,63 @@ describe("startServer", () => {
     running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
 
     const res = await fetch(new URL("./%2e%2e/secret.md", running.url));
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("ひみつ");
+  });
+
+  test("エントリがcwdの配下なら、`../`でエントリのディレクトリより上も辿れる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await mkdir(join(dir, "docs"));
+    await mkdir(join(dir, "assets"));
+    const filePath = join(dir, "docs", "plan.md");
+    await writeFile(filePath, "# 計画\n\n[readme](../README.md)\n\n![図](../assets/fig.png)\n");
+    await writeFile(join(dir, "README.md"), "# readme\n\nREADMEの本文\n");
+    await writeFile(join(dir, "assets", "fig.png"), "png");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, cwd: dir });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).toContain('href=\\"/README.md\\"');
+    expect(html).toContain('img src=\\"/assets/fig.png\\"');
+    expect(html).toContain('"relPath":"docs/plan.md"');
+
+    const readme = await fetch(new URL("/README.md", running.url));
+    expect(readme.status).toBe(200);
+    expect(await readme.text()).toContain("READMEの本文");
+    expect((await fetch(new URL("/assets/fig.png", running.url))).status).toBe(200);
+  });
+
+  test("Markdownファイル基準で見つからないリンクは、cwd基準で解決する", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await mkdir(join(dir, ".mywork"));
+    await mkdir(join(dir, "docs"));
+    const filePath = join(dir, ".mywork", "plan.md");
+    await writeFile(filePath, "# 計画\n\n[ガイド](docs/guide.md#使い方)\n\n[無い](nothing.md)\n");
+    await writeFile(join(dir, "docs", "guide.md"), "# guide\n");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, cwd: dir });
+
+    const html = await (await fetch(running.url)).text();
+    // `#`以降はそのまま残す
+    expect(html).toContain(`href=\\"/docs/guide.md#${encodeURIComponent("使い方")}\\"`);
+    // どちらにも無ければMarkdownファイル基準のまま
+    expect(html).toContain('href=\\"/.mywork/nothing.md\\"');
+  });
+
+  test("エントリがcwdの外なら、配信範囲はエントリのディレクトリに留める", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await writeFile(join(dir, "secret.md"), "# ひみつ\n");
+    await mkdir(join(dir, "docs"));
+    await mkdir(join(dir, "cwd"));
+    const filePath = join(dir, "docs", "doc.md");
+    await writeFile(filePath, "# エントリ\n\n[secret](../secret.md)\n");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, cwd: join(dir, "cwd") });
+
+    const html = await (await fetch(running.url)).text();
+    // 範囲外のリンクは書き換えない
+    expect(html).toContain('href=\\"../secret.md\\"');
+    const res = await fetch(new URL("/%2e%2e/secret.md", running.url));
     expect(res.status).toBe(404);
     expect(await res.text()).not.toContain("ひみつ");
   });

@@ -3,7 +3,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { watch } from "chokidar";
 import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
-import { basename, dirname, extname, join, resolve } from "node:path";
+import { basename, extname, join } from "node:path";
 import { AGENT_HINT_TROUBLESHOOTING } from "../agent-hint.ts";
 import { DEFAULT_CONFIG, type LineBreakConfig, type MdechoConfig } from "../config/defaults.ts";
 import { normalizeConfig, resolveLineBreak } from "../config/load.ts";
@@ -15,7 +15,13 @@ import { buildLayoutCss } from "../styles/layout.ts";
 import { buildThemeCss } from "../styles/theme.ts";
 import { listSystemFonts } from "../system/fonts.ts";
 import { csrfGuard } from "./csrf.ts";
-import { isMarkdownPath, isRealPathWithinDir, resolveDoc } from "./doc-path.ts";
+import {
+  createDocRoot,
+  isMarkdownPath,
+  isRealPathWithinDir,
+  resolveDoc,
+  resolveLinkUrl,
+} from "./doc-path.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { renderNotFoundPage, renderShell } from "./shell.ts";
 import { resolveServableAsset, STATIC_ASSET_HEADERS } from "./static-asset.ts";
@@ -47,6 +53,8 @@ export interface StartServerOptions {
   lineBreakOverride?: Partial<LineBreakConfig>;
   /** 設定モーダルからの保存先。未指定なら既定の場所に作る */
   configFile?: string;
+  /** リンクの解決と配信範囲の基準にするディレクトリ。未指定ならprocess.cwd() */
+  cwd?: string;
 }
 
 export async function startServer(
@@ -65,20 +73,20 @@ export async function startServer(
     config = DEFAULT_CONFIG,
     lineBreakOverride = {},
     configFile = defaultConfigFile(),
+    cwd = process.cwd(),
   } = options;
   // 設定モーダルからの保存で変わるため、リクエストごとではなく保存時に組み立て直す。
   let currentConfig = config;
   let headCss = buildHeadCss(currentConfig);
   const configEditable = isWritableConfigFile(configFile);
 
+  // URLのパスとファイルの対応づけと、配信して良いファイルの範囲(docRoot.rootDir)。
+  const docRoot = createDocRoot(filePath, cwd);
   // `-f`で指定したファイル。`/`へのリクエストと、ホームへ戻る導線の行き先になる。
-  const entryDoc = resolveDoc(filePath, "/");
+  const entryDoc = resolveDoc(docRoot, "/");
   if (!entryDoc) {
     throw new Error(`ファイルのパスを解決できません: ${filePath}\n${AGENT_HINT_TROUBLESHOOTING}`);
   }
-
-  // 配信して良いファイルの範囲。`-f`で指定したファイルのあるディレクトリの配下だけを見る。
-  const baseDir = dirname(resolve(filePath));
 
   const liveReload = createLiveReloadHub({
     onIdle: () => {
@@ -94,7 +102,7 @@ export async function startServer(
 
   app.get("/events", (c) => {
     // タブごとに違うMarkdownを開けるため、そのタブが見ているファイルだけを監視対象にする。
-    const doc = resolveDoc(filePath, c.req.query("path") ?? "/");
+    const doc = resolveDoc(docRoot, c.req.query("path") ?? "/");
     return liveReload.handleEvents(c, doc?.absPath ?? entryDoc.absPath);
   });
 
@@ -157,7 +165,7 @@ export async function startServer(
   // `./foo.md`のようなドキュメントへのリンクも、同じサーバーでレンダリングして返す。
   // 静的ファイル配信より前に置かないと、.mdがoctet-streamとしてダウンロードされてしまう。
   app.get("*", async (c, next) => {
-    const doc = resolveDoc(filePath, c.req.path);
+    const doc = resolveDoc(docRoot, c.req.path);
     if (!doc) {
       return next();
     }
@@ -169,7 +177,7 @@ export async function startServer(
       }
       // ディレクトリの中に置かれた、外を指すsymlink(`link.md -> /etc/passwd`)は
       // resolveDocの境界チェックを通り抜けるため、読む直前に実体で確かめ直す。
-      if (!(await isRealPathWithinDir(baseDir, doc.absPath))) {
+      if (!(await isRealPathWithinDir(docRoot.rootDir, doc.absPath))) {
         return next();
       }
     }
@@ -183,6 +191,7 @@ export async function startServer(
       const bodyHtml = await renderMarkdown(
         source,
         resolveLineBreak(currentConfig.lineBreak, lineBreakOverride),
+        { resolveRelativeUrl: (path) => resolveLinkUrl(docRoot, doc.absPath, path) },
       );
       const title = extractTitle(source) ?? basename(doc.absPath, extname(doc.absPath));
       const html = renderShell(clientTemplate, {
@@ -211,12 +220,12 @@ export async function startServer(
   });
 
   // Markdown中の相対パス画像(![alt](./foo.png)など)を配信するため、
-  // Markdownファイルと同じディレクトリを静的ファイルルートとして公開する。
+  // 配信範囲(docRoot.rootDir)を静的ファイルルートとして公開する。
   // ただし丸ごと公開すると.envやid_rsaまで読めてしまうため、resolveServableAssetを通して
   // 画像の拡張子だけに絞り、symlinkでディレクトリ外へ出ていないかも確かめてから配信する。
-  const serveAsset = serveStatic({ root: baseDir });
+  const serveAsset = serveStatic({ root: docRoot.rootDir });
   app.use("*", async (c, next) => {
-    if ((await resolveServableAsset(filePath, c.req.path)) === undefined) {
+    if ((await resolveServableAsset(docRoot, c.req.path)) === undefined) {
       return next();
     }
     // c.body()を組み立てるより前に積んでおく必要があるため、serveStaticのonFoundではなくここで付ける。
