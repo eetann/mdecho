@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
@@ -607,6 +608,43 @@ describe("startServer", () => {
     } finally {
       clearInterval(touch);
       await reader.cancel();
+    }
+  });
+
+  // DNS rebindingではブラウザが127.0.0.1へ繋ぎつつ、Hostには攻撃者のドメインを載せてくる。
+  // fetchはHostを差し替えられないため、node:httpで直接送る。
+  test("Hostがループバックでないリクエストは、Markdownも画像も返さない", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n\nひみつ\n");
+    await writeFile(join(dir, "pic.png"), "png");
+
+    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    const { port } = new URL(running.url);
+
+    const getWithHost = (path: string, host: string) =>
+      new Promise<{ status: number; body: string }>((resolve, reject) => {
+        const req = request({ host: "127.0.0.1", port, path, headers: { host } }, (res) => {
+          let body = "";
+          res.setEncoding("utf-8");
+          res.on("data", (chunk: string) => (body += chunk));
+          res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+        });
+        req.on("error", reject);
+        req.end();
+      });
+
+    for (const path of ["/", "/doc.md", "/pic.png", "/api/fonts"]) {
+      const res = await getWithHost(path, `evil.example:${port}`);
+      expect(res.status).toBe(403);
+      expect(res.body).not.toContain("ひみつ");
+    }
+
+    // WSLではWindows側のブラウザから127.0.0.1で開くため、localhostと両方で見られること。
+    for (const host of [`localhost:${port}`, `127.0.0.1:${port}`]) {
+      const res = await getWithHost("/", host);
+      expect(res.status).toBe(200);
+      expect(res.body).toContain("ひみつ");
     }
   });
 });

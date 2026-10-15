@@ -10,25 +10,13 @@ const SAFE_METHODS = new Set(["GET", "HEAD"]);
 const JSON_CONTENT_TYPE = /^application\/json\s*(?:;|$)/i;
 
 /**
- * ループバック宛てのリクエストか。
- * `new URL(...).hostname`はIPv6を`[::1]`の形へ正規化するため、その形だけを見れば足りる。
- */
-export function isLoopbackHostname(hostname: string): boolean {
-  return (
-    hostname === "localhost" ||
-    hostname === "[::1]" ||
-    /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)
-  );
-}
-
-/**
  * 外部サイトのJSから設定を書き換えられないようにする。
  *
  * `POST /api/config`は`~/.config/mdecho/config.jsonc`を書き換えるため、素のままだと
  * mdechoを起動している間に別のサイトを開いているだけで設定を改変できてしまう。
  * 待ち受けポートは起動ごとにランダム(port 0)だが、総当たりで到達はできる。
  *
- * 次の3つで塞ぐ。ブラウザからの正規のリクエストは3つすべてを満たす。
+ * 次の2つで塞ぐ。ブラウザからの正規のリクエストは2つとも満たす。
  *
  * 1. Content-Typeを`application/json`に限る。
  *    Honoの`c.req.json()`はContent-Typeを見ずにbodyを`JSON.parse`するだけなので、
@@ -39,19 +27,13 @@ export function isLoopbackHostname(hostname: string): boolean {
  * 2. `Sec-Fetch-Site`と`Origin`が付いていれば、同一オリジンからのものだけ通す。
  *    どちらも無いリクエストはcurlなどブラウザ以外からのものとして通す。
  *    ブラウザは別オリジンからのfetchには必ず`Origin`を付けるため、CSRFの経路にはならない。
- * 3. Hostがループバックでなければ弾く。
- *    DNS rebinding(攻撃者のドメインを127.0.0.1へ向ける)だと`Origin`も`Sec-Fetch-Site`も
- *    同一オリジン扱いになり、2だけでは通り抜けてしまう。
+ *
+ * DNS rebinding(攻撃者のドメインを127.0.0.1へ向ける)だと`Origin`も`Sec-Fetch-Site`も
+ * 同一オリジン扱いになり通り抜けてしまうため、前段にhostGuardを置くこと。
  */
 export const csrfGuard: MiddlewareHandler = async (c, next) => {
   if (SAFE_METHODS.has(c.req.method)) {
     return next();
-  }
-
-  // @hono/node-serverはHostヘッダからc.req.urlを組み立てるため、ここで見るのは実際のHost。
-  const requestUrl = new URL(c.req.url);
-  if (!isLoopbackHostname(requestUrl.hostname)) {
-    return c.json({ message: `${requestUrl.host} からのリクエストは受け付けません` }, 403);
   }
 
   const contentType = c.req.header("content-type");
@@ -65,7 +47,7 @@ export const csrfGuard: MiddlewareHandler = async (c, next) => {
   }
 
   const origin = c.req.header("origin");
-  if (origin !== undefined && origin !== requestUrl.origin) {
+  if (origin !== undefined && origin !== new URL(c.req.url).origin) {
     return c.json({ message: `別オリジンからのリクエストは受け付けません (${origin})` }, 403);
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import { csrfGuard, isLoopbackHostname } from "./csrf.ts";
+import { csrfGuard } from "./csrf.ts";
 
 const BASE = "http://localhost:31234";
 
@@ -18,27 +18,6 @@ const BROWSER_HEADERS = {
   "sec-fetch-site": "same-origin",
   origin: BASE,
 };
-
-describe("isLoopbackHostname", () => {
-  test("ループバックのホスト名", () => {
-    for (const hostname of ["localhost", "127.0.0.1", "127.1.2.3", "[::1]"]) {
-      expect(isLoopbackHostname(hostname)).toBe(true);
-    }
-  });
-
-  test("ループバック以外のホスト名", () => {
-    for (const hostname of [
-      "evil.example",
-      "localhost.evil.example",
-      "127.0.0.1.evil.example",
-      "192.168.1.5",
-      "0.0.0.0",
-      "[::ffff:127.0.0.1]",
-    ]) {
-      expect(isLoopbackHostname(hostname)).toBe(false);
-    }
-  });
-});
 
 describe("csrfGuard", () => {
   test("GETは何も付いていなくても通す", async () => {
@@ -122,19 +101,5 @@ describe("csrfGuard", () => {
       });
       expect(res.status).toBe(403);
     }
-  });
-
-  // DNS rebindingだとOriginもSec-Fetch-Siteも同一オリジンになるため、Host側で落とす。
-  test("Hostがループバックでないなら、同一オリジンに見えても403で弾く", async () => {
-    const res = await createApp().request("http://evil.example:31234/api/config", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "sec-fetch-site": "same-origin",
-        origin: "http://evil.example:31234",
-      },
-      body: "{}",
-    });
-    expect(res.status).toBe(403);
   });
 });

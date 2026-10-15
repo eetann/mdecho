@@ -22,6 +22,7 @@ import {
   resolveDoc,
   resolveLinkUrl,
 } from "./doc-path.ts";
+import { hostGuard } from "./host-guard.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { renderNotFoundPage, renderShell } from "./shell.ts";
 import { resolveServableAsset, STATIC_ASSET_HEADERS } from "./static-asset.ts";
@@ -100,7 +101,9 @@ export async function startServer(
 
   const app = new Hono<{ Bindings: HttpBindings }>();
 
-  // 設定を書き換えるAPIを持つため、他サイトからのリクエストは何よりも先に落とす。
+  // ローカルのファイルを読めて設定も書き換えられるため、他サイトからのリクエストは何よりも先に落とす。
+  // hostGuardはDNS rebinding(GETも含む)、csrfGuardは別オリジンからの書き込みを防ぐ。
+  app.use("*", hostGuard);
   app.use("*", csrfGuard);
 
   app.get("/events", (c) => {
