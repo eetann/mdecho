@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCommentSlots } from "../hooks/useCommentSlots.ts";
+import type { PendingQuote } from "../hooks/useComments.ts";
 import { useCursorLine } from "../hooks/useCursorLine.tsx";
 import { parseKey } from "../lib/comment-keys.ts";
 import { getOpenTableModal, isDialogOpen } from "../lib/modal.ts";
@@ -52,6 +53,7 @@ export function CommentLayer({
   comments,
   editingKey,
   editingInitialText,
+  pendingQuote,
   openEditor,
   cancelEditing,
   save,
@@ -60,6 +62,7 @@ export function CommentLayer({
   comments: Map<string, Comment>;
   editingKey: string | null;
   editingInitialText: string;
+  pendingQuote: PendingQuote | null;
   openEditor: (
     startLine: number,
     endLine: number,
@@ -213,6 +216,7 @@ export function CommentLayer({
             comment={comments.get(key)}
             isEditing={editingKey === key}
             editingInitialText={editingInitialText}
+            pendingQuote={pendingQuote}
             onSave={(text) => save(key, text)}
             onCancel={cancelEditing}
             onDelete={() => deleteComment(key)}

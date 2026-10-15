@@ -68,6 +68,7 @@ export function App({
             comments={commentsApi.comments}
             editingKey={commentsApi.editingKey}
             editingInitialText={commentsApi.editingInitialText}
+            pendingQuote={commentsApi.pendingQuote}
             openEditor={commentsApi.openEditor}
             cancelEditing={commentsApi.cancelEditing}
             save={commentsApi.save}

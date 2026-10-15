@@ -1,3 +1,4 @@
+import type { PendingQuote } from "../hooks/useComments.ts";
 import { parseKey } from "../lib/comment-keys.ts";
 import type { Comment } from "../lib/types.ts";
 import { CommentEditor } from "./CommentEditor.tsx";
@@ -8,6 +9,7 @@ export function CommentSlot({
   comment,
   isEditing,
   editingInitialText,
+  pendingQuote,
   onSave,
   onCancel,
   onDelete,
@@ -16,6 +18,7 @@ export function CommentSlot({
   comment: Comment | undefined;
   isEditing: boolean;
   editingInitialText: string;
+  pendingQuote: PendingQuote | null;
   onSave: (text: string) => void;
   onCancel: () => void;
   onDelete: () => void;
@@ -28,6 +31,7 @@ export function CommentSlot({
         startLine={startLine}
         endLine={endLine}
         initialText={editingInitialText}
+        pendingQuote={pendingQuote}
         onSave={onSave}
         onCancel={onCancel}
         onDelete={comment ? onDelete : undefined}

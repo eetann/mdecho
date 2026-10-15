@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { keyOf, parseKey } from "../lib/comment-keys.ts";
 import { remapComments, sliceLines } from "../lib/comment-remap.ts";
-import { buildInitialCommentText } from "../lib/comment-text.ts";
+import { buildInitialCommentText, insertQuote } from "../lib/comment-text.ts";
 import {
   clearAllComments,
   type CommentStore,
@@ -18,6 +18,16 @@ interface CommentsState {
   outdated: Comment[];
   editingKey: string | null;
   editingInitialText: string;
+  /**
+   * 編集中のエディタへ差し込みたい引用。書きかけの文はエディタ側にしかないため、ここでは渡すだけにする。
+   * idは同じ文を続けて引用しても別の依頼として扱うためのもの
+   */
+  pendingQuote: PendingQuote | null;
+}
+
+export interface PendingQuote {
+  id: number;
+  text: string;
 }
 
 type CommentsAction =
@@ -31,18 +41,29 @@ type CommentsAction =
 function reducer(state: CommentsState, action: CommentsAction): CommentsState {
   switch (action.type) {
     case "open": {
-      // 既に同じキーを編集中ならno-op(入力途中のテキストを巻き戻さない)
-      if (state.editingKey === action.key) return state;
-      const existing = state.comments.get(action.key);
+      // 既に同じキーを編集中なら入力途中のテキストを巻き戻さず、引用だけエディタへ渡す
+      if (state.editingKey === action.key) {
+        if (action.quotedText === undefined) return state;
+        return {
+          ...state,
+          pendingQuote: { id: (state.pendingQuote?.id ?? 0) + 1, text: action.quotedText },
+        };
+      }
+      const existing = state.comments.get(action.key)?.text;
+      let initialText = existing ?? action.quotedText ?? "";
+      if (existing !== undefined && action.quotedText !== undefined) {
+        initialText = insertQuote(existing, existing.length, action.quotedText).text;
+      }
       return {
         ...state,
         editingKey: action.key,
-        editingInitialText: existing?.text ?? action.quotedText ?? "",
+        editingInitialText: initialText,
+        pendingQuote: null,
       };
     }
     case "cancel": {
       if (state.editingKey === null) return state;
-      return { ...state, editingKey: null, editingInitialText: "" };
+      return { ...state, editingKey: null, editingInitialText: "", pendingQuote: null };
     }
     case "save": {
       const text = action.text.trim();
@@ -59,6 +80,7 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
         comments: next,
         editingKey: state.editingKey === action.key ? null : state.editingKey,
         editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
+        pendingQuote: state.editingKey === action.key ? null : state.pendingQuote,
       };
     }
     case "delete": {
@@ -70,11 +92,18 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
         comments: next,
         editingKey: state.editingKey === action.key ? null : state.editingKey,
         editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
+        pendingQuote: state.editingKey === action.key ? null : state.pendingQuote,
       };
     }
     case "deleteAll": {
       if (state.comments.size === 0 && state.outdated.length === 0) return state;
-      return { comments: new Map(), outdated: [], editingKey: null, editingInitialText: "" };
+      return {
+        comments: new Map(),
+        outdated: [],
+        editingKey: null,
+        editingInitialText: "",
+        pendingQuote: null,
+      };
     }
     case "clearOutdated": {
       if (state.outdated.length === 0) return state;
@@ -104,6 +133,7 @@ export function useComments(relPath: string, filePath: string, source: string) {
       outdated: [...loaded.outdated, ...remapped.outdated],
       editingKey: null,
       editingInitialText: "",
+      pendingQuote: null,
     };
   });
   // リンクを辿った先で書いたコメントもまとめてコピーできるようにする。
@@ -160,6 +190,7 @@ export function useComments(relPath: string, filePath: string, source: string) {
     outdatedComments: state.outdated,
     editingKey: state.editingKey,
     editingInitialText: state.editingInitialText,
+    pendingQuote: state.pendingQuote,
     /** コピー対象。表示中のファイルと、リンク先で書いたコメントを合わせたもの */
     commentGroups,
     /** 表示中のファイル以外に残っているコメントの数 */

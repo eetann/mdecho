@@ -1,5 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
+import type { PendingQuote } from "../hooks/useComments.ts";
+import { insertQuote } from "../lib/comment-text.ts";
 import { formatLineRef } from "../lib/line-ref.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
@@ -16,6 +18,7 @@ export function CommentEditor({
   startLine,
   endLine,
   initialText,
+  pendingQuote,
   onSave,
   onCancel,
   onDelete,
@@ -23,6 +26,7 @@ export function CommentEditor({
   startLine: number;
   endLine: number;
   initialText: string;
+  pendingQuote: PendingQuote | null;
   onSave: (text: string) => void;
   onCancel: () => void;
   onDelete?: () => void;
@@ -39,6 +43,30 @@ export function CommentEditor({
     autoGrow(textarea);
     // 初回マウント時のみ実行する(依存配列は意図的に空)
   }, []);
+
+  // 開いた時点で届いていた引用はinitialTextに含まれているので、それより後の引用だけ差し込む
+  const appliedQuoteIdRef = useRef(pendingQuote?.id);
+  const caretAfterQuoteRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !pendingQuote || appliedQuoteIdRef.current === pendingQuote.id) return;
+    appliedQuoteIdRef.current = pendingQuote.id;
+    // 本文を選択している間もtextareaはcaret位置を覚えているので、そこへ差し込む
+    const next = insertQuote(textarea.value, textarea.selectionStart, pendingQuote.text);
+    caretAfterQuoteRef.current = next.caret;
+    setText(next.text);
+  }, [pendingQuote]);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    const caret = caretAfterQuoteRef.current;
+    if (!textarea || caret === null) return;
+    caretAfterQuoteRef.current = null;
+    textarea.focus();
+    textarea.setSelectionRange(caret, caret);
+    autoGrow(textarea);
+  }, [text]);
 
   return (
     <div className="mdecho-comment-editor card card-border gap-2 bg-base-200 p-2">
