@@ -15,6 +15,7 @@ import { findRestoreIndex, formatCursorKey, parseCursorKey } from "../lib/cursor
 import { clampToCursorScope, findCursorScope } from "../lib/cursor-scope.ts";
 import { computeLineParts, groupIndexAt, positionOfGroupIndex } from "../lib/line-group.ts";
 import { getOpenTableModal, isDialogOpen } from "../lib/modal.ts";
+import { excludeLinesCoveredBySentences } from "../lib/sentence-cover.ts";
 import { useScrollRestore } from "./useScrollRestore.ts";
 
 const CANDIDATE_SELECTOR =
@@ -83,11 +84,13 @@ function collectTargets(root: Element): Element[] {
   );
 
   // 句点分割された文(.mdecho-sentence)はそれぞれ個別targetとして扱う。
-  // それらを子孫に持つ祖先(分割された段落の<p>自身など)は、既存のグルーピング対象から除外する。
+  // 文と同じ行にある要素(分割された段落の<p>自身など)は、既存のグルーピング対象から除外する。
   const sentences = all.filter((el) => el.classList.contains("mdecho-sentence"));
-  const rest = all.filter(
-    (el) =>
-      !el.classList.contains("mdecho-sentence") && el.querySelector(".mdecho-sentence") === null,
+  const sentenceLines = new Set(sentences.map((el) => Number(el.getAttribute("data-line"))));
+  const rest = excludeLinesCoveredBySentences(
+    all.filter((el) => !el.classList.contains("mdecho-sentence")),
+    sentenceLines,
+    (el) => Number(el.getAttribute("data-line")),
   );
 
   const byLine = new Map<number, Element[]>();
