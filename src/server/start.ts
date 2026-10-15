@@ -53,7 +53,10 @@ export interface StartServerOptions {
   lineBreakOverride?: Partial<LineBreakConfig>;
   /** 設定モーダルからの保存先。未指定なら既定の場所に作る */
   configFile?: string;
-  /** リンクの解決と配信範囲の基準にするディレクトリ。未指定ならprocess.cwd() */
+  /**
+   * コマンドを実行したディレクトリ。未指定ならprocess.cwd()。
+   * gitリポジトリの外のファイルを開いたとき、リンクの解決と配信範囲の基準になる
+   */
   cwd?: string;
 }
 
@@ -145,6 +148,7 @@ export async function startServer(
       lineBreak: normalized.lineBreak,
       layout: normalized.layout,
       theme: normalized.theme,
+      link: normalized.link,
       warnings,
     });
   });
@@ -191,7 +195,10 @@ export async function startServer(
       const bodyHtml = await renderMarkdown(
         source,
         resolveLineBreak(currentConfig.lineBreak, lineBreakOverride),
-        { resolveRelativeUrl: (path) => resolveLinkUrl(docRoot, doc.absPath, path) },
+        {
+          resolveRelativeUrl: (path, kind) =>
+            resolveLinkUrl(docRoot, doc.absPath, path, { mode: currentConfig.link.base, kind }),
+        },
       );
       const title = extractTitle(source) ?? basename(doc.absPath, extname(doc.absPath));
       const html = renderShell(clientTemplate, {
@@ -208,6 +215,7 @@ export async function startServer(
           lineBreakOverride,
           layout: currentConfig.layout,
           theme: currentConfig.theme,
+          link: currentConfig.link,
           configFile,
           editable: configEditable,
         },

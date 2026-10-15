@@ -2,7 +2,19 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { createDocRoot, isMarkdownPath, resolveDoc, resolveLinkUrl } from "./doc-path.ts";
+import {
+  createDocRoot as createDocRootWithGit,
+  type CreateDocRootOptions,
+  findGitRoot,
+  isMarkdownPath,
+  resolveDoc,
+  resolveLinkUrl,
+} from "./doc-path.ts";
+
+/** テストを動かす環境の上位に.gitがあっても結果が変わらないよう、既定ではgitを探さない */
+function createDocRoot(entry: string, cwd: string, options: CreateDocRootOptions = {}) {
+  return createDocRootWithGit(entry, cwd, { findGitRoot: () => undefined, ...options });
+}
 
 const PROJECT = resolve("/tmp/mdecho-doc-path");
 const BASE_DIR = join(PROJECT, "docs");
@@ -30,13 +42,48 @@ describe("createDocRoot", () => {
       rootDir: PROJECT,
       entryFilePath: "docs/index.md",
       entryAbsPath: ENTRY,
-      cwd: PROJECT,
     });
   });
 
   test("エントリがcwdの外なら、エントリのディレクトリに留める", () => {
     const root = createDocRoot(ENTRY, join(PROJECT, "other"));
     expect(root.rootDir).toBe(BASE_DIR);
+  });
+
+  test("エントリがgitリポジトリの中なら、cwdに関わらずそのルートを配信範囲にする", () => {
+    const options = { findGitRoot: () => PROJECT };
+    expect(createDocRoot("index.md", BASE_DIR, options).rootDir).toBe(PROJECT);
+    expect(createDocRoot(ENTRY, "/somewhere/else", options).rootDir).toBe(PROJECT);
+  });
+});
+
+describe("findGitRoot", () => {
+  let dir: string;
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-git-root-"));
+    await mkdir(join(dir, "repo", ".git"), { recursive: true });
+    await mkdir(join(dir, "repo", "docs", "deep"), { recursive: true });
+    // worktreeやsubmoduleでは.gitがファイルになる
+    await mkdir(join(dir, "worktree", "docs"), { recursive: true });
+    await writeFile(join(dir, "worktree", ".git"), "gitdir: /elsewhere\n");
+  });
+
+  afterAll(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  test("上へ辿って最初に.gitがあるディレクトリを返す", () => {
+    expect(findGitRoot(join(dir, "repo", "docs", "deep"), "/nonexistent-home")).toBe(
+      join(dir, "repo"),
+    );
+    expect(findGitRoot(join(dir, "worktree", "docs"), "/nonexistent-home")).toBe(
+      join(dir, "worktree"),
+    );
+  });
+
+  test("ホームディレクトリそのものの.gitはプロジェクトとみなさない", () => {
+    expect(findGitRoot(join(dir, "repo", "docs"), join(dir, "repo"))).not.toBe(join(dir, "repo"));
   });
 });
 
@@ -124,9 +171,11 @@ describe("resolveLinkUrl", () => {
     await writeFile(join(dir, "README.md"), "# readme\n");
     await writeFile(join(dir, "src", "foo.ts"), "export {};\n");
     await writeFile(join(dir, "docs", "deep", "pic.png"), "png");
-    // Markdownファイル基準とcwd基準の両方に同名のファイルがある
+    // Markdownファイル基準とルート基準の両方に同名のファイルがある
     await writeFile(join(dir, "docs", "deep", "both.md"), "# deep\n");
     await writeFile(join(dir, "both.md"), "# root\n");
+    await writeFile(join(dir, "docs", "deep", "both.png"), "png");
+    await writeFile(join(dir, "both.png"), "png");
     await writeFile(join(dir, "日本語.md"), "# ja\n");
   });
 
@@ -134,42 +183,93 @@ describe("resolveLinkUrl", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
+  const ASK_LINK = { mode: "ask", kind: "link" } as const;
+  const ASK_IMAGE = { mode: "ask", kind: "image" } as const;
+
   test("Markdownファイル基準の相対パスを、配信範囲からのURLにする", async () => {
     const root = createDocRoot(doc, dir);
-    expect(await resolveLinkUrl(root, doc, "./pic.png")).toBe("/docs/deep/pic.png");
-    expect(await resolveLinkUrl(root, doc, "../../README.md")).toBe("/README.md");
+    expect(await resolveLinkUrl(root, doc, "./pic.png", ASK_IMAGE)).toEqual({
+      url: "/docs/deep/pic.png",
+    });
+    expect(await resolveLinkUrl(root, doc, "../../README.md", ASK_LINK)).toEqual({
+      url: "/README.md",
+    });
   });
 
-  test("Markdownファイル基準で見つからなければcwd基準で探す", async () => {
+  test("askではMarkdownファイル基準に無ければルート基準で探す", async () => {
     const root = createDocRoot(doc, dir);
-    expect(await resolveLinkUrl(root, doc, "src/foo.ts")).toBe("/src/foo.ts");
+    expect(await resolveLinkUrl(root, doc, "src/foo.ts", ASK_LINK)).toEqual({
+      url: "/src/foo.ts",
+    });
   });
 
-  test("両方にあるならMarkdownファイル基準を優先する", async () => {
+  test("askのリンクで両方にあるなら、ファイル基準を先にした選択肢を付ける", async () => {
     const root = createDocRoot(doc, dir);
-    expect(await resolveLinkUrl(root, doc, "both.md")).toBe("/docs/deep/both.md");
+    expect(await resolveLinkUrl(root, doc, "both.md", ASK_LINK)).toEqual({
+      url: "/docs/deep/both.md",
+      choices: [
+        { base: "file", url: "/docs/deep/both.md" },
+        { base: "root", url: "/both.md" },
+      ],
+    });
   });
 
-  test("どちらにも無ければMarkdownファイル基準のURLにする", async () => {
+  test("askの画像で両方にあるなら、ルート基準を優先して選択肢は付けない", async () => {
     const root = createDocRoot(doc, dir);
-    expect(await resolveLinkUrl(root, doc, "missing.md")).toBe("/docs/deep/missing.md");
+    expect(await resolveLinkUrl(root, doc, "both.png", ASK_IMAGE)).toEqual({ url: "/both.png" });
+  });
+
+  test("Markdownがルート直下なら、2つの基準は同じなので選択肢を付けない", async () => {
+    const rootDoc = join(dir, "README.md");
+    const root = createDocRoot(rootDoc, dir);
+    expect(await resolveLinkUrl(root, rootDoc, "both.md", ASK_LINK)).toEqual({ url: "/both.md" });
+  });
+
+  test("askでどちらにも無ければ、リンクはファイル基準・画像はルート基準のURLにする", async () => {
+    const root = createDocRoot(doc, dir);
+    expect(await resolveLinkUrl(root, doc, "missing.md", ASK_LINK)).toEqual({
+      url: "/docs/deep/missing.md",
+    });
+    expect(await resolveLinkUrl(root, doc, "missing.png", ASK_IMAGE)).toEqual({
+      url: "/missing.png",
+    });
+  });
+
+  test("fileはファイル基準だけで解決する", async () => {
+    const root = createDocRoot(doc, dir);
+    const options = { mode: "file", kind: "link" } as const;
+    expect(await resolveLinkUrl(root, doc, "both.md", options)).toEqual({
+      url: "/docs/deep/both.md",
+    });
+    expect(await resolveLinkUrl(root, doc, "src/foo.ts", options)).toEqual({
+      url: "/docs/deep/src/foo.ts",
+    });
+  });
+
+  test("rootはルート基準だけで解決する", async () => {
+    const root = createDocRoot(doc, dir);
+    const options = { mode: "root", kind: "link" } as const;
+    expect(await resolveLinkUrl(root, doc, "both.md", options)).toEqual({ url: "/both.md" });
+    expect(await resolveLinkUrl(root, doc, "pic.png", { ...options, kind: "image" })).toEqual({
+      url: "/pic.png",
+    });
   });
 
   test("パーセントエンコードされたパスもファイルを探し、URLはエンコードして返す", async () => {
     const root = createDocRoot(doc, dir);
     const encoded = encodeURIComponent("日本語.md");
-    expect(await resolveLinkUrl(root, doc, encoded)).toBe(`/${encoded}`);
+    expect(await resolveLinkUrl(root, doc, encoded, ASK_LINK)).toEqual({ url: `/${encoded}` });
   });
 
   test("配信範囲の外を指すものと、デコードできないものは解決しない", async () => {
     const root = createDocRoot(doc, dir);
-    expect(await resolveLinkUrl(root, doc, "../../../outside.md")).toBeUndefined();
-    expect(await resolveLinkUrl(root, doc, "%E3%81")).toBeUndefined();
+    expect(await resolveLinkUrl(root, doc, "../../../outside.md", ASK_LINK)).toBeUndefined();
+    expect(await resolveLinkUrl(root, doc, "%E3%81", ASK_LINK)).toBeUndefined();
   });
 
-  test("cwdが配信範囲の外なら、cwd基準では探さない", async () => {
+  test("配信範囲がエントリのディレクトリなら、ルート基準もそこになる", async () => {
     const root = createDocRoot(doc, join(dir, "src"));
     expect(root.rootDir).toBe(join(dir, "docs", "deep"));
-    expect(await resolveLinkUrl(root, doc, "foo.ts")).toBe("/foo.ts");
+    expect(await resolveLinkUrl(root, doc, "foo.ts", ASK_LINK)).toEqual({ url: "/foo.ts" });
   });
 });

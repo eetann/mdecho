@@ -1,3 +1,4 @@
+import type { LinkConfig } from "../config/defaults.ts";
 import { buildThemeBootScript, type ThemeConfig } from "../styles/theme.ts";
 
 export interface ShellSettings {
@@ -17,6 +18,8 @@ export interface ShellSettings {
    * 保持している設定から色が消えてしまう)。
    */
   theme: ThemeConfig;
+  /** 相対リンク・画像の基準の決め方 */
+  link: LinkConfig;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */

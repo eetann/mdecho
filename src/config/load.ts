@@ -9,7 +9,11 @@ import {
   DEFAULT_FONT,
   DEFAULT_LAYOUT,
   DEFAULT_LINE_BREAK,
+  DEFAULT_LINK,
+  isLinkBaseMode,
+  LINK_BASE_MODES,
   type LineBreakConfig,
+  type LinkConfig,
   type MdechoConfig,
 } from "./defaults.ts";
 import {
@@ -40,11 +44,12 @@ import {
   THEME_MODES,
 } from "../styles/theme.ts";
 
-const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout", "theme"]);
+const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout", "theme", "link"]);
 const KNOWN_FONT_KEYS = new Set(["body", "code"]);
 const KNOWN_LINE_BREAK_KEYS = new Set(["splitSentences", "singleNewline"]);
 const KNOWN_LAYOUT_KEYS = new Set(["contentWidth", "fontSize", "lineHeight"]);
 const KNOWN_THEME_KEYS = new Set(["mode", "light", "dark"]);
+const KNOWN_LINK_KEYS = new Set(["base"]);
 const THEME_COLOR_KEY_SET: ReadonlySet<string> = new Set(THEME_COLOR_KEYS);
 
 export type WarnFn = (message: string) => void;
@@ -320,6 +325,28 @@ function normalizeTheme(raw: unknown, warn: WarnFn): ThemeConfig {
   };
 }
 
+function normalizeLink(raw: unknown, warn: WarnFn): LinkConfig {
+  if (raw === undefined || raw === null) {
+    return DEFAULT_LINK;
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    warn("linkはオブジェクトで指定してください。この設定は無視します");
+    return DEFAULT_LINK;
+  }
+  warnUnknownKeys(raw, KNOWN_LINK_KEYS, "link", warn);
+  const base = (raw as { base?: unknown }).base;
+  if (base === undefined || base === null) {
+    return DEFAULT_LINK;
+  }
+  if (!isLinkBaseMode(base)) {
+    warn(
+      `link.baseは${LINK_BASE_MODES.join(" / ")}のいずれかで指定してください。${DEFAULT_LINK.base}として扱います`,
+    );
+    return DEFAULT_LINK;
+  }
+  return { base };
+}
+
 /** 設定ファイルから読んだ生の値を検証し、扱いやすい形へ正規化する。 */
 export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): MdechoConfig {
   if (raw === undefined || raw === null) {
@@ -336,6 +363,7 @@ export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): Mdech
     lineBreak: normalizeLineBreak((raw as { lineBreak?: unknown }).lineBreak, warn),
     layout: normalizeLayout((raw as { layout?: unknown }).layout, warn),
     theme: normalizeTheme((raw as { theme?: unknown }).theme, warn),
+    link: normalizeLink((raw as { link?: unknown }).link, warn),
   };
 }
 

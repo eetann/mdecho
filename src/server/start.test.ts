@@ -237,6 +237,7 @@ describe("startServer", () => {
       lineBreak: { splitSentences: true, singleNewline: true },
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
       theme: { mode: "system", light: {}, dark: {} },
+      link: { base: "ask" },
       warnings: [],
     });
     // 色はUIから編集しないため、書き戻されるのはtheme.modeだけ。
@@ -245,6 +246,7 @@ describe("startServer", () => {
       lineBreak: { splitSentences: true, singleNewline: true },
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
       theme: { mode: "system" },
+      link: { base: "ask" },
     });
 
     const html = await (await fetch(running.url)).text();

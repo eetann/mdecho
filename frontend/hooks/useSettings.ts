@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEFAULT_FONT, DEFAULT_LAYOUT, DEFAULT_LINE_BREAK } from "../../src/config/defaults.ts";
+import {
+  DEFAULT_FONT,
+  DEFAULT_LAYOUT,
+  DEFAULT_LINE_BREAK,
+  DEFAULT_LINK,
+  type LinkBaseMode,
+} from "../../src/config/defaults.ts";
 import { buildFontFamilyValue, FONT_VARIABLES, type FontKind } from "../../src/styles/font.ts";
 import {
   buildContentWidthValue,
@@ -21,6 +27,7 @@ import type {
   FontSettings,
   LayoutSettings,
   LineBreakSettings,
+  LinkSettings,
   MdechoSettings,
   SystemFont,
 } from "../lib/types.ts";
@@ -51,6 +58,9 @@ export interface SettingsApi {
   /** 編集中のレイアウト設定。保存前でもページには即座に反映される */
   layoutDraft: LayoutSettings;
   setLayout: (key: keyof LayoutSettings, value: number) => void;
+  /** 編集中のリンクの解決方法。改行と同じくサーバーでの再レンダリングが要るため、保存時に読み込み直す */
+  linkDraft: LinkSettings;
+  setLinkBase: (base: LinkBaseMode) => void;
   /**
    * 配色をライト/ダークに固定するか、OSに合わせるか。
    * フォントやレイアウトと違いドラフトを持たず、押した時点で反映して保存する。
@@ -73,7 +83,7 @@ export interface SettingsApi {
   /** 編集中の値と配色が、まとめてmdechoの既定値と同じか(「デフォルトに戻す」の出し入れに使う) */
   isDefault: boolean;
   /**
-   * 改行・レイアウト・フォント・配色を既定値へ戻す。配色以外はドラフトを書き換えるだけなので、
+   * 改行・リンク・レイアウト・フォント・配色を既定値へ戻す。配色以外はドラフトを書き換えるだけなので、
    * 設定ファイルへ残すには保存が要る(キャンセルで押す前に戻せる)。
    */
   resetDefaults: () => void;
@@ -109,6 +119,8 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
   const [lineBreakDraft, setLineBreakDraft] = useState<LineBreakSettings>(initial.lineBreak);
   const [savedLayout, setSavedLayout] = useState<LayoutSettings>(initial.layout);
   const [layoutDraft, setLayoutDraft] = useState<LayoutSettings>(initial.layout);
+  const [savedLink] = useState<LinkSettings>(initial.link);
+  const [linkDraft, setLinkDraft] = useState<LinkSettings>(initial.link);
   const [systemFonts, setSystemFonts] = useState<SystemFont[]>([]);
   const [systemFontsLoading, setSystemFontsLoading] = useState(true);
   const [systemFontsError, setSystemFontsError] = useState<string>();
@@ -178,9 +190,10 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setFontDraft(savedFonts);
     setLineBreakDraft(savedLineBreak);
     setLayoutDraft(savedLayout);
+    setLinkDraft(savedLink);
     setSaveError(undefined);
     setOpen(false);
-  }, [savedFonts, savedLayout, savedLineBreak]);
+  }, [savedFonts, savedLayout, savedLineBreak, savedLink]);
 
   const setFonts = useCallback((kind: FontKind, fonts: string[]) => {
     setFontDraft((current) => ({ ...current, [kind]: fonts }));
@@ -194,6 +207,10 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLayoutDraft((current) => ({ ...current, [key]: value }));
   }, []);
 
+  const setLinkBase = useCallback((base: LinkBaseMode) => {
+    setLinkDraft({ base });
+  }, []);
+
   /**
    * 設定ファイルへ書き戻す。サーバーは受け取った内容で設定をまるごと差し替えるため、
    * 1項目だけ変えたいときも、残りは保存済みの値をそのまま載せて送る。
@@ -203,6 +220,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       font: FontSettings;
       lineBreak: LineBreakSettings;
       layout: LayoutSettings;
+      link: LinkSettings;
       themeMode: ThemeMode;
     }) => {
       const res = await fetch("/api/config", {
@@ -215,6 +233,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
           // 色はUIから編集しないが、載せずに送るとサーバーが持っている設定から消えてしまう
           // (設定ファイルへは書き戻さないので、ファイル側のコメントや並びは壊れない)。
           theme: { mode: next.themeMode, ...themeColors.current },
+          link: next.link,
         }),
       });
       if (!res.ok) {
@@ -242,6 +261,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
             font: savedFonts,
             lineBreak: savedLineBreak,
             layout: savedLayout,
+            link: savedLink,
             themeMode: mode,
           });
           if (seq !== themeSaveSeq.current) return;
@@ -258,13 +278,14 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
         }
       })();
     },
-    [initial.editable, postConfig, savedFonts, savedLayout, savedLineBreak],
+    [initial.editable, postConfig, savedFonts, savedLayout, savedLineBreak, savedLink],
   );
 
   const resetDefaults = useCallback(() => {
     setFontDraft(DEFAULT_FONT);
     setLineBreakDraft(DEFAULT_LINE_BREAK);
     setLayoutDraft(DEFAULT_LAYOUT);
+    setLinkDraft(DEFAULT_LINK);
     // 配色だけはドラフトを持たないため、ここでも押した時点で反映して保存まで済ませる。
     // 色の上書き(theme.light / theme.dark)はUIの管轄外なので触らない。
     setThemeMode(DEFAULT_THEME_MODE);
@@ -278,10 +299,11 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
         font: fontDraft,
         lineBreak: lineBreakDraft,
         layout: layoutDraft,
+        link: linkDraft,
         themeMode,
       });
-      // 改行の扱いはサーバー側のHTML生成で決まるため、フォントと違って読み込み直さないと反映されない。
-      if (!isSameLineBreak(lineBreakDraft, savedLineBreak)) {
+      // 改行やリンクの扱いはサーバー側のHTML生成で決まるため、フォントと違って読み込み直さないと反映されない。
+      if (!isSameLineBreak(lineBreakDraft, savedLineBreak) || linkDraft.base !== savedLink.base) {
         location.reload();
         return;
       }
@@ -293,7 +315,16 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     } finally {
       setSaving(false);
     }
-  }, [fontDraft, layoutDraft, lineBreakDraft, postConfig, savedLineBreak, themeMode]);
+  }, [
+    fontDraft,
+    layoutDraft,
+    lineBreakDraft,
+    linkDraft,
+    postConfig,
+    savedLineBreak,
+    savedLink,
+    themeMode,
+  ]);
 
   // モーダルを開いた時点から取りに行くと、候補が出るまでの一拍が操作の邪魔になるため、
   // 表示時に先に取っておく。サーバー側はプロセス内でキャッシュしている。
@@ -336,6 +367,8 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     lineBreakOverride: initial.lineBreakOverride,
     layoutDraft,
     setLayout,
+    linkDraft,
+    setLinkBase,
     themeMode,
     resolvedTheme,
     setThemeMode,
@@ -348,11 +381,13 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     dirty:
       !isSameFonts(fontDraft, savedFonts) ||
       !isSameLineBreak(lineBreakDraft, savedLineBreak) ||
-      !isSameLayout(layoutDraft, savedLayout),
+      !isSameLayout(layoutDraft, savedLayout) ||
+      linkDraft.base !== savedLink.base,
     isDefault:
       isSameFonts(fontDraft, DEFAULT_FONT) &&
       isSameLineBreak(lineBreakDraft, DEFAULT_LINE_BREAK) &&
       isSameLayout(layoutDraft, DEFAULT_LAYOUT) &&
+      linkDraft.base === DEFAULT_LINK.base &&
       themeMode === DEFAULT_THEME_MODE,
     resetDefaults,
     save,

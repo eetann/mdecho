@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
+import type { LinkBaseMode } from "../../src/config/defaults.ts";
 import { FONT_VARIABLES, type FontKind } from "../../src/styles/font.ts";
 import {
   clampContentWidth,
@@ -182,6 +183,63 @@ function LayoutSection({ settings }: { settings: SettingsApi }) {
           <LayoutField key={item.key} item={item} settings={settings} />
         ))}
       </div>
+    </section>
+  );
+}
+
+interface LinkBaseItem {
+  mode: LinkBaseMode;
+  label: string;
+  description: string;
+}
+
+const LINK_BASE_ITEMS: LinkBaseItem[] = [
+  {
+    mode: "ask",
+    label: "両方を探す",
+    description:
+      "両方にあるリンクは、クリックしたときにどちらを開くか選べます。画像はプロジェクトルート基準を優先します",
+  },
+  {
+    mode: "file",
+    label: "このファイル基準",
+    description: "Markdownファイルのあるディレクトリから辿ります(GitHubと同じ)",
+  },
+  {
+    mode: "root",
+    label: "プロジェクトルート基準",
+    description: "gitリポジトリのルート(リポジトリの外ならカレントディレクトリ)から辿ります",
+  },
+];
+
+function LinkSection({ settings }: { settings: SettingsApi }) {
+  return (
+    <section className="mdecho-link-section">
+      <h3 className="font-semibold">リンクと画像のパス</h3>
+      <p className="mt-1 text-xs text-base-content/60">
+        <code>./foo.md</code> や <code>img/a.png</code>{" "}
+        のような相対パスを、どこを基準に解決するかです。
+        改行と同じく、保存すると自動で読み込み直します。
+      </p>
+      <ul className="mt-2 flex flex-col gap-2">
+        {LINK_BASE_ITEMS.map((item) => (
+          <li key={item.mode}>
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="radio"
+                name="mdecho-link-base"
+                className="radio radio-sm mt-0.5 shrink-0"
+                checked={settings.linkDraft.base === item.mode}
+                onChange={() => settings.setLinkBase(item.mode)}
+              />
+              <span className="min-w-0">
+                <span className="text-sm">{item.label}</span>
+                <span className="block text-xs text-base-content/60">{item.description}</span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -396,6 +454,8 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
 
           <LineBreakList settings={settings} />
 
+          <LinkSection settings={settings} />
+
           <LayoutSection settings={settings} />
 
           <section>
@@ -447,7 +507,7 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
             title={
               settings.isDefault
                 ? "すでにすべて既定値です"
-                : "改行・レイアウト・フォント・配色をmdechoの既定値に戻します(設定ファイルへ残すには「保存」を押してください)"
+                : "改行・リンク・レイアウト・フォント・配色をmdechoの既定値に戻します(設定ファイルへ残すには「保存」を押してください)"
             }
             onClick={settings.resetDefaults}
           >

@@ -416,7 +416,9 @@ describe("renderMarkdown - heading id", () => {
 });
 
 describe("renderMarkdown resolveRelativeUrl", () => {
-  const resolveRelativeUrl = async (path: string) => `/resolved/${path}`;
+  const resolveRelativeUrl = async (path: string, kind: "link" | "image") => ({
+    url: `/resolved/${kind}/${path}`,
+  });
 
   test("相対パスのリンクと画像を解決し、`?`や`#`以降は残す", async () => {
     const html = await renderMarkdown(
@@ -424,8 +426,8 @@ describe("renderMarkdown resolveRelativeUrl", () => {
       {},
       { resolveRelativeUrl },
     );
-    expect(html).toContain(`href="/resolved/./a.md#${encodeURIComponent("見出し")}"`);
-    expect(html).toContain('src="/resolved/img/b.png?v=1"');
+    expect(html).toContain(`href="/resolved/link/./a.md#${encodeURIComponent("見出し")}"`);
+    expect(html).toContain('src="/resolved/image/img/b.png?v=1"');
   });
 
   test("ページ内リンク・外部URL・先頭が`/`のパスは書き換えない", async () => {
@@ -444,5 +446,27 @@ describe("renderMarkdown resolveRelativeUrl", () => {
       { resolveRelativeUrl: async () => undefined },
     );
     expect(html).toContain('href="../out.md"');
+  });
+
+  test("選択肢が返ってきたリンクには、`#`以降も付けた選択肢をJSONで載せる", async () => {
+    const html = await renderMarkdown(
+      "[a](a.md#x)",
+      {},
+      {
+        resolveRelativeUrl: async () => ({
+          url: "/docs/a.md",
+          choices: [
+            { base: "file", url: "/docs/a.md" },
+            { base: "root", url: "/a.md" },
+          ],
+        }),
+      },
+    );
+    expect(html).toContain('href="/docs/a.md#x"');
+    const match = /data-mdecho-link-choices="([^"]*)"/.exec(html);
+    expect(JSON.parse((match?.[1] ?? "").replaceAll("&#x22;", '"'))).toEqual([
+      { base: "file", url: "/docs/a.md#x" },
+      { base: "root", url: "/a.md#x" },
+    ]);
   });
 });

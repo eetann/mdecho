@@ -1,21 +1,23 @@
+import { existsSync } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import type { LinkBaseMode } from "../config/defaults.ts";
+import type { LinkBase, LinkChoice } from "../markdown/link-choices.ts";
 
 const MARKDOWN_EXTENSION_PATTERN = /\.(?:md|markdown)$/i;
 
 /** URLのパスとファイルを対応づけるための基準。`createDocRoot`で作る。 */
 export interface DocRoot {
   /**
-   * URLの`/`に対応するディレクトリで、配信してよい範囲の境界でもある。
-   * エントリのファイルがcwdの配下ならcwd、そうでなければエントリのあるディレクトリ。
+   * プロジェクトルート。URLの`/`に対応するディレクトリで、配信してよい範囲の境界でもあり、
+   * ルート基準のリンクの起点でもある。決め方は`createDocRoot`を参照。
    */
   rootDir: string;
   /** `-f`に渡されたパス(表記はそのまま) */
   entryFilePath: string;
   /** エントリのファイルの絶対パス */
   entryAbsPath: string;
-  /** コマンドを実行したディレクトリの絶対パス。リンクの解決でMarkdownファイル基準の次に使う */
-  cwd: string;
 }
 
 export interface ResolvedDoc {
@@ -70,22 +72,55 @@ export async function isRealPathWithinDir(baseDir: string, absPath: string): Pro
 }
 
 /**
- * `-f`のファイルとcwdから、URLの基準になるディレクトリを決める。
+ * startDirから上へ辿って、最初に`.git`(worktreeやsubmoduleではファイル)があるディレクトリを返す。
+ * 無ければundefined。
  *
- * エントリのディレクトリをそのまま基準にすると、`docs/plan.md`から`../README.md`への
- * リンクが範囲外になって開けない。そこでcwdまで広げる。ただし`-f /tmp/x.md`のように
- * cwdの外のファイルを開いたときまで共通の祖先へ広げると、`/`やホームディレクトリ全体を
- * 配信しかねないので、その場合はエントリのディレクトリに留める。
+ * ホームディレクトリそのものがリポジトリ(dotfilesの管理)の場合は、プロジェクトとはみなさない。
+ * そこを基準にするとホームディレクトリ全体を配信してしまうため。
  */
-export function createDocRoot(entryFilePath: string, cwd: string = process.cwd()): DocRoot {
+export function findGitRoot(startDir: string, home: string = homedir()): string | undefined {
+  let dir = resolve(startDir);
+  const homeAbs = resolve(home);
+  while (true) {
+    if (dir !== homeAbs && existsSync(join(dir, ".git"))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return undefined;
+    }
+    dir = parent;
+  }
+}
+
+export interface CreateDocRootOptions {
+  /** プロジェクトルートの探し方。テストで差し替えるためにある */
+  findGitRoot?: (startDir: string) => string | undefined;
+}
+
+/**
+ * `-f`のファイルとcwdから、URLの基準になるディレクトリ(プロジェクトルート)を決める。
+ *
+ * エントリがgitリポジトリの中ならそのルートにする。AIエージェントはリポジトリのルートから
+ * 見たパス(`src/foo.ts`など)で書きがちで、どこで起動しても同じ場所を指してほしいため。
+ *
+ * リポジトリの外なら従来どおりcwdまで広げる(`docs/plan.md`から`../README.md`を開けるように)。
+ * ただし`-f /tmp/x.md`のようにcwdの外のファイルを開いたときまで共通の祖先へ広げると、
+ * `/`やホームディレクトリ全体を配信しかねないので、その場合はエントリのディレクトリに留める。
+ */
+export function createDocRoot(
+  entryFilePath: string,
+  cwd: string = process.cwd(),
+  options: CreateDocRootOptions = {},
+): DocRoot {
   const cwdAbs = resolve(cwd);
   const entryAbsPath = resolve(cwdAbs, entryFilePath);
   const entryDir = dirname(entryAbsPath);
+  const gitRoot = (options.findGitRoot ?? findGitRoot)(entryDir);
   return {
-    rootDir: isWithinDir(cwdAbs, entryDir) ? cwdAbs : entryDir,
+    rootDir: gitRoot ?? (isWithinDir(cwdAbs, entryDir) ? cwdAbs : entryDir),
     entryFilePath,
     entryAbsPath,
-    cwd: cwdAbs,
   };
 }
 
@@ -148,13 +183,32 @@ async function exists(absPath: string): Promise<boolean> {
   return (await stat(absPath).catch(() => undefined)) !== undefined;
 }
 
+export interface ResolveLinkUrlOptions {
+  /** 設定の`link.base` */
+  mode: LinkBaseMode;
+  /** `<a href>`か`<img src>`か。画像はクリックで選ばせられないため、askでも1つに決める */
+  kind: "link" | "image";
+}
+
+export interface ResolvedLinkUrl {
+  /** 書き換え後のURLのパス */
+  url: string;
+  /**
+   * askのリンクで、ファイル基準とルート基準の両方に実在したときだけ付く選択肢。
+   * 並びは優先順で、先頭はurlと同じ(新しいタブで開いたときなどはそちらへ行く)。
+   */
+  choices?: LinkChoice[];
+}
+
 /**
  * Markdown中の相対リンク・画像のパスを、rootDirからの絶対URLのパスへ解決する。
  *
- * まずそのMarkdownファイルのあるディレクトリを基準に探し(CommonMarkやGitHubと同じ)、
- * 無ければcwdを基準に探す。AIエージェントはリポジトリのルートから見たパス
- * (`src/foo.ts`など)で書きがちなので、深い場所のMarkdownからでもそれを拾えるようにする。
- * どちらにも無ければMarkdownファイル基準のURLを返す(開けば404ページになる)。
+ * 基準の候補は、そのMarkdownファイルのあるディレクトリ(CommonMarkやGitHubと同じ)と
+ * プロジェクトルート(`DocRoot.rootDir`)の2つ。リポジトリによってどちらで書かれているかが
+ * 違うため、どう扱うかは`mode`で決める。
+ * - file / root: その基準だけで解決する
+ * - ask: 実在する方へ解決する。リンクで両方に実在すれば`choices`を付けて選ばせ、
+ *   画像はルート基準を優先する。どちらにも無ければ優先する側のURLを返す(開けば404ページになる)
  *
  * ページのURLに任せず絶対URLにしておくのは、エントリを`/`で配信しているため。
  * `docs/plan.md`を`-f`したとき、`./a.png`をブラウザに解決させると`/a.png`になってしまう。
@@ -166,20 +220,49 @@ export async function resolveLinkUrl(
   root: DocRoot,
   docAbsPath: string,
   linkPath: string,
-): Promise<string | undefined> {
+  options: ResolveLinkUrlOptions,
+): Promise<ResolvedLinkUrl | undefined> {
   const decoded = decodePath(linkPath);
   if (decoded === undefined || decoded === "") {
     return undefined;
   }
 
-  const candidates = [resolve(dirname(docAbsPath), decoded), resolve(root.cwd, decoded)].filter(
-    (absPath) => isWithinDir(root.rootDir, absPath),
-  );
-  for (const absPath of candidates) {
-    if (await exists(absPath)) {
-      return toUrlPath(root.rootDir, absPath);
-    }
-  }
+  const byBase: Record<LinkBase, string> = {
+    file: resolve(dirname(docAbsPath), decoded),
+    root: resolve(root.rootDir, decoded),
+  };
+  const order: LinkBase[] =
+    options.mode !== "ask"
+      ? [options.mode]
+      : options.kind === "image"
+        ? ["root", "file"]
+        : ["file", "root"];
+  const candidates = order
+    .map((base) => ({ base, absPath: byBase[base] }))
+    .filter(({ absPath }) => isWithinDir(root.rootDir, absPath))
+    // ルート直下のMarkdownでは2つの基準が同じ場所を指すため、1つにまとめる。
+    .filter(({ absPath }, index, list) => list.findIndex((c) => c.absPath === absPath) === index);
   const [fallback] = candidates;
-  return fallback === undefined ? undefined : toUrlPath(root.rootDir, fallback);
+  if (fallback === undefined) {
+    return undefined;
+  }
+
+  const existing = (
+    await Promise.all(
+      candidates.map(async (candidate) => ((await exists(candidate.absPath)) ? candidate : null)),
+    )
+  ).filter((candidate) => candidate !== null);
+  const toChoice = ({ base, absPath }: (typeof candidates)[number]): LinkChoice => ({
+    base,
+    url: toUrlPath(root.rootDir, absPath),
+  });
+
+  const [first] = existing;
+  if (first === undefined) {
+    return { url: toChoice(fallback).url };
+  }
+  if (options.kind === "link" && existing.length >= 2) {
+    return { url: toChoice(first).url, choices: existing.map(toChoice) };
+  }
+  return { url: toChoice(first).url };
 }

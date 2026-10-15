@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { CommentLayer } from "./components/CommentLayer.tsx";
 import { LineNumberGutter } from "./components/LineNumberGutter.tsx";
+import { LinkChoiceDialog } from "./components/LinkChoiceDialog.tsx";
 import { MarkdownBody } from "./components/MarkdownBody.tsx";
 import { OutdatedComments } from "./components/OutdatedComments.tsx";
 import { TableOfContents } from "./components/TableOfContents.tsx";
@@ -80,6 +81,7 @@ export function App({
           />
           <TableTools tables={tables} />
           <SettingsDialog settings={settingsApi} />
+          <LinkChoiceDialog markdownBodyRef={markdownBodyRef} />
         </div>
       </div>
       <TableOfContents />

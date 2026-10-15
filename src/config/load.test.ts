@@ -208,6 +208,27 @@ describe("normalizeConfig", () => {
     normalizeConfig({ theme: { modes: "dark" } }, (m) => warnings.push(m));
     expect(warnings).toEqual(["themeに未知のキーがあります: modes"]);
   });
+
+  test("linkを書かなければaskになる", () => {
+    expect(normalizeConfig({}).link).toEqual({ base: "ask" });
+  });
+
+  test("link.baseを読む", () => {
+    const warnings: string[] = [];
+    expect(normalizeConfig({ link: { base: "root" } }, (m) => warnings.push(m)).link).toEqual({
+      base: "root",
+    });
+    expect(warnings).toEqual([]);
+  });
+
+  test("知らないlink.baseは警告してaskにする", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ link: { base: "cwd" } }, (m) => warnings.push(m));
+    expect(config.link.base).toBe("ask");
+    expect(warnings).toEqual([
+      "link.baseはask / file / rootのいずれかで指定してください。askとして扱います",
+    ]);
+  });
 });
 
 describe("resolveLineBreak", () => {

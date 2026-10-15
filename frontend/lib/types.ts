@@ -1,3 +1,4 @@
+import type { LinkConfig } from "../../src/config/defaults.ts";
 import type { ThemeConfig } from "../../src/styles/theme.ts";
 
 export interface Comment {
@@ -34,6 +35,9 @@ export interface LayoutSettings {
 /** src/styles/theme.tsのThemeConfigと対応する */
 export type ThemeSettings = ThemeConfig;
 
+/** src/config/defaults.tsのLinkConfigと対応する */
+export type LinkSettings = LinkConfig;
+
 export interface MdechoSettings {
   font: FontSettings;
   /** 設定ファイルに書かれている改行の設定(モーダルが編集する対象) */
@@ -50,6 +54,8 @@ export interface MdechoSettings {
    * あるため。送らないとサーバー側が保持している設定から色が消えてしまう。
    */
   theme: ThemeSettings;
+  /** 相対リンク・画像の基準の決め方 */
+  link: LinkSettings;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */

@@ -20,11 +20,30 @@ export interface LineBreakConfig {
   singleNewline: boolean;
 }
 
+/**
+ * 相対リンク・画像の基準をどう決めるか。
+ * - `ask`: Markdownファイル基準とプロジェクトルート基準の両方を探す。リンクの行き先が
+ *   両方にあるときは、クリックしたときに選ばせる(画像は選べないのでプロジェクトルート基準を優先する)
+ * - `file`: Markdownファイルのあるディレクトリ基準だけ(GitHubと同じ)
+ * - `root`: プロジェクトルート基準だけ
+ */
+export const LINK_BASE_MODES = ["ask", "file", "root"] as const;
+export type LinkBaseMode = (typeof LINK_BASE_MODES)[number];
+
+export function isLinkBaseMode(value: unknown): value is LinkBaseMode {
+  return typeof value === "string" && (LINK_BASE_MODES as readonly string[]).includes(value);
+}
+
+export interface LinkConfig {
+  base: LinkBaseMode;
+}
+
 export interface MdechoConfig {
   font: FontFamilies;
   lineBreak: LineBreakConfig;
   layout: LayoutConfig;
   theme: ThemeConfig;
+  link: LinkConfig;
 }
 
 export const DEFAULT_FONT: FontFamilies = { body: [], code: [] };
@@ -34,9 +53,11 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
   fontSize: DEFAULT_FONT_SIZE,
   lineHeight: DEFAULT_LINE_HEIGHT,
 };
+export const DEFAULT_LINK: LinkConfig = { base: "ask" };
 export const DEFAULT_CONFIG: MdechoConfig = {
   font: DEFAULT_FONT,
   lineBreak: DEFAULT_LINE_BREAK,
   layout: DEFAULT_LAYOUT,
   theme: DEFAULT_THEME,
+  link: DEFAULT_LINK,
 };

@@ -13,6 +13,7 @@ const DEFAULT_LINE_BREAK_JSON = { splitSentences: true, singleNewline: true };
 const DEFAULT_LAYOUT_JSON = { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 };
 // 色(theme.light / theme.dark)はUIから編集しないため書き戻さない。modeだけが出る。
 const DEFAULT_THEME_JSON = { mode: "system" };
+const DEFAULT_LINK_JSON = { base: "ask" };
 
 let dir: string | undefined;
 
@@ -133,6 +134,7 @@ describe("applyConfigEdits", () => {
       lineBreak: DEFAULT_LINE_BREAK_JSON,
       layout: DEFAULT_LAYOUT_JSON,
       theme: DEFAULT_THEME_JSON,
+      link: DEFAULT_LINK_JSON,
     });
   });
 
@@ -147,6 +149,7 @@ describe("applyConfigEdits", () => {
       lineBreak: DEFAULT_LINE_BREAK_JSON,
       layout: DEFAULT_LAYOUT_JSON,
       theme: DEFAULT_THEME_JSON,
+      link: DEFAULT_LINK_JSON,
     });
   });
 });
@@ -163,6 +166,7 @@ describe("saveConfig", () => {
       lineBreak: DEFAULT_LINE_BREAK_JSON,
       layout: DEFAULT_LAYOUT_JSON,
       theme: DEFAULT_THEME_JSON,
+      link: DEFAULT_LINK_JSON,
     });
   });
 
