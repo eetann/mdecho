@@ -35,7 +35,8 @@
     "lint": "oxlint src frontend scripts",
     "lint:fix": "oxlint --fix src frontend scripts",
     "format": "oxfmt src frontend scripts",
-    "format:check": "oxfmt --check src frontend scripts"
+    "format:check": "oxfmt --check src frontend scripts",
+    "release": "bun run lint && bun run format:check && bun run typecheck && bun run test && bun run build && bunx publint@0.3.24 && bumpp"
   },
   "devDependencies": {
     "@gunshi/docs": "^0.37.1",
@@ -44,6 +45,7 @@
     "@types/mdast": "^4.0.4",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "bumpp": "^12.3.0",
     "bun-plugin-tailwind": "^0.1.2",
     "daisyui": "^5.7.0",
     "lucide-react": "^1.42.0",
