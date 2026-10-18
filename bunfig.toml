@@ -1,0 +1,5 @@
+[install]
+# bun-plugin-tailwindのpeerDependencyでnpm版のbunが入ると、
+# node_modules/.bin/bunが実行中のbunより優先されてしまう。
+# CIは--ignore-scriptsで入れるのでnpm版bunの本体が無く、`bun run`の入れ子が落ちる
+peer = false
