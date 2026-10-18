@@ -280,6 +280,9 @@ export async function startServer(
     liveReload.closeAll();
     await new Promise<void>((res, rej) => {
       server.close((err) => (err ? rej(err) : res()));
+      // close()は使用中の接続が終わるまで待つ。読まれずに残った画像のストリームなどで
+      // いつまでも閉じないことがあるため、残っている接続はこちらから切る。
+      if ("closeAllConnections" in server) server.closeAllConnections();
     });
   };
 
