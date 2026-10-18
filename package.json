@@ -1,6 +1,6 @@
 {
   "name": "mdecho",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AIが生成したMarkdownを、人間がレビューしやすくするためのCLIツール",
   "keywords": ["cli", "markdown", "preview", "viewer", "review", "ai-agent"],
   "homepage": "https://github.com/eetann/mdecho",
