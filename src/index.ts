@@ -1,4 +1,5 @@
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { cli, define } from "gunshi";
 import { renderHeader } from "gunshi/renderer";
 import { AGENT_HINT } from "./agent-hint.ts";
@@ -6,6 +7,7 @@ import { docsCommand } from "./cli/docs-command.ts";
 import { fontLsCommand } from "./cli/font-command.ts";
 import { loadMdechoConfig } from "./config/load.ts";
 import { defaultConfigFile } from "./config/save.ts";
+import { PACKAGE_ROOT } from "./package-root.ts";
 import { startServer } from "./server/start.ts";
 import { openBrowser } from "./system/open-browser.ts";
 
@@ -95,9 +97,14 @@ $ mdecho docs list`,
   },
 });
 
+// bumppが書き換えるのはpackage.jsonだけなので、バージョンはそこから読む。
+const { version } = JSON.parse(await readFile(join(PACKAGE_ROOT, "package.json"), "utf-8")) as {
+  version: string;
+};
+
 await cli(process.argv.slice(2), command, {
   name: "mdecho",
-  version: "0.0.1",
+  version,
   description: "AIが生成したMarkdownを、人間がレビューしやすくするためのCLIツール",
   subCommands: { docs: docsCommand, "font-ls": fontLsCommand },
   // font-lsの出力はgrepなどに流す前提なので、ヘッダーでstdoutを汚さない。
