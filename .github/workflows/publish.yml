@@ -55,11 +55,12 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      - name: Build
+        # サーバーのテストがdist/client/index.htmlを読むので、テストより先にビルドする
+        run: bun run build
+
       - name: Test
         run: bun test
-
-      - name: Build
-        run: bun run build
 
       - name: Lint package contents (publint)
         run: bunx publint@0.3.24

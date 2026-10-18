@@ -36,7 +36,7 @@
     "lint:fix": "oxlint --fix src frontend scripts",
     "format": "oxfmt src frontend scripts",
     "format:check": "oxfmt --check src frontend scripts",
-    "release": "bun run lint && bun run format:check && bun run typecheck && bun run test && bun run build && bunx publint@0.3.24 && bumpp"
+    "release": "bun run lint && bun run format:check && bun run typecheck && bun run build && bun run test && bunx publint@0.3.24 && bumpp"
   },
   "devDependencies": {
     "@gunshi/docs": "^0.37.1",
