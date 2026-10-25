@@ -4,6 +4,9 @@ AIが生成したMarkdownを、人間がレビューしやすくするためのC
 
 単なるMarkdownビューアではなく、AIとのやり取り(レビュー・質問・フィードバック)を行いやすくすることを目的としています。CLIから実行するとlocalhostでレンダリングされたMarkdownが開き、行頭の吹き出しアイコンや範囲選択でその箇所への返信をAI向けの形式でクリップボードにコピーできます。
 
+<img width="3200" height="1800" alt="Image" src="https://github.com/user-attachments/assets/13105ec9-1cce-4f90-bb95-2a737c9b69b3" />
+<img width="3200" height="1800" alt="Image" src="https://github.com/user-attachments/assets/f6aa5097-3663-4c43-9328-aa3bc49a3cd8" />
+
 ## インストール
 
 Node.js 20.19.0以降が必要です。
