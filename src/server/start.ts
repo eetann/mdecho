@@ -2,6 +2,7 @@ import { type HttpBindings, serve, type ServerType } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { watch } from "chokidar";
 import { Hono } from "hono";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { AGENT_HINT_TROUBLESHOOTING } from "../agent-hint.ts";
@@ -97,14 +98,27 @@ export async function startServer(
   }
   const entryAbsPaths = new Set(docSpace.entries.map((entry) => entry.absPath));
   // ファイル一覧に出す、指定されたファイル。
-  const shellEntries: ShellEntry[] = docSpace.entries.map((entry) => {
+  const entryLinks = docSpace.entries.map((entry) => {
     const url = toUrlPath(entry.root, entry.absPath);
     return {
+      absPath: entry.absPath,
       url,
       relPath: resolveDoc(docSpace, url)?.relPath ?? url.slice(1),
       filePath: entry.filePath,
     };
   });
+  /**
+   * 一覧の「見た」チェックを、ファイルが書き換わったら外すための内容のハッシュを添える。
+   * AIが直したファイルだけ未読に戻したいので、ページを返すたびに読み直す。
+   */
+  const buildShellEntries = (): Promise<ShellEntry[]> =>
+    Promise.all(
+      entryLinks.map(async ({ absPath, ...link }) => {
+        const content = await readFile(absPath).catch(() => undefined);
+        const hash = content === undefined ? "" : createHash("sha1").update(content).digest("hex");
+        return { ...link, hash };
+      }),
+    );
 
   const liveReload = createLiveReloadHub({
     onIdle: () => {
@@ -166,6 +180,7 @@ export async function startServer(
       layout: normalized.layout,
       theme: normalized.theme,
       link: normalized.link,
+      clipboard: normalized.clipboard,
       warnings,
     });
   });
@@ -224,7 +239,7 @@ export async function startServer(
         source,
         filePath: doc.displayPath,
         relPath: doc.relPath,
-        entries: shellEntries,
+        entries: await buildShellEntries(),
         headCss,
         settings: {
           font: currentConfig.font,
@@ -233,6 +248,7 @@ export async function startServer(
           layout: currentConfig.layout,
           theme: currentConfig.theme,
           link: currentConfig.link,
+          clipboard: currentConfig.clipboard,
           configFile,
           editable: configEditable,
         },

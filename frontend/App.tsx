@@ -34,7 +34,7 @@ export function App({
 }) {
   useLiveReload();
   const markdownBodyRef = useRef<HTMLElement | null>(null);
-  const commentsApi = useComments(relPath, filePath, source);
+  const commentsApi = useComments(relPath, filePath, source, entries);
   const tables = useTableTools(markdownBodyRef, bodyHtml);
   const settingsApi = useSettings(settings);
   // 図の色はmermaid側のテーマが持っているので、本文の配色に合わせて描き直す
@@ -51,6 +51,7 @@ export function App({
             filePath={filePath}
             entries={entries}
             commentGroups={commentsApi.commentGroups}
+            clipboardFormat={settingsApi.clipboardFormat}
             otherFileCount={commentsApi.otherFileCount}
             deleteAllComments={commentsApi.deleteAllComments}
             openSettings={settingsApi.openDialog}
@@ -85,7 +86,7 @@ export function App({
           <LinkChoiceDialog markdownBodyRef={markdownBodyRef} />
         </div>
       </div>
-      <FileList entries={entries} relPath={relPath} />
+      <FileList entries={entries} relPath={relPath} commentCounts={commentsApi.commentCounts} />
       <TableOfContents />
     </CursorLineProvider>
   );

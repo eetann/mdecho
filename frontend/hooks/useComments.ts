@@ -10,7 +10,7 @@ import {
   saveComments,
 } from "../lib/comment-store.ts";
 import type { CommentGroup } from "../lib/clipboard-text.ts";
-import type { Comment } from "../lib/types.ts";
+import type { Comment, EntryFile } from "../lib/types.ts";
 
 interface CommentsState {
   comments: Map<string, Comment>;
@@ -118,8 +118,14 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
  * relPath: Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス
  * filePath: `-f`に渡したパスと同じ書き方で表した、表示中ファイルのパス
  * source: 表示中ファイルのMarkdown原文
+ * entries: 指定されたファイルの一覧。コピーするときはこの順に並べる
  */
-export function useComments(relPath: string, filePath: string, source: string) {
+export function useComments(
+  relPath: string,
+  filePath: string,
+  source: string,
+  entries: EntryFile[],
+) {
   const [state, dispatch] = useReducer(reducer, undefined, (): CommentsState => {
     const loaded = loadComments(relPath);
     // 前回保存してから原文が変わっていれば、行のずれに追従させ、書き換わった箇所はoutdatedに回す。
@@ -171,17 +177,30 @@ export function useComments(relPath: string, filePath: string, source: string) {
     dispatch({ type: "deleteAll" });
   }, []);
 
-  // 表示中のファイルを先頭にして、残りはパス順(loadOtherStoresの並び)で続ける。
+  const stores = useMemo<CommentStore[]>(
+    () => [{ relPath, filePath, comments: state.comments }, ...otherStores],
+    [relPath, filePath, state.comments, otherStores],
+  );
+
+  // 指定されたファイルを指定された順に並べ、リンクを辿った先のファイルはその後ろにパス順で続ける。
+  // どのファイルを開いてコピーしても同じ並びになるので、AIへ渡す文面が安定する。
   const commentGroups = useMemo<CommentGroup[]>(() => {
-    const groups: CommentGroup[] = [];
-    if (state.comments.size > 0) {
-      groups.push({ filePath, comments: Array.from(state.comments.values()) });
-    }
-    for (const store of otherStores) {
-      groups.push({ filePath: store.filePath, comments: Array.from(store.comments.values()) });
-    }
-    return groups;
-  }, [state.comments, otherStores, filePath]);
+    const order = new Map(entries.map((entry, index) => [entry.relPath, index]));
+    const rank = (store: CommentStore) => order.get(store.relPath) ?? entries.length;
+    return stores
+      .filter((store) => store.comments.size > 0)
+      .sort((a, b) => rank(a) - rank(b) || a.relPath.localeCompare(b.relPath))
+      .map((store) => ({
+        filePath: store.filePath,
+        comments: Array.from(store.comments.values()),
+      }));
+  }, [stores, entries]);
+
+  /** ファイル一覧のバッジに出す、ファイルごとのコメント数(relPathで引く) */
+  const commentCounts = useMemo(
+    () => new Map(stores.map((store) => [store.relPath, store.comments.size])),
+    [stores],
+  );
 
   const otherFileCount = otherStores.reduce((total, store) => total + store.comments.size, 0);
 
@@ -195,6 +214,7 @@ export function useComments(relPath: string, filePath: string, source: string) {
     commentGroups,
     /** 表示中のファイル以外に残っているコメントの数 */
     otherFileCount,
+    commentCounts,
     openEditor,
     cancelEditing,
     save,

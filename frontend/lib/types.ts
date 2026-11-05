@@ -1,4 +1,4 @@
-import type { LinkConfig } from "../../src/config/defaults.ts";
+import type { ClipboardConfig, LinkConfig } from "../../src/config/defaults.ts";
 import type { ThemeConfig } from "../../src/styles/theme.ts";
 
 export interface Comment {
@@ -38,6 +38,9 @@ export type ThemeSettings = ThemeConfig;
 /** src/config/defaults.tsのLinkConfigと対応する */
 export type LinkSettings = LinkConfig;
 
+/** src/config/defaults.tsのClipboardConfigと対応する */
+export type ClipboardSettings = ClipboardConfig;
+
 export interface MdechoSettings {
   font: FontSettings;
   /** 設定ファイルに書かれている改行の設定(モーダルが編集する対象) */
@@ -56,6 +59,8 @@ export interface MdechoSettings {
   theme: ThemeSettings;
   /** 相対リンク・画像の基準の決め方 */
   link: LinkSettings;
+  /** コメントをコピーするときの書き方 */
+  clipboard: ClipboardSettings;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */
@@ -70,6 +75,8 @@ export interface EntryFile {
   relPath: string;
   /** 指定されたときの表記そのまま。一覧の表示に使う */
   filePath: string;
+  /** ファイルの内容のハッシュ。変わったら「見た」チェックを外す。読めなければ空文字 */
+  hash: string;
 }
 
 export interface MdechoInitialData {

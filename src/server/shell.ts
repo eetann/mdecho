@@ -1,4 +1,4 @@
-import type { LinkConfig } from "../config/defaults.ts";
+import type { ClipboardConfig, LinkConfig } from "../config/defaults.ts";
 import { buildThemeBootScript, type ThemeConfig } from "../styles/theme.ts";
 
 export interface ShellSettings {
@@ -20,6 +20,8 @@ export interface ShellSettings {
   theme: ThemeConfig;
   /** 相対リンク・画像の基準の決め方 */
   link: LinkConfig;
+  /** コメントをコピーするときの書き方 */
+  clipboard: ClipboardConfig;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */
@@ -32,8 +34,10 @@ export interface ShellEntry {
   url: string;
   /** ResolvedDoc.relPathと同じ形式のパス。表示中のファイルとの突き合わせに使う */
   relPath: string;
-  /** 指定されたときの表記そのまま。一覧の表示に使う */
+  /** 指定されたときの表記そのまま。一覧の表示とクリップボードの並び順に使う */
   filePath: string;
+  /** ファイルの内容のハッシュ。変わったら「見た」チェックを外す。読めなければ空文字 */
+  hash: string;
 }
 
 export interface ShellData {

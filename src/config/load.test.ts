@@ -231,6 +231,28 @@ describe("normalizeConfig", () => {
   });
 });
 
+describe("normalizeConfig clipboard", () => {
+  test("clipboardを書かなければgroupedになる", () => {
+    expect(normalizeConfig({}).clipboard).toEqual({ format: "grouped" });
+  });
+
+  test("clipboard.formatを読む", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ clipboard: { format: "inline" } }, (m) => warnings.push(m));
+    expect(config.clipboard).toEqual({ format: "inline" });
+    expect(warnings).toEqual([]);
+  });
+
+  test("知らないclipboard.formatは警告してgroupedにする", () => {
+    const warnings: string[] = [];
+    const config = normalizeConfig({ clipboard: { format: "csv" } }, (m) => warnings.push(m));
+    expect(config.clipboard.format).toBe("grouped");
+    expect(warnings).toEqual([
+      "clipboard.formatはgrouped / inlineのいずれかで指定してください。groupedとして扱います",
+    ]);
+  });
+});
+
 describe("resolveLineBreak", () => {
   const base = { splitSentences: true, singleNewline: true };
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  type ClipboardFormat,
+  DEFAULT_CLIPBOARD,
   DEFAULT_FONT,
   DEFAULT_LAYOUT,
   DEFAULT_LINE_BREAK,
@@ -24,6 +26,7 @@ import {
   type ThemeMode,
 } from "../../src/styles/theme.ts";
 import type {
+  ClipboardSettings,
   FontSettings,
   LayoutSettings,
   LineBreakSettings,
@@ -61,6 +64,11 @@ export interface SettingsApi {
   /** 編集中のリンクの解決方法。改行と同じくサーバーでの再レンダリングが要るため、保存時に読み込み直す */
   linkDraft: LinkSettings;
   setLinkBase: (base: LinkBaseMode) => void;
+  /** 編集中のコピー形式。ページの描画には関わらないため、保存すれば読み込み直さずに効く */
+  clipboardDraft: ClipboardSettings;
+  setClipboardFormat: (format: ClipboardFormat) => void;
+  /** 保存済みのコピー形式。コピーボタンはこちらを使う */
+  clipboardFormat: ClipboardFormat;
   /**
    * 配色をライト/ダークに固定するか、OSに合わせるか。
    * フォントやレイアウトと違いドラフトを持たず、押した時点で反映して保存する。
@@ -121,6 +129,8 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
   const [layoutDraft, setLayoutDraft] = useState<LayoutSettings>(initial.layout);
   const [savedLink] = useState<LinkSettings>(initial.link);
   const [linkDraft, setLinkDraft] = useState<LinkSettings>(initial.link);
+  const [savedClipboard, setSavedClipboard] = useState<ClipboardSettings>(initial.clipboard);
+  const [clipboardDraft, setClipboardDraft] = useState<ClipboardSettings>(initial.clipboard);
   const [systemFonts, setSystemFonts] = useState<SystemFont[]>([]);
   const [systemFontsLoading, setSystemFontsLoading] = useState(true);
   const [systemFontsError, setSystemFontsError] = useState<string>();
@@ -191,9 +201,10 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLineBreakDraft(savedLineBreak);
     setLayoutDraft(savedLayout);
     setLinkDraft(savedLink);
+    setClipboardDraft(savedClipboard);
     setSaveError(undefined);
     setOpen(false);
-  }, [savedFonts, savedLayout, savedLineBreak, savedLink]);
+  }, [savedClipboard, savedFonts, savedLayout, savedLineBreak, savedLink]);
 
   const setFonts = useCallback((kind: FontKind, fonts: string[]) => {
     setFontDraft((current) => ({ ...current, [kind]: fonts }));
@@ -211,6 +222,10 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLinkDraft({ base });
   }, []);
 
+  const setClipboardFormat = useCallback((format: ClipboardFormat) => {
+    setClipboardDraft({ format });
+  }, []);
+
   /**
    * 設定ファイルへ書き戻す。サーバーは受け取った内容で設定をまるごと差し替えるため、
    * 1項目だけ変えたいときも、残りは保存済みの値をそのまま載せて送る。
@@ -221,6 +236,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       lineBreak: LineBreakSettings;
       layout: LayoutSettings;
       link: LinkSettings;
+      clipboard: ClipboardSettings;
       themeMode: ThemeMode;
     }) => {
       const res = await fetch("/api/config", {
@@ -234,6 +250,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
           // (設定ファイルへは書き戻さないので、ファイル側のコメントや並びは壊れない)。
           theme: { mode: next.themeMode, ...themeColors.current },
           link: next.link,
+          clipboard: next.clipboard,
         }),
       });
       if (!res.ok) {
@@ -262,6 +279,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
             lineBreak: savedLineBreak,
             layout: savedLayout,
             link: savedLink,
+            clipboard: savedClipboard,
             themeMode: mode,
           });
           if (seq !== themeSaveSeq.current) return;
@@ -278,7 +296,15 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
         }
       })();
     },
-    [initial.editable, postConfig, savedFonts, savedLayout, savedLineBreak, savedLink],
+    [
+      initial.editable,
+      postConfig,
+      savedClipboard,
+      savedFonts,
+      savedLayout,
+      savedLineBreak,
+      savedLink,
+    ],
   );
 
   const resetDefaults = useCallback(() => {
@@ -286,6 +312,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLineBreakDraft(DEFAULT_LINE_BREAK);
     setLayoutDraft(DEFAULT_LAYOUT);
     setLinkDraft(DEFAULT_LINK);
+    setClipboardDraft(DEFAULT_CLIPBOARD);
     // 配色だけはドラフトを持たないため、ここでも押した時点で反映して保存まで済ませる。
     // 色の上書き(theme.light / theme.dark)はUIの管轄外なので触らない。
     setThemeMode(DEFAULT_THEME_MODE);
@@ -300,6 +327,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
         lineBreak: lineBreakDraft,
         layout: layoutDraft,
         link: linkDraft,
+        clipboard: clipboardDraft,
         themeMode,
       });
       // 改行やリンクの扱いはサーバー側のHTML生成で決まるため、フォントと違って読み込み直さないと反映されない。
@@ -309,6 +337,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       }
       setSavedFonts(fontDraft);
       setSavedLayout(layoutDraft);
+      setSavedClipboard(clipboardDraft);
       setOpen(false);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
@@ -316,6 +345,7 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       setSaving(false);
     }
   }, [
+    clipboardDraft,
     fontDraft,
     layoutDraft,
     lineBreakDraft,
@@ -369,6 +399,9 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
     setLayout,
     linkDraft,
     setLinkBase,
+    clipboardDraft,
+    setClipboardFormat,
+    clipboardFormat: savedClipboard.format,
     themeMode,
     resolvedTheme,
     setThemeMode,
@@ -382,12 +415,14 @@ export function useSettings(initial: MdechoSettings): SettingsApi {
       !isSameFonts(fontDraft, savedFonts) ||
       !isSameLineBreak(lineBreakDraft, savedLineBreak) ||
       !isSameLayout(layoutDraft, savedLayout) ||
-      linkDraft.base !== savedLink.base,
+      linkDraft.base !== savedLink.base ||
+      clipboardDraft.format !== savedClipboard.format,
     isDefault:
       isSameFonts(fontDraft, DEFAULT_FONT) &&
       isSameLineBreak(lineBreakDraft, DEFAULT_LINE_BREAK) &&
       isSameLayout(layoutDraft, DEFAULT_LAYOUT) &&
       linkDraft.base === DEFAULT_LINK.base &&
+      clipboardDraft.format === DEFAULT_CLIPBOARD.format &&
       themeMode === DEFAULT_THEME_MODE,
     resetDefaults,
     save,

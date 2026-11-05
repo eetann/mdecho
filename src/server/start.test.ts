@@ -13,6 +13,12 @@ const NO_SPLIT = { splitSentences: false };
 // spanだけを見分けられるようにエスケープ後の形で比べる。
 const SENTENCE_SPAN = 'class=\\"mdecho-sentence\\"';
 
+/** ページに埋め込まれた初期データ(id="mdecho-data")を取り出す */
+function readInitialData(html: string): { entries: { [key: string]: string }[] } {
+  const match = /<script id="mdecho-data"[^>]*>([\s\S]*?)<\/script>/.exec(html);
+  return JSON.parse(match?.[1] ?? "null");
+}
+
 let running: StartServerResult | undefined;
 let dir: string | undefined;
 
@@ -239,6 +245,7 @@ describe("startServer", () => {
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
       theme: { mode: "system", light: {}, dark: {} },
       link: { base: "ask" },
+      clipboard: { format: "grouped" },
       warnings: [],
     });
     // 色はUIから編集しないため、書き戻されるのはtheme.modeだけ。
@@ -248,6 +255,7 @@ describe("startServer", () => {
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
       theme: { mode: "system" },
       link: { base: "ask" },
+      clipboard: { format: "grouped" },
     });
 
     const html = await (await fetch(running.url)).text();
@@ -476,9 +484,9 @@ describe("startServer", () => {
     // AIエージェントに渡す参照は、-fに渡したパスと同じ書き方のまま表示中ファイルを指す
     expect(html).toContain(JSON.stringify(join(dir, "sub", "bar.md")).slice(1, -1));
     expect(html).toContain('"relPath":"sub/bar.md"');
-    expect(html).toContain(
-      `"entries":[${JSON.stringify({ url: "/doc.md", relPath: "doc.md", filePath })}]`,
-    );
+    expect(readInitialData(html).entries).toEqual([
+      { url: "/doc.md", relPath: "doc.md", filePath, hash: expect.any(String) },
+    ]);
   });
 
   test("コメントの行番号を付け替えられるよう、原文を初期データに埋め込む", async () => {
@@ -576,16 +584,29 @@ describe("startServer", () => {
 
     const html = await (await fetch(running.url)).text();
     expect(html).toContain("Aの本文");
-    expect(html).toContain(
-      `"entries":${JSON.stringify([
-        { url: "/docs/a.md", relPath: "docs/a.md", filePath: "docs/a.md" },
-        { url: "/docs/b.md", relPath: "docs/b.md", filePath: "docs/b.md" },
-      ])}`,
-    );
+    const hash = expect.any(String);
+    expect(readInitialData(html).entries).toEqual([
+      { url: "/docs/a.md", relPath: "docs/a.md", filePath: "docs/a.md", hash },
+      { url: "/docs/b.md", relPath: "docs/b.md", filePath: "docs/b.md", hash },
+    ]);
     const b = await (await fetch(new URL("/docs/b.md", running.url))).text();
     expect(b).toContain("Bの本文");
     // 指定したときの書き方のままクリップボードに載る
     expect(b).toContain('"filePath":"docs/b.md"');
+  });
+
+  test("一覧のハッシュは、ファイルが書き換わると変わる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await writeFile(join(dir, "a.md"), "# a\n");
+    await writeFile(join(dir, "b.md"), "# b\n");
+
+    running = await startServer(["a.md", "b.md"], { lineBreakOverride: NO_SPLIT, cwd: dir });
+
+    const before = readInitialData(await (await fetch(running.url)).text()).entries;
+    await writeFile(join(dir, "b.md"), "# b 直した\n");
+    const after = readInitialData(await (await fetch(running.url)).text()).entries;
+    expect(after[0]?.hash).toBe(before[0]?.hash ?? "");
+    expect(after[1]?.hash).not.toBe(before[1]?.hash ?? "");
   });
 
   test("別々の場所のファイルは、それぞれのディレクトリだけを接頭辞付きで配信する", async () => {

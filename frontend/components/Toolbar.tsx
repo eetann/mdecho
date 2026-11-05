@@ -1,5 +1,6 @@
 import { House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-react";
 import { useState } from "react";
+import type { ClipboardFormat } from "../../src/config/defaults.ts";
 import type { ThemeMode } from "../../src/styles/theme.ts";
 import { buildClipboardText, type CommentGroup } from "../lib/clipboard-text.ts";
 import type { EntryFile } from "../lib/types.ts";
@@ -41,6 +42,7 @@ export function Toolbar({
   filePath,
   entries,
   commentGroups,
+  clipboardFormat,
   otherFileCount,
   deleteAllComments,
   openSettings,
@@ -55,6 +57,8 @@ export function Toolbar({
   entries: EntryFile[];
   /** 表示中のファイルと、リンク先で書いたコメントを合わせたコピー対象 */
   commentGroups: CommentGroup[];
+  /** コピーするときの書き方(保存済みの設定) */
+  clipboardFormat: ClipboardFormat;
   /** 表示中のファイル以外に残っているコメントの数 */
   otherFileCount: number;
   deleteAllComments: () => void;
@@ -90,7 +94,7 @@ export function Toolbar({
   async function handleCopyClick() {
     if (totalCount === 0) return;
     try {
-      await navigator.clipboard.writeText(buildClipboardText(commentGroups));
+      await navigator.clipboard.writeText(buildClipboardText(commentGroups, clipboardFormat));
       setCopyState("copied");
     } catch {
       setCopyState("failed");

@@ -14,6 +14,7 @@ const DEFAULT_LAYOUT_JSON = { contentWidth: 1024, fontSize: 16, lineHeight: 1.75
 // 色(theme.light / theme.dark)はUIから編集しないため書き戻さない。modeだけが出る。
 const DEFAULT_THEME_JSON = { mode: "system" };
 const DEFAULT_LINK_JSON = { base: "ask" };
+const DEFAULT_CLIPBOARD_JSON = { format: "grouped" };
 
 let dir: string | undefined;
 
@@ -135,6 +136,7 @@ describe("applyConfigEdits", () => {
       layout: DEFAULT_LAYOUT_JSON,
       theme: DEFAULT_THEME_JSON,
       link: DEFAULT_LINK_JSON,
+      clipboard: DEFAULT_CLIPBOARD_JSON,
     });
   });
 
@@ -150,6 +152,7 @@ describe("applyConfigEdits", () => {
       layout: DEFAULT_LAYOUT_JSON,
       theme: DEFAULT_THEME_JSON,
       link: DEFAULT_LINK_JSON,
+      clipboard: DEFAULT_CLIPBOARD_JSON,
     });
   });
 });
@@ -167,6 +170,7 @@ describe("saveConfig", () => {
       layout: DEFAULT_LAYOUT_JSON,
       theme: DEFAULT_THEME_JSON,
       link: DEFAULT_LINK_JSON,
+      clipboard: DEFAULT_CLIPBOARD_JSON,
     });
   });
 
