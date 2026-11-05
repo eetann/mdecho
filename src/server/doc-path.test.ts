@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
-  createDocRoot as createDocRootWithGit,
-  type CreateDocRootOptions,
+  createDocSpace as createDocSpaceWithGit,
+  type CreateDocSpaceOptions,
   findGitRoot,
   isMarkdownPath,
   resolveDoc,
@@ -12,15 +12,24 @@ import {
 } from "./doc-path.ts";
 
 /** テストを動かす環境の上位に.gitがあっても結果が変わらないよう、既定ではgitを探さない */
-function createDocRoot(entry: string, cwd: string, options: CreateDocRootOptions = {}) {
-  return createDocRootWithGit(entry, cwd, { findGitRoot: () => undefined, ...options });
+function createDocSpace(entries: string[], cwd: string, options: CreateDocSpaceOptions = {}) {
+  return createDocSpaceWithGit(entries, cwd, { findGitRoot: () => undefined, ...options });
+}
+
+/** エントリが1つのときの配信範囲 */
+function createDocRoot(entry: string, cwd: string, options: CreateDocSpaceOptions = {}) {
+  const space = createDocSpace([entry], cwd, options);
+  const [root] = space.roots;
+  if (!root) throw new Error("root not found");
+  return root;
 }
 
 const PROJECT = resolve("/tmp/mdecho-doc-path");
 const BASE_DIR = join(PROJECT, "docs");
 const ENTRY = join(BASE_DIR, "index.md");
 // cwdをエントリのディレクトリにすると、配信範囲もそこになる
-const ROOT = createDocRoot(ENTRY, BASE_DIR);
+const SPACE = createDocSpace([ENTRY], BASE_DIR);
+const ROOT = { rootDir: BASE_DIR, urlPrefix: "" };
 
 describe("isMarkdownPath", () => {
   test(".mdと.markdownをMarkdownとみなす", () => {
@@ -36,12 +45,12 @@ describe("isMarkdownPath", () => {
   });
 });
 
-describe("createDocRoot", () => {
+describe("createDocSpace", () => {
   test("エントリがcwdの配下なら、cwdを配信範囲にする", () => {
-    expect(createDocRoot("docs/index.md", PROJECT)).toEqual({
-      rootDir: PROJECT,
-      entryFilePath: "docs/index.md",
-      entryAbsPath: ENTRY,
+    const root = { rootDir: PROJECT, urlPrefix: "" };
+    expect(createDocSpace(["docs/index.md"], PROJECT)).toEqual({
+      roots: [root],
+      entries: [{ filePath: "docs/index.md", absPath: ENTRY, root }],
     });
   });
 
@@ -54,6 +63,21 @@ describe("createDocRoot", () => {
     const options = { findGitRoot: () => PROJECT };
     expect(createDocRoot("index.md", BASE_DIR, options).rootDir).toBe(PROJECT);
     expect(createDocRoot(ENTRY, "/somewhere/else", options).rootDir).toBe(PROJECT);
+  });
+
+  test("同じ配信範囲になるファイルは1つのルートにまとめ、重複したファイルは除く", () => {
+    const space = createDocSpace(["docs/a.md", "b.md", "./docs/a.md"], PROJECT);
+    expect(space.roots).toEqual([{ rootDir: PROJECT, urlPrefix: "" }]);
+    expect(space.entries.map((entry) => entry.filePath)).toEqual(["docs/a.md", "b.md"]);
+  });
+
+  test("配信範囲が別々になるファイルは、共通の祖先へ広げずに2つ目以降へ接頭辞を付ける", () => {
+    const space = createDocSpace(["a.md", "/elsewhere/x/b.md", "/another/c.md"], PROJECT);
+    expect(space.roots).toEqual([
+      { rootDir: PROJECT, urlPrefix: "" },
+      { rootDir: "/elsewhere/x", urlPrefix: "/~2" },
+      { rootDir: "/another", urlPrefix: "/~3" },
+    ]);
   });
 });
 
@@ -89,71 +113,104 @@ describe("findGitRoot", () => {
 
 describe("resolveDoc", () => {
   test("ルートパスはエントリのファイルを指す", () => {
-    expect(resolveDoc(ROOT, "/")).toEqual({
+    expect(resolveDoc(SPACE, "/")).toEqual({
       absPath: ENTRY,
       relPath: "index.md",
       displayPath: ENTRY,
+      root: ROOT,
     });
   });
 
   test("同じディレクトリのファイルを解決する", () => {
-    expect(resolveDoc(ROOT, "/foo.md")).toEqual({
+    expect(resolveDoc(SPACE, "/foo.md")).toEqual({
       absPath: join(BASE_DIR, "foo.md"),
       relPath: "foo.md",
       displayPath: join(BASE_DIR, "foo.md"),
+      root: ROOT,
     });
   });
 
   test("サブディレクトリのファイルを解決する", () => {
-    const resolved = resolveDoc(ROOT, "/sub/bar.md");
+    const resolved = resolveDoc(SPACE, "/sub/bar.md");
     expect(resolved?.absPath).toBe(join(BASE_DIR, "sub", "bar.md"));
     expect(resolved?.relPath).toBe("sub/bar.md");
   });
 
   test("パーセントエンコードされたパスをデコードする", () => {
-    const resolved = resolveDoc(ROOT, "/%E6%97%A5%E6%9C%AC%E8%AA%9E.md");
+    const resolved = resolveDoc(SPACE, "/%E6%97%A5%E6%9C%AC%E8%AA%9E.md");
     expect(resolved?.absPath).toBe(join(BASE_DIR, "日本語.md"));
     expect(resolved?.relPath).toBe("日本語.md");
   });
 
   test("`..`を含むパスを正規化する", () => {
-    const resolved = resolveDoc(ROOT, "/sub/../foo.md");
+    const resolved = resolveDoc(SPACE, "/sub/../foo.md");
     expect(resolved?.absPath).toBe(join(BASE_DIR, "foo.md"));
     expect(resolved?.relPath).toBe("foo.md");
   });
 
   test("配信範囲の外を指すパスは解決しない", () => {
-    expect(resolveDoc(ROOT, "/../secret.md")).toBeUndefined();
-    expect(resolveDoc(ROOT, "/sub/../../secret.md")).toBeUndefined();
-    expect(resolveDoc(ROOT, "/%2e%2e/secret.md")).toBeUndefined();
+    expect(resolveDoc(SPACE, "/../secret.md")).toBeUndefined();
+    expect(resolveDoc(SPACE, "/sub/../../secret.md")).toBeUndefined();
+    expect(resolveDoc(SPACE, "/%2e%2e/secret.md")).toBeUndefined();
   });
 
   test("デコードできないパスとヌル文字入りのパスは解決しない", () => {
-    expect(resolveDoc(ROOT, "/%E3%81")).toBeUndefined();
-    expect(resolveDoc(ROOT, "/foo%00.md")).toBeUndefined();
+    expect(resolveDoc(SPACE, "/%E3%81")).toBeUndefined();
+    expect(resolveDoc(SPACE, "/foo%00.md")).toBeUndefined();
   });
 
   test("配信範囲がcwdなら、URLとrelPathはcwdからのパスになる", () => {
-    const root = createDocRoot("docs/index.md", PROJECT);
-    expect(resolveDoc(root, "/")?.relPath).toBe("docs/index.md");
-    expect(resolveDoc(root, "/README.md")).toEqual({
+    const space = createDocSpace(["docs/index.md"], PROJECT);
+    expect(resolveDoc(space, "/")?.relPath).toBe("docs/index.md");
+    expect(resolveDoc(space, "/README.md")).toEqual({
       absPath: join(PROJECT, "README.md"),
       relPath: "README.md",
       displayPath: "README.md",
+      root: { rootDir: PROJECT, urlPrefix: "" },
     });
   });
 
   test("エントリ以外のdisplayPathは`-f`のパスと同じ書き方になる", () => {
-    const root = createDocRoot("docs/index.md", PROJECT);
-    expect(resolveDoc(root, "/docs/sub/bar.md")?.displayPath).toBe("docs/sub/bar.md");
-    const dotRoot = createDocRoot("./index.md", BASE_DIR);
-    expect(resolveDoc(dotRoot, "/sub/bar.md")?.displayPath).toBe("sub/bar.md");
+    const space = createDocSpace(["docs/index.md"], PROJECT);
+    expect(resolveDoc(space, "/docs/sub/bar.md")?.displayPath).toBe("docs/sub/bar.md");
+    const dotSpace = createDocSpace(["./index.md"], BASE_DIR);
+    expect(resolveDoc(dotSpace, "/sub/bar.md")?.displayPath).toBe("sub/bar.md");
   });
 
   test("エントリ自身のdisplayPathは`-f`に渡した表記のまま", () => {
-    const root = createDocRoot("./docs/index.md", PROJECT);
-    expect(resolveDoc(root, "/")?.displayPath).toBe("./docs/index.md");
-    expect(resolveDoc(root, "/docs/index.md")?.displayPath).toBe("./docs/index.md");
+    const space = createDocSpace(["./docs/index.md"], PROJECT);
+    expect(resolveDoc(space, "/")?.displayPath).toBe("./docs/index.md");
+    expect(resolveDoc(space, "/docs/index.md")?.displayPath).toBe("./docs/index.md");
+  });
+
+  describe("配信範囲が複数あるとき", () => {
+    const OTHER = resolve("/tmp/mdecho-other");
+    const space = createDocSpace(["docs/index.md", join(OTHER, "x.md")], PROJECT);
+    const otherRoot = { rootDir: OTHER, urlPrefix: "/~2" };
+
+    test("接頭辞の付いたパスは、そのルートのファイルへ解決する", () => {
+      expect(resolveDoc(space, "/~2/sub/y.md")).toEqual({
+        absPath: join(OTHER, "sub", "y.md"),
+        relPath: "~2/sub/y.md",
+        displayPath: join(OTHER, "sub", "y.md"),
+        root: otherRoot,
+      });
+      expect(resolveDoc(space, "/~2/x.md")?.displayPath).toBe(join(OTHER, "x.md"));
+    });
+
+    test("接頭辞の無いパスは最初のルートへ解決する", () => {
+      expect(resolveDoc(space, "/")?.absPath).toBe(ENTRY);
+      expect(resolveDoc(space, "/README.md")?.absPath).toBe(join(PROJECT, "README.md"));
+      // `~2`で始まるだけの別名は接頭辞とみなさない
+      expect(resolveDoc(space, "/~20/a.md")?.absPath).toBe(join(PROJECT, "~20", "a.md"));
+    });
+
+    test("接頭辞の付いたルートの外へは出られない", () => {
+      expect(resolveDoc(space, "/~2/../secret.md")).toBeUndefined();
+      expect(resolveDoc(space, "/~2/%2e%2e/secret.md")).toBeUndefined();
+      expect(resolveDoc(space, "/~2")).toBeUndefined();
+      expect(resolveDoc(space, "/~2/")).toBeUndefined();
+    });
   });
 });
 
@@ -265,6 +322,22 @@ describe("resolveLinkUrl", () => {
     const root = createDocRoot(doc, dir);
     expect(await resolveLinkUrl(root, doc, "../../../outside.md", ASK_LINK)).toBeUndefined();
     expect(await resolveLinkUrl(root, doc, "%E3%81", ASK_LINK)).toBeUndefined();
+  });
+
+  test("先頭が`/`のパスは、接頭辞の無いルートでは書き換えない", async () => {
+    const root = createDocRoot(doc, dir);
+    expect(await resolveLinkUrl(root, doc, "/README.md", ASK_LINK)).toBeUndefined();
+  });
+
+  test("先頭が`/`のパスは、接頭辞の付くルートでは接頭辞を足す", async () => {
+    const root = { rootDir: dir, urlPrefix: "/~2" };
+    expect(await resolveLinkUrl(root, doc, "/README.md", ASK_LINK)).toEqual({
+      url: "/~2/README.md",
+    });
+    expect(await resolveLinkUrl(root, doc, "./pic.png", ASK_IMAGE)).toEqual({
+      url: "/~2/docs/deep/pic.png",
+    });
+    expect(await resolveLinkUrl(root, doc, "/../outside.md", ASK_LINK)).toBeUndefined();
   });
 
   test("配信範囲がエントリのディレクトリなら、ルート基準もそこになる", async () => {

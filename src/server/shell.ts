@@ -26,6 +26,16 @@ export interface ShellSettings {
   editable: boolean;
 }
 
+/** ファイル一覧に出す、`-f`や位置引数で指定されたファイル */
+export interface ShellEntry {
+  /** このファイルを開くURLのパス */
+  url: string;
+  /** ResolvedDoc.relPathと同じ形式のパス。表示中のファイルとの突き合わせに使う */
+  relPath: string;
+  /** 指定されたときの表記そのまま。一覧の表示に使う */
+  filePath: string;
+}
+
 export interface ShellData {
   title: string;
   bodyHtml: string;
@@ -35,8 +45,8 @@ export interface ShellData {
   filePath: string;
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
-  /** 同じ形式で表した`-f`のファイルのパス。ホームへ戻るボタンの表示に使う */
-  entryRelPath: string;
+  /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
+  entries: ShellEntry[];
   settings: ShellSettings;
   /** <head>の末尾に差し込む追加CSS(ユーザー設定のフォント指定など)。空なら注入しない */
   headCss?: string;
@@ -68,11 +78,11 @@ function toInlineJson(value: unknown): string {
  * 属性/タグ名をアンカーにした正規表現で置換する。
  */
 export function renderShell(clientTemplate: string, data: ShellData): string {
-  const { title, bodyHtml, source, filePath, relPath, entryRelPath, settings, headCss } = data;
+  const { title, bodyHtml, source, filePath, relPath, entries, settings, headCss } = data;
   const withData = clientTemplate.replace(
     DATA_SCRIPT_PATTERN,
     (_match, open: string, _oldContent: string, close: string) =>
-      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entryRelPath, settings })}${close}`,
+      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings })}${close}`,
   );
   const withTitle = withData.replace(
     TITLE_TAG_PATTERN,
@@ -118,7 +128,7 @@ a { color: #2563eb; }
 <main>
 <h1>ファイルが見つかりません</h1>
 <p><code>${escapeHtml(requestPath)}</code> を表示できませんでした。</p>
-<p>mdechoが開けるのは、<code>-f</code>で指定したMarkdownと同じディレクトリの中にあるファイルだけです。</p>
+<p>mdechoが開けるのは、指定したMarkdownと同じディレクトリ(gitリポジトリならそのリポジトリ)の中にあるファイルだけです。</p>
 <p><a href="/">${escapeHtml(entryRelPath)} に戻る</a></p>
 </main>
 </body>

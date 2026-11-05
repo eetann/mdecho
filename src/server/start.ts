@@ -16,15 +16,16 @@ import { buildThemeCss } from "../styles/theme.ts";
 import { listSystemFonts } from "../system/fonts.ts";
 import { csrfGuard } from "./csrf.ts";
 import {
-  createDocRoot,
+  createDocSpace,
   isMarkdownPath,
   isRealPathWithinDir,
   resolveDoc,
   resolveLinkUrl,
+  toUrlPath,
 } from "./doc-path.ts";
 import { hostGuard } from "./host-guard.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
-import { renderNotFoundPage, renderShell } from "./shell.ts";
+import { type ShellEntry, renderNotFoundPage, renderShell } from "./shell.ts";
 import { resolveServableAsset, STATIC_ASSET_HEADERS } from "./static-asset.ts";
 
 const CLIENT_TEMPLATE_PATH = join(PACKAGE_ROOT, "dist", "client", "index.html");
@@ -61,8 +62,9 @@ export interface StartServerOptions {
   cwd?: string;
 }
 
+/** filePathsは`-f`や位置引数で渡されたファイル。先頭がURLの`/`で開くファイルになる */
 export async function startServer(
-  filePath: string,
+  filePaths: string[],
   options: StartServerOptions = {},
 ): Promise<StartServerResult> {
   const clientTemplate = await readFile(CLIENT_TEMPLATE_PATH, "utf-8").catch((error: unknown) => {
@@ -84,13 +86,25 @@ export async function startServer(
   let headCss = buildHeadCss(currentConfig);
   const configEditable = isWritableConfigFile(configFile);
 
-  // URLのパスとファイルの対応づけと、配信して良いファイルの範囲(docRoot.rootDir)。
-  const docRoot = createDocRoot(filePath, cwd);
-  // `-f`で指定したファイル。`/`へのリクエストと、ホームへ戻る導線の行き先になる。
-  const entryDoc = resolveDoc(docRoot, "/");
+  // URLのパスとファイルの対応づけと、配信して良いファイルの範囲(docSpace.roots)。
+  const docSpace = createDocSpace(filePaths, cwd);
+  // 先頭のエントリは`/`へのリクエストと、見つからなかったときに戻る導線の行き先になる。
+  const entryDoc = resolveDoc(docSpace, "/");
   if (!entryDoc) {
-    throw new Error(`ファイルのパスを解決できません: ${filePath}\n${AGENT_HINT_TROUBLESHOOTING}`);
+    throw new Error(
+      `ファイルのパスを解決できません: ${filePaths.join(", ")}\n${AGENT_HINT_TROUBLESHOOTING}`,
+    );
   }
+  const entryAbsPaths = new Set(docSpace.entries.map((entry) => entry.absPath));
+  // ファイル一覧に出す、指定されたファイル。
+  const shellEntries: ShellEntry[] = docSpace.entries.map((entry) => {
+    const url = toUrlPath(entry.root, entry.absPath);
+    return {
+      url,
+      relPath: resolveDoc(docSpace, url)?.relPath ?? url.slice(1),
+      filePath: entry.filePath,
+    };
+  });
 
   const liveReload = createLiveReloadHub({
     onIdle: () => {
@@ -108,7 +122,7 @@ export async function startServer(
 
   app.get("/events", (c) => {
     // タブごとに違うMarkdownを開けるため、そのタブが見ているファイルだけを監視対象にする。
-    const doc = resolveDoc(docRoot, c.req.query("path") ?? "/");
+    const doc = resolveDoc(docSpace, c.req.query("path") ?? "/");
     return liveReload.handleEvents(c, doc?.absPath ?? entryDoc.absPath);
   });
 
@@ -172,19 +186,19 @@ export async function startServer(
   // `./foo.md`のようなドキュメントへのリンクも、同じサーバーでレンダリングして返す。
   // 静的ファイル配信より前に置かないと、.mdがoctet-streamとしてダウンロードされてしまう。
   app.get("*", async (c, next) => {
-    const doc = resolveDoc(docRoot, c.req.path);
+    const doc = resolveDoc(docSpace, c.req.path);
     if (!doc) {
       return next();
     }
     // `-f`で渡されたファイル自体は拡張子に関わらず扱う(`-f notes.txt`のようなケース)。
     // ユーザーが明示的に指定したファイルなので、ディレクトリ外を指すsymlinkでも開く。
-    if (doc.absPath !== entryDoc.absPath) {
+    if (!entryAbsPaths.has(doc.absPath)) {
       if (!isMarkdownPath(doc.relPath)) {
         return next();
       }
       // ディレクトリの中に置かれた、外を指すsymlink(`link.md -> /etc/passwd`)は
       // resolveDocの境界チェックを通り抜けるため、読む直前に実体で確かめ直す。
-      if (!(await isRealPathWithinDir(docRoot.rootDir, doc.absPath))) {
+      if (!(await isRealPathWithinDir(doc.root.rootDir, doc.absPath))) {
         return next();
       }
     }
@@ -200,7 +214,7 @@ export async function startServer(
         resolveLineBreak(currentConfig.lineBreak, lineBreakOverride),
         {
           resolveRelativeUrl: (path, kind) =>
-            resolveLinkUrl(docRoot, doc.absPath, path, { mode: currentConfig.link.base, kind }),
+            resolveLinkUrl(doc.root, doc.absPath, path, { mode: currentConfig.link.base, kind }),
         },
       );
       const title = extractTitle(source) ?? basename(doc.absPath, extname(doc.absPath));
@@ -210,7 +224,7 @@ export async function startServer(
         source,
         filePath: doc.displayPath,
         relPath: doc.relPath,
-        entryRelPath: entryDoc.relPath,
+        entries: shellEntries,
         headCss,
         settings: {
           font: currentConfig.font,
@@ -231,26 +245,27 @@ export async function startServer(
   });
 
   // Markdown中の相対パス画像(![alt](./foo.png)など)を配信するため、
-  // 配信範囲(docRoot.rootDir)を静的ファイルルートとして公開する。
+  // 配信範囲(docSpace.roots)の画像を静的ファイルとして公開する。
   // ただし丸ごと公開すると.envやid_rsaまで読めてしまうため、resolveServableAssetを通して
   // 画像の拡張子だけに絞り、symlinkでディレクトリ外へ出ていないかも確かめてから配信する。
-  const serveAsset = serveStatic({ root: docRoot.rootDir });
+  // ルートごとにURLの接頭辞が違うため、serveStaticにはURLではなく確かめ終えた実体のパスを渡す。
   app.use("*", async (c, next) => {
-    if ((await resolveServableAsset(docRoot, c.req.path)) === undefined) {
+    const assetPath = await resolveServableAsset(docSpace, c.req.path);
+    if (assetPath === undefined) {
       return next();
     }
     // c.body()を組み立てるより前に積んでおく必要があるため、serveStaticのonFoundではなくここで付ける。
     for (const [name, value] of Object.entries(STATIC_ASSET_HEADERS)) {
       c.header(name, value);
     }
-    return serveAsset(c, next);
+    return serveStatic({ path: assetPath })(c, next);
   });
 
   app.all("*", (c) => c.html(renderNotFoundPage(c.req.path, entryDoc.relPath), 404));
 
   let closed = false;
-  const watchedPaths = new Set<string>([entryDoc.absPath]);
-  const watcher = watch(entryDoc.absPath, { ignoreInitial: true });
+  const watchedPaths = new Set<string>(entryAbsPaths);
+  const watcher = watch([...entryAbsPaths], { ignoreInitial: true });
   watcher.on("change", (path) => liveReload.notifyChange(path));
   watcher.on("add", (path) => liveReload.notifyChange(path));
   watcher.on("error", (error) => {
@@ -261,7 +276,7 @@ export async function startServer(
   const syncWatchTargets = (paths: Set<string>) => {
     if (closed) return;
     // エントリのファイルは、タブを開く前の変更も拾えるよう常に監視し続ける。
-    const wanted = new Set(paths).add(entryDoc.absPath);
+    const wanted = new Set([...paths, ...entryAbsPaths]);
     for (const path of watchedPaths) {
       if (wanted.has(path)) continue;
       watcher.unwatch(path);

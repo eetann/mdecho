@@ -4,16 +4,24 @@ description: mdechoの全コマンド・全オプション一覧
 
 # CLIリファレンス
 
-## `mdecho -f <file>`
+## `mdecho -f <file>` / `mdecho <file>...`
 
-指定したMarkdownファイルを表示するローカルサーバーを起動する。
+指定したMarkdownファイルを表示するローカルサーバーを起動する。ファイルは1つ以上必要。
 
 | オプション | 説明 |
 | --- | --- |
-| `-f, --file <path>` (必須) | 表示するMarkdownファイルのパス |
+| `-f, --file <path>` | 表示するMarkdownファイルのパス。複数回指定できる |
+| `<file>...` (位置引数) | 表示するMarkdownファイルのパス。`docs/*.md` のようにシェルのglobが使える。`-f` と併用でき、`-f` の後ろに並ぶ |
 | `--open` / `--no-open` | 起動後にブラウザを自動で開く(既定: 有効) |
 | `--split-sentences` / `--no-split-sentences` | 句点(。)ごとに表示上の改行を入れる(既定: 有効) |
 | `--single-newline` / `--no-single-newline` | 単一改行(Enterキー1回)をそのまま表示上の改行にする(既定: 有効) |
+
+複数のファイルを指定すると、1つのタブの中でファイル一覧から切り替えて読める。先頭のファイルが最初に開く。
+
+```bash
+mdecho docs/*.md
+mdecho -f plan.md -f review.md
+```
 
 ## 設定ファイル
 

@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { CommentLayer } from "./components/CommentLayer.tsx";
+import { FileList } from "./components/FileList.tsx";
 import { LineNumberGutter } from "./components/LineNumberGutter.tsx";
 import { LinkChoiceDialog } from "./components/LinkChoiceDialog.tsx";
 import { MarkdownBody } from "./components/MarkdownBody.tsx";
@@ -14,21 +15,21 @@ import { useLiveReload } from "./hooks/useLiveReload.ts";
 import { useMermaid } from "./hooks/useMermaid.ts";
 import { useSettings } from "./hooks/useSettings.ts";
 import { useTableTools } from "./hooks/useTableTools.ts";
-import type { MdechoSettings } from "./lib/types.ts";
+import type { EntryFile, MdechoSettings } from "./lib/types.ts";
 
 export function App({
   bodyHtml,
   source,
   filePath,
   relPath,
-  entryRelPath,
+  entries,
   settings,
 }: {
   bodyHtml: string;
   source: string;
   filePath: string;
   relPath: string;
-  entryRelPath: string;
+  entries: EntryFile[];
   settings: MdechoSettings;
 }) {
   useLiveReload();
@@ -48,7 +49,7 @@ export function App({
           <Toolbar
             relPath={relPath}
             filePath={filePath}
-            entryRelPath={entryRelPath}
+            entries={entries}
             commentGroups={commentsApi.commentGroups}
             otherFileCount={commentsApi.otherFileCount}
             deleteAllComments={commentsApi.deleteAllComments}
@@ -84,6 +85,7 @@ export function App({
           <LinkChoiceDialog markdownBodyRef={markdownBodyRef} />
         </div>
       </div>
+      <FileList entries={entries} relPath={relPath} />
       <TableOfContents />
     </CursorLineProvider>
   );

@@ -115,6 +115,9 @@
   /* 目次のために右側へ空けておく幅。目次はfixedで right-8(2rem) + w-48(12rem) を
      占めるため、本文との間に余白が残るよう14remより広く取る。 */
   --mdecho-toc-column: 16rem;
+
+  /* ファイル一覧のために左側へ空けておく幅。目次と同じく left-8 + w-48 を占める。 */
+  --mdecho-file-list-column: 16rem;
 }
 
 /* ここから下は、上のテーマが持つ色トークンから導き出す本文用の色。
@@ -182,6 +185,11 @@
 @media (min-width: 80rem) {
   .mdecho-layout:has(~ .mdecho-toc) {
     padding-right: var(--mdecho-toc-column);
+  }
+
+  /* 複数のファイルを指定したときは、左にファイル一覧が出るので同じように空ける */
+  .mdecho-layout:has(~ .mdecho-file-list) {
+    padding-left: var(--mdecho-file-list-column);
   }
 }
 

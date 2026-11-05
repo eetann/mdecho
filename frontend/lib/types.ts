@@ -62,6 +62,16 @@ export interface MdechoSettings {
   editable: boolean;
 }
 
+/** 指定されたファイル(src/server/shell.tsのShellEntryと対応する) */
+export interface EntryFile {
+  /** このファイルを開くURLのパス */
+  url: string;
+  /** relPathと同じ形式のパス。表示中のファイルとの突き合わせに使う */
+  relPath: string;
+  /** 指定されたときの表記そのまま。一覧の表示に使う */
+  filePath: string;
+}
+
 export interface MdechoInitialData {
   title: string;
   bodyHtml: string;
@@ -71,8 +81,8 @@ export interface MdechoInitialData {
   filePath: string;
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
-  /** 同じ形式で表した`-f`のファイルのパス。ホームへ戻るボタンの表示に使う */
-  entryRelPath: string;
+  /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
+  entries: EntryFile[];
   settings: MdechoSettings;
 }
 

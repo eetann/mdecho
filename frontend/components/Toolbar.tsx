@@ -2,6 +2,7 @@ import { House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-re
 import { useState } from "react";
 import type { ThemeMode } from "../../src/styles/theme.ts";
 import { buildClipboardText, type CommentGroup } from "../lib/clipboard-text.ts";
+import type { EntryFile } from "../lib/types.ts";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { KeyboardHelpDialog } from "./KeyboardHelpDialog.tsx";
 
@@ -11,6 +12,9 @@ type CopyState = "idle" | "copied" | "failed";
 
 /** 狭い画面で、目次(TableOfContents)が自分の開閉ボタンを差し込む置き場所 */
 export const TOOLBAR_SLOT_ID = "mdecho-toolbar-toc-slot";
+
+/** 狭い画面で、ファイル一覧(FileList)が自分の開閉ボタンを差し込む置き場所 */
+export const TOOLBAR_FILES_SLOT_ID = "mdecho-toolbar-files-slot";
 
 /** ボタンを押すたびにこの順で巡回する。設定モーダルの「配色」も同じ並び。 */
 export const THEME_MODE_ORDER: ThemeMode[] = ["system", "light", "dark"];
@@ -35,7 +39,7 @@ export function nextThemeMode(mode: ThemeMode): ThemeMode {
 export function Toolbar({
   relPath,
   filePath,
-  entryRelPath,
+  entries,
   commentGroups,
   otherFileCount,
   deleteAllComments,
@@ -47,8 +51,8 @@ export function Toolbar({
   relPath: string;
   /** `-f`に渡したパスと同じ書き方で表した、表示中ファイルのパス(クリップボードに載る) */
   filePath: string;
-  /** 同じ形式で表した`-f`のファイルのパス */
-  entryRelPath: string;
+  /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
+  entries: EntryFile[];
   /** 表示中のファイルと、リンク先で書いたコメントを合わせたコピー対象 */
   commentGroups: CommentGroup[];
   /** 表示中のファイル以外に残っているコメントの数 */
@@ -62,6 +66,8 @@ export function Toolbar({
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
+  const [entry] = entries;
+  const entryRelPath = entry?.relPath ?? "";
   const isEntry = relPath === entryRelPath;
   const ThemeIcon = THEME_MODE_ICONS[themeMode];
 
@@ -94,18 +100,23 @@ export function Toolbar({
 
   return (
     <div className="mdecho-toolbar navbar sticky top-0 z-20 gap-4 bg-base-100 px-0 py-3">
-      {/* ドキュメント内のリンクを辿った先から、`-f`で開いたファイルへ一度で戻れるようにする */}
-      <a
-        href="/"
-        id="mdecho-home-link"
-        className={`btn btn-sm btn-ghost ${isEntry ? "btn-disabled" : ""}`}
-        aria-label="entry file"
-        aria-disabled={isEntry}
-        tabIndex={isEntry ? -1 : undefined}
-        title={isEntry ? entryRelPath : `${entryRelPath} に戻る`}
-      >
-        <House className="size-[1.1em]" />
-      </a>
+      {entries.length < 2 ? (
+        // ドキュメント内のリンクを辿った先から、`-f`で開いたファイルへ一度で戻れるようにする
+        <a
+          href="/"
+          id="mdecho-home-link"
+          className={`btn btn-sm btn-ghost ${isEntry ? "btn-disabled" : ""}`}
+          aria-label="entry file"
+          aria-disabled={isEntry}
+          tabIndex={isEntry ? -1 : undefined}
+          title={isEntry ? entryRelPath : `${entryRelPath} に戻る`}
+        >
+          <House className="size-[1.1em]" />
+        </a>
+      ) : (
+        // 複数のファイルを指定したときは、戻る先もファイル一覧から選ぶ
+        <div id={TOOLBAR_FILES_SLOT_ID} className="relative empty:hidden" />
+      )}
       <span
         className="mdecho-file-path min-w-0 flex-1 truncate text-sm text-base-content/60"
         title={filePath}

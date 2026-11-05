@@ -1,12 +1,12 @@
 import { realpath, stat } from "node:fs/promises";
 import { extname } from "node:path";
-import { type DocRoot, isRealPathWithinDir, resolveDoc } from "./doc-path.ts";
+import { type DocSpace, isRealPathWithinDir, resolveDoc } from "./doc-path.ts";
 
 /**
  * 静的配信する拡張子。Markdownから相対パスで読み込めるのは画像だけなので画像に絞る
  * (生HTMLはレンダリング時に落としているため`<video>`や`<link rel="stylesheet">`は書けない)。
  *
- * 絞らないと配信範囲(`DocRoot.rootDir`)の配下が拡張子もdotfileも問わず全部
+ * 絞らないと配信範囲(`DocSpace.roots`)の配下が拡張子もdotfileも問わず全部
  * localhostに出てしまう。リポジトリのルートで`mdecho -f ./README.md`を実行すると
  * `.env`や`.git/config`まで読める、という状態だった。
  */
@@ -51,17 +51,17 @@ export function isServableAssetPath(path: string): boolean {
  * そこで`realpath`で実体まで解決し直してから、もう一度ディレクトリの内側かを確かめる。
  */
 export async function resolveServableAsset(
-  root: DocRoot,
+  space: DocSpace,
   urlPath: string,
 ): Promise<string | undefined> {
-  const doc = resolveDoc(root, urlPath);
+  const doc = resolveDoc(space, urlPath);
   if (!doc || !isServableAssetPath(doc.relPath)) {
     return undefined;
   }
 
   // symlinkは`serveStatic`が辿るため、`resolveDoc`の境界チェックだけでは
   // ディレクトリ外のファイル(`sub/link.png -> /etc/passwd`)まで読めてしまう。
-  if (!(await isRealPathWithinDir(root.rootDir, doc.absPath))) {
+  if (!(await isRealPathWithinDir(doc.root.rootDir, doc.absPath))) {
     return undefined;
   }
 

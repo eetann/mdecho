@@ -17,6 +17,10 @@ const command = define({
   examples: `# 基本的な使い方
 $ mdecho -f review.md
 
+# 複数のファイルを1つのタブで切り替えながら読む(位置引数ならシェルのglobも使える)
+$ mdecho docs/*.md
+$ mdecho -f plan.md -f review.md
+
 # ブラウザを自動で開かない
 $ mdecho -f review.md --no-open
 
@@ -29,8 +33,13 @@ $ mdecho docs list`,
     file: {
       type: "string",
       short: "f",
-      required: true,
-      description: "表示するMarkdownファイルのパス",
+      multiple: true,
+      description: "表示するMarkdownファイルのパス(複数回指定できる)",
+    },
+    files: {
+      type: "positional",
+      multiple: true,
+      description: "表示するMarkdownファイルのパス。-fと併用でき、-fの後ろに並ぶ",
     },
     open: {
       type: "boolean",
@@ -54,12 +63,30 @@ $ mdecho docs list`,
     },
   },
   run: async (ctx) => {
-    const { file, open, splitSentences, singleNewline } = ctx.values;
+    const { file = [], files = [], open, splitSentences, singleNewline } = ctx.values;
+    const filePaths = [...file, ...files];
 
-    try {
-      await access(file);
-    } catch {
-      console.error(`ファイルが見つかりません: ${file}`);
+    if (filePaths.length === 0) {
+      console.error("表示するファイルを指定してください(例: mdecho -f review.md)");
+      console.error(AGENT_HINT);
+      process.exit(1);
+    }
+    const missing = (
+      await Promise.all(
+        filePaths.map(async (path) =>
+          (await access(path).then(
+            () => true,
+            () => false,
+          ))
+            ? null
+            : path,
+        ),
+      )
+    ).filter((path) => path !== null);
+    if (missing.length > 0) {
+      for (const path of missing) {
+        console.error(`ファイルが見つかりません: ${path}`);
+      }
       console.error(AGENT_HINT);
       process.exit(1);
     }
@@ -72,7 +99,7 @@ $ mdecho docs list`,
       console.log(`Loaded config from ${loaded.configFile}`);
     }
 
-    const { url, close } = await startServer(file, {
+    const { url, close } = await startServer(filePaths, {
       onAllTabsClosed: () => {
         console.log("すべてのタブが閉じられたため終了します");
         process.exit(0);

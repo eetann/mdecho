@@ -430,13 +430,18 @@ describe("renderMarkdown resolveRelativeUrl", () => {
     expect(html).toContain('src="/resolved/image/img/b.png?v=1"');
   });
 
-  test("ページ内リンク・外部URL・先頭が`/`のパスは書き換えない", async () => {
+  test("ページ内リンク・外部URL・スキーム相対のURLは書き換えない", async () => {
     const html = await renderMarkdown(
-      "[a](#top) [b](https://example.com/x) [c](/abs.md) [d](mailto:a@example.com)",
+      "[a](#top) [b](https://example.com/x) [c](//example.com/x) [d](mailto:a@example.com)",
       {},
       { resolveRelativeUrl },
     );
     expect(html).not.toContain("/resolved/");
+  });
+
+  test("先頭が`/`のパスも解決する関数に渡す", async () => {
+    const html = await renderMarkdown("[a](/abs.md)", {}, { resolveRelativeUrl });
+    expect(html).toContain('href="/resolved/link//abs.md"');
   });
 
   test("解決できなかったものは書かれたまま残す", async () => {

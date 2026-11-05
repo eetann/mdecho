@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDocRoot, type DocRoot } from "./doc-path.ts";
+import { createDocSpace, type DocSpace } from "./doc-path.ts";
 import { isServableAssetPath, resolveServableAsset } from "./static-asset.ts";
 
 describe("isServableAssetPath", () => {
@@ -26,12 +26,12 @@ describe("isServableAssetPath", () => {
  */
 describe("resolveServableAsset", () => {
   let dir: string;
-  let root: DocRoot;
+  let root: DocSpace;
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-static-asset-"));
     const entry = join(dir, "doc.md");
-    root = createDocRoot(entry, dir);
+    root = createDocSpace([entry], dir, { findGitRoot: () => undefined });
     await mkdir(join(dir, "sub"), { recursive: true });
     await mkdir(join(dir, "dir.png"), { recursive: true });
     await writeFile(entry, "# doc\n");
