@@ -12,6 +12,7 @@ description: mdechoの全コマンド・全オプション一覧
 | --- | --- |
 | `-f, --file <path>` | 表示するMarkdownファイルのパス。複数回指定できる |
 | `<file>...` (位置引数) | 表示するMarkdownファイルのパス。`docs/*.md` のようにシェルのglobが使える。`-f` と併用でき、`-f` の後ろに並ぶ |
+| `--git <base>` | `<base>` とHEADのmerge-baseから作業ツリーまでに変更・追加されたMarkdownをまとめて開く。untrackedのファイルも含み、削除されたファイルは含まない。`-f` や位置引数と併用でき、その後ろにパス順で並ぶ |
 | `--open` / `--no-open` | 起動後にブラウザを自動で開く(既定: 有効) |
 | `--split-sentences` / `--no-split-sentences` | 句点(。)ごとに表示上の改行を入れる(既定: 有効) |
 | `--single-newline` / `--no-single-newline` | 単一改行(Enterキー1回)をそのまま表示上の改行にする(既定: 有効) |
@@ -21,6 +22,16 @@ description: mdechoの全コマンド・全オプション一覧
 ```bash
 mdecho docs/*.md
 mdecho -f plan.md -f review.md
+```
+
+`--git` の `<base>` には比べたい相手を指定する。`@` はgitが標準で持つ `HEAD` の別名。
+
+```bash
+# 未コミットの変更(AIがたった今書いたもの)をまとめて読む
+mdecho --git @
+
+# PRで変更されたMarkdownをまとめて読む。mainとのmerge-baseから比べるので、main側で進んだ分は混ざらない
+gh pr checkout 123 && mdecho --git main
 ```
 
 ## 設定ファイル

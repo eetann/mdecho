@@ -1,5 +1,5 @@
 import { access, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { cli, define } from "gunshi";
 import { renderHeader } from "gunshi/renderer";
 import { AGENT_HINT } from "./agent-hint.ts";
@@ -7,6 +7,7 @@ import { docsCommand } from "./cli/docs-command.ts";
 import { fontLsCommand } from "./cli/font-command.ts";
 import { loadMdechoConfig } from "./config/load.ts";
 import { defaultConfigFile } from "./config/save.ts";
+import { listChangedMarkdown } from "./git/changed-markdown.ts";
 import { PACKAGE_ROOT } from "./package-root.ts";
 import { startServer } from "./server/start.ts";
 import { openBrowser } from "./system/open-browser.ts";
@@ -20,6 +21,12 @@ $ mdecho -f review.md
 # 複数のファイルを1つのタブで切り替えながら読む(位置引数ならシェルのglobも使える)
 $ mdecho docs/*.md
 $ mdecho -f plan.md -f review.md
+
+# AIがたった今書いた(未コミットの)Markdownをまとめて読む。@はgitのHEADの別名
+$ mdecho --git @
+
+# PRで変更されたMarkdownをまとめて読む(mainとのmerge-baseから比べる)
+$ gh pr checkout 123 && mdecho --git main
 
 # ブラウザを自動で開かない
 $ mdecho -f review.md --no-open
@@ -40,6 +47,11 @@ $ mdecho docs list`,
       type: "positional",
       multiple: true,
       description: "表示するMarkdownファイルのパス。-fと併用でき、-fの後ろに並ぶ",
+    },
+    git: {
+      type: "string",
+      description:
+        "<base>とHEADのmerge-baseから作業ツリーまでに変更・追加されたMarkdownを開く(untrackedも含む)。未コミットの変更だけなら@、PRならmainのように指定する",
     },
     open: {
       type: "boolean",
@@ -63,8 +75,25 @@ $ mdecho docs list`,
     },
   },
   run: async (ctx) => {
-    const { file = [], files = [], open, splitSentences, singleNewline } = ctx.values;
+    const { file = [], files = [], git, open, splitSentences, singleNewline } = ctx.values;
     const filePaths = [...file, ...files];
+
+    if (git !== undefined) {
+      let changed: string[];
+      try {
+        changed = await listChangedMarkdown(git);
+      } catch (error) {
+        console.error(`git差分を取得できません: ${(error as Error).message}`);
+        process.exit(1);
+      }
+      if (changed.length === 0) {
+        console.error(`${git}からの差分に変更されたMarkdownがありません`);
+        process.exit(1);
+      }
+      // -fや位置引数と併用されたときに同じファイルが2回並ばないようにする。
+      const seen = new Set(filePaths.map((path) => resolve(path)));
+      filePaths.push(...changed.filter((path) => !seen.has(resolve(path))));
+    }
 
     if (filePaths.length === 0) {
       console.error("表示するファイルを指定してください(例: mdecho -f review.md)");

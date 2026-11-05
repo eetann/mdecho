@@ -24,6 +24,7 @@ src/
   config/             設定の型と既定値(defaults.ts)、読み込み(load.ts)、保存(save.ts)
                       defaults.tsは設定モーダルの「デフォルトに戻す」からも使うためfrontend/が読む。
                       node依存(c12やnode:fs)を持ち込まないこと
+  git/                git差分からの対象ファイル収集(--git)
   markdown/           MarkdownからHTMLへの変換。remark/rehypeプラグインはplugins/配下
   server/             HTTPサーバー、ライブリロード、HTMLシェル、パス解決
   styles/             <head>へ注入するCSSの組み立て。frontend/からも型と定数を共有する
