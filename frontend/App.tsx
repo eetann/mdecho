@@ -63,16 +63,17 @@ export function App({
               markdownBodyRef={markdownBodyRef}
               openEditor={commentsApi.openEditor}
               comments={commentsApi.comments}
-              editingKey={commentsApi.editingKey}
+              editing={commentsApi.editing}
+              activeKey={commentsApi.activeKey}
             />
             <MarkdownBody ref={markdownBodyRef} html={bodyHtml} />
           </div>
           <CommentLayer
             comments={commentsApi.comments}
-            editingKey={commentsApi.editingKey}
-            editingInitialText={commentsApi.editingInitialText}
+            editing={commentsApi.editing}
             pendingQuote={commentsApi.pendingQuote}
             openEditor={commentsApi.openEditor}
+            activateEditor={commentsApi.activateEditor}
             cancelEditing={commentsApi.cancelEditing}
             save={commentsApi.save}
             deleteComment={commentsApi.deleteComment}

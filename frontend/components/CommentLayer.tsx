@@ -51,17 +51,16 @@ function hasActiveTextSelection(): boolean {
 
 export function CommentLayer({
   comments,
-  editingKey,
-  editingInitialText,
+  editing,
   pendingQuote,
   openEditor,
+  activateEditor,
   cancelEditing,
   save,
   deleteComment,
 }: {
   comments: Map<string, Comment>;
-  editingKey: string | null;
-  editingInitialText: string;
+  editing: Map<string, string>;
   pendingQuote: PendingQuote | null;
   openEditor: (
     startLine: number,
@@ -69,7 +68,8 @@ export function CommentLayer({
     sentenceIndex?: number,
     selectedText?: string,
   ) => void;
-  cancelEditing: () => void;
+  activateEditor: (key: string) => void;
+  cancelEditing: (key: string) => void;
   save: (key: string, text: string) => void;
   deleteComment: (key: string) => void;
 }) {
@@ -77,9 +77,9 @@ export function CommentLayer({
 
   const visibleKeys = useMemo(() => {
     const keys = new Set(comments.keys());
-    if (editingKey !== null) keys.add(editingKey);
+    for (const key of editing.keys()) keys.add(key);
     return Array.from(keys);
-  }, [comments, editingKey]);
+  }, [comments, editing]);
 
   const contentHosts = useCommentSlots(
     visibleKeys,
@@ -214,12 +214,12 @@ export function CommentLayer({
           <CommentSlot
             commentKey={key}
             comment={comments.get(key)}
-            isEditing={editingKey === key}
-            editingInitialText={editingInitialText}
+            editingInitialText={editing.get(key)}
             pendingQuote={pendingQuote}
             onSave={(text) => save(key, text)}
-            onCancel={cancelEditing}
+            onCancel={() => cancelEditing(key)}
             onDelete={() => deleteComment(key)}
+            onFocus={() => activateEditor(key)}
           />,
           host,
           key,

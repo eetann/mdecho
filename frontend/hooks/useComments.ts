@@ -12,12 +12,17 @@ import {
 import type { CommentGroup } from "../lib/clipboard-text.ts";
 import type { Comment, EntryFile } from "../lib/types.ts";
 
-interface CommentsState {
+export interface CommentsState {
   comments: Map<string, Comment>;
   /** 本文が書き換わって付け先を失ったコメント。コピーの対象には含めない */
   outdated: Comment[];
-  editingKey: string | null;
-  editingInitialText: string;
+  /**
+   * 開いているエディタと、それぞれを開いたときの初期テキスト。
+   * 別の行でエディタを開いても書きかけを失わないよう、複数同時に開けるようにしている。
+   */
+  editing: Map<string, string>;
+  /** 最後に開いた(またはフォーカスした)エディタ。引用の差し込み先と本文のハイライトに使う */
+  activeKey: string | null;
   /**
    * 編集中のエディタへ差し込みたい引用。書きかけの文はエディタ側にしかないため、ここでは渡すだけにする。
    * idは同じ文を続けて引用しても別の依頼として扱うためのもの
@@ -27,26 +32,49 @@ interface CommentsState {
 
 export interface PendingQuote {
   id: number;
+  /** 差し込み先のエディタ */
+  key: string;
   text: string;
 }
 
 type CommentsAction =
   | { type: "open"; key: string; quotedText?: string }
-  | { type: "cancel" }
+  | { type: "activate"; key: string }
+  | { type: "cancel"; key: string }
   | { type: "save"; key: string; text: string; source: string }
   | { type: "delete"; key: string }
   | { type: "deleteAll" }
   | { type: "clearOutdated" };
 
-function reducer(state: CommentsState, action: CommentsAction): CommentsState {
+/** keyのエディタを閉じる。アクティブだったものを閉じたら、アクティブなエディタは無しにする */
+function closeEditor(state: CommentsState, key: string): CommentsState {
+  if (!state.editing.has(key)) return state;
+  const editing = new Map(state.editing);
+  editing.delete(key);
+  return {
+    ...state,
+    editing,
+    activeKey: state.activeKey === key ? null : state.activeKey,
+  };
+}
+
+export function commentsReducer(state: CommentsState, action: CommentsAction): CommentsState {
   switch (action.type) {
     case "open": {
       // 既に同じキーを編集中なら入力途中のテキストを巻き戻さず、引用だけエディタへ渡す
-      if (state.editingKey === action.key) {
-        if (action.quotedText === undefined) return state;
+      if (state.editing.has(action.key)) {
+        if (action.quotedText === undefined) {
+          return state.activeKey === action.key ? state : { ...state, activeKey: action.key };
+        }
         return {
           ...state,
-          pendingQuote: { id: (state.pendingQuote?.id ?? 0) + 1, text: action.quotedText },
+          activeKey: action.key,
+          // idはエディタをまたいで増やし続ける。各エディタは最後に適用したidで重複を弾いているため
+          pendingQuote: {
+            id: (state.pendingQuote?.id ?? 0) + 1,
+            key: action.key,
+            text: action.quotedText,
+          },
         };
       }
       const existing = state.comments.get(action.key)?.text;
@@ -54,17 +82,16 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
       if (existing !== undefined && action.quotedText !== undefined) {
         initialText = insertQuote(existing, existing.length, action.quotedText).text;
       }
-      return {
-        ...state,
-        editingKey: action.key,
-        editingInitialText: initialText,
-        pendingQuote: null,
-      };
+      const editing = new Map(state.editing);
+      editing.set(action.key, initialText);
+      return { ...state, editing, activeKey: action.key };
     }
-    case "cancel": {
-      if (state.editingKey === null) return state;
-      return { ...state, editingKey: null, editingInitialText: "", pendingQuote: null };
+    case "activate": {
+      if (!state.editing.has(action.key) || state.activeKey === action.key) return state;
+      return { ...state, activeKey: action.key };
     }
+    case "cancel":
+      return closeEditor(state, action.key);
     case "save": {
       const text = action.text.trim();
       const next = new Map(state.comments);
@@ -75,33 +102,21 @@ function reducer(state: CommentsState, action: CommentsAction): CommentsState {
         const originalText = sliceLines(action.source, startLine, endLine);
         next.set(action.key, { startLine, endLine, text, originalText });
       }
-      return {
-        ...state,
-        comments: next,
-        editingKey: state.editingKey === action.key ? null : state.editingKey,
-        editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
-        pendingQuote: state.editingKey === action.key ? null : state.pendingQuote,
-      };
+      return closeEditor({ ...state, comments: next }, action.key);
     }
     case "delete": {
       if (!state.comments.has(action.key)) return state;
       const next = new Map(state.comments);
       next.delete(action.key);
-      return {
-        ...state,
-        comments: next,
-        editingKey: state.editingKey === action.key ? null : state.editingKey,
-        editingInitialText: state.editingKey === action.key ? "" : state.editingInitialText,
-        pendingQuote: state.editingKey === action.key ? null : state.pendingQuote,
-      };
+      return closeEditor({ ...state, comments: next }, action.key);
     }
     case "deleteAll": {
       if (state.comments.size === 0 && state.outdated.length === 0) return state;
       return {
         comments: new Map(),
         outdated: [],
-        editingKey: null,
-        editingInitialText: "",
+        editing: new Map(),
+        activeKey: null,
         pendingQuote: null,
       };
     }
@@ -126,7 +141,7 @@ export function useComments(
   source: string,
   entries: EntryFile[],
 ) {
-  const [state, dispatch] = useReducer(reducer, undefined, (): CommentsState => {
+  const [state, dispatch] = useReducer(commentsReducer, undefined, (): CommentsState => {
     const loaded = loadComments(relPath);
     // 前回保存してから原文が変わっていれば、行のずれに追従させ、書き換わった箇所はoutdatedに回す。
     // 原文を持たない古いデータは、比べようがないのでそのまま使う。
@@ -137,8 +152,8 @@ export function useComments(
     return {
       comments: remapped.comments,
       outdated: [...loaded.outdated, ...remapped.outdated],
-      editingKey: null,
-      editingInitialText: "",
+      editing: new Map(),
+      activeKey: null,
       pendingQuote: null,
     };
   });
@@ -160,7 +175,9 @@ export function useComments(
     [],
   );
 
-  const cancelEditing = useCallback(() => dispatch({ type: "cancel" }), []);
+  const activateEditor = useCallback((key: string) => dispatch({ type: "activate", key }), []);
+
+  const cancelEditing = useCallback((key: string) => dispatch({ type: "cancel", key }), []);
 
   const save = useCallback(
     (key: string, text: string) => dispatch({ type: "save", key, text, source }),
@@ -207,8 +224,9 @@ export function useComments(
   return {
     comments: state.comments,
     outdatedComments: state.outdated,
-    editingKey: state.editingKey,
-    editingInitialText: state.editingInitialText,
+    /** 開いているエディタのキーと、それぞれの初期テキスト */
+    editing: state.editing,
+    activeKey: state.activeKey,
     pendingQuote: state.pendingQuote,
     /** コピー対象。表示中のファイルと、リンク先で書いたコメントを合わせたもの */
     commentGroups,
@@ -216,6 +234,7 @@ export function useComments(
     otherFileCount,
     commentCounts,
     openEditor,
+    activateEditor,
     cancelEditing,
     save,
     deleteComment,

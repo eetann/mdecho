@@ -22,6 +22,7 @@ export function CommentEditor({
   onSave,
   onCancel,
   onDelete,
+  onFocus,
 }: {
   startLine: number;
   endLine: number;
@@ -30,6 +31,8 @@ export function CommentEditor({
   onSave: (text: string) => void;
   onCancel: () => void;
   onDelete?: () => void;
+  /** 引用の差し込み先やハイライトを、いま触っているエディタへ切り替えるために使う */
+  onFocus: () => void;
 }) {
   const [text, setText] = useState(initialText);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -78,6 +81,7 @@ export function CommentEditor({
         className="textarea w-full resize-y border-none bg-transparent text-[17px] leading-[1.4] focus:outline-none"
         rows={MIN_TEXTAREA_ROWS}
         value={text}
+        onFocus={onFocus}
         onChange={(event) => {
           setText(event.target.value);
           autoGrow(event.currentTarget);

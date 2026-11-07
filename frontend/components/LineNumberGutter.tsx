@@ -25,17 +25,19 @@ export function LineNumberGutter({
   markdownBodyRef,
   openEditor,
   comments,
-  editingKey,
+  editing,
+  activeKey,
 }: {
   markdownBodyRef: RefObject<HTMLElement | null>;
   openEditor: (startLine: number, endLine: number, sentenceIndex?: number) => void;
   comments: Map<string, Comment>;
-  editingKey: string | null;
+  editing: Map<string, string>;
+  activeKey: string | null;
 }) {
   const cursor = useCursorLine();
   const { targets, setCursorToElement } = cursor;
   const handle = useCommentHandle(cursor, openEditor);
-  const { marks, activeMark } = useCommentMarks(cursor, comments, editingKey);
+  const { marks, activeMark } = useCommentMarks(cursor, comments, editing, activeKey);
   const gutterRef = useRef<HTMLDivElement>(null);
   const [entries, setEntries] = useState<LineNumberEntry[]>([]);
 
@@ -98,7 +100,7 @@ export function LineNumberGutter({
             key={mark.key}
             aria-hidden="true"
             className={`${MARK_BAR_CLASS} ${
-              mark.key === editingKey ? "bg-primary" : "bg-warning/60"
+              editing.has(mark.key) ? "bg-primary" : "bg-warning/60"
             }`}
             style={{ top: bar.top, height: bar.height }}
           />
