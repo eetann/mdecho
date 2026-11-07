@@ -16,12 +16,36 @@ interface LineNumberEntry {
   lineEnd: number;
   top: number;
   height: number;
+  /** 行の頭から、本文の1行目の文字の中心までの距離。文字が無い要素(画像やhrなど)はnull */
+  firstLineCenter: number | null;
   target: Element;
 }
 
 interface MarkBar {
   top: number;
   height: number;
+}
+
+/**
+ * 要素の1行目に並ぶ文字の、縦方向の中心をビューポート座標で返す。
+ * 要素の上端はline-heightの余白やpadding(表のセルなど)のぶん文字より上にあるため、
+ * 行番号をそこに置くと文字より浮いて見える。
+ */
+function measureFirstLineCenter(target: Element): number | null {
+  const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) =>
+      // Mermaidの図の中の文字は図の途中にあるので、行の頭の目安にならない
+      node.textContent?.trim() && !node.parentElement?.closest("svg")
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_REJECT,
+  });
+  const text = walker.nextNode();
+  if (!text) return null;
+  const range = document.createRange();
+  range.selectNodeContents(text);
+  const rect = range.getClientRects()[0];
+  if (!rect || rect.height === 0) return null;
+  return rect.top + rect.height / 2;
 }
 
 export function LineNumberGutter({
@@ -62,11 +86,13 @@ export function LineNumberGutter({
         targets.map((target) => {
           const rect = target.getBoundingClientRect();
           const line = target.getAttribute("data-line") ?? "";
+          const center = measureFirstLineCenter(target);
           return {
             line,
             lineEnd: Number(target.getAttribute("data-line-end") ?? line),
             top: rect.top - gutterRect.top,
             height: rect.height,
+            firstLineCenter: center === null ? null : center - rect.top,
             target,
           };
         }),
@@ -169,31 +195,40 @@ export function LineNumberGutter({
           <div
             key={index}
             data-mdecho-gutter-index={index}
-            className="absolute right-[1.5em] left-0 flex items-start gap-[0.4em]"
+            className="absolute right-[1.5em] left-0"
             style={{ top: entry.top, height: entry.height }}
           >
-            <span
-              className={`mdecho-line-number flex-1 cursor-pointer text-right font-mono text-[0.75em] whitespace-nowrap select-none ${
-                inRange ? "text-primary" : "text-base-content/40 hover:text-base-content/60"
-              }`}
-              onClick={() => setCursorToElement(entry.target)}
+            {/* 本文の1行目の文字と高さが揃うよう、その中心を挟む帯の中で縦に中央寄せする。
+                文字の無い要素は、これまでどおり要素の上端に揃える。 */}
+            <div
+              className={`flex gap-[0.4em] ${entry.firstLineCenter === null ? "items-start" : "items-center"}`}
+              style={
+                entry.firstLineCenter === null ? undefined : { height: entry.firstLineCenter * 2 }
+              }
             >
-              {entry.line}
-            </span>
-            <button
-              type="button"
-              // ホバーしないと見えないボタンなので、キーボード移動の邪魔にならないよう外す
-              // (キーボードからはカーソル行でEnterを押すとコメントを開始できる)
-              tabIndex={-1}
-              aria-label={`${entry.line}行目にコメントする`}
-              title="クリックでコメント / 上下にドラッグで複数行を選択"
-              className={`mdecho-comment-handle shrink-0 cursor-pointer touch-none transition ${
-                showHandle ? "opacity-100" : "opacity-0"
-              } ${inRange ? "text-primary" : "text-base-content/50 hover:text-primary"}`}
-              onPointerDown={(event) => handle.startDrag(event, index)}
-            >
-              <MessageSquarePlus className="size-[1.1em]" />
-            </button>
+              <span
+                className={`mdecho-line-number flex-1 cursor-pointer text-right font-mono text-[0.75em] whitespace-nowrap select-none ${
+                  inRange ? "text-primary" : "text-base-content/40 hover:text-base-content/60"
+                }`}
+                onClick={() => setCursorToElement(entry.target)}
+              >
+                {entry.line}
+              </span>
+              <button
+                type="button"
+                // ホバーしないと見えないボタンなので、キーボード移動の邪魔にならないよう外す
+                // (キーボードからはカーソル行でEnterを押すとコメントを開始できる)
+                tabIndex={-1}
+                aria-label={`${entry.line}行目にコメントする`}
+                title="クリックでコメント / 上下にドラッグで複数行を選択"
+                className={`mdecho-comment-handle shrink-0 cursor-pointer touch-none transition ${
+                  showHandle ? "opacity-100" : "opacity-0"
+                } ${inRange ? "text-primary" : "text-base-content/50 hover:text-primary"}`}
+                onPointerDown={(event) => handle.startDrag(event, index)}
+              >
+                <MessageSquarePlus className="size-[1.1em]" />
+              </button>
+            </div>
           </div>
         );
       })}
