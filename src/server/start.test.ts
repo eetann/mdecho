@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { $ } from "bun";
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import { startServer, type StartServerResult } from "./start.ts";
 
@@ -14,7 +15,10 @@ const NO_SPLIT = { splitSentences: false };
 const SENTENCE_SPAN = 'class=\\"mdecho-sentence\\"';
 
 /** ページに埋め込まれた初期データ(id="mdecho-data")を取り出す */
-function readInitialData(html: string): { entries: { [key: string]: string }[] } {
+function readInitialData(html: string): {
+  entries: { [key: string]: string }[];
+  changedLines?: { start: number; end: number }[];
+} {
   const match = /<script id="mdecho-data"[^>]*>([\s\S]*?)<\/script>/.exec(html);
   return JSON.parse(match?.[1] ?? "null");
 }
@@ -731,5 +735,25 @@ describe("startServer", () => {
       expect(res.status).toBe(200);
       expect(res.body).toContain("ひみつ");
     }
+  });
+
+  test("gitBaseを渡すと、表示するファイルの変更行を初期データに載せる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await $`git init -q -b main && git config user.email t@example.com && git config user.name t`.cwd(
+      dir,
+    );
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n\n本文\n");
+    await $`git add -A && git commit -q -m init`.cwd(dir);
+    await writeFile(filePath, "# タイトル\n\n直した本文\n");
+
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, gitBase: "@" });
+    const withGit = readInitialData(await (await fetch(running.url)).text());
+    expect(withGit.changedLines).toEqual([{ start: 3, end: 3 }]);
+    await running.close();
+
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
+    const withoutGit = readInitialData(await (await fetch(running.url)).text());
+    expect(withoutGit.changedLines).toBeUndefined();
   });
 });

@@ -1,19 +1,6 @@
-import { execFile } from "node:child_process";
 import { relative, resolve } from "node:path";
-import { promisify } from "node:util";
 import { isMarkdownPath } from "../server/doc-path.ts";
-
-const execFileAsync = promisify(execFile);
-
-async function git(args: string[], cwd: string): Promise<string> {
-  try {
-    const { stdout } = await execFileAsync("git", args, { cwd, maxBuffer: 16 * 1024 * 1024 });
-    return stdout;
-  } catch (error) {
-    const stderr = (error as { stderr?: string }).stderr?.trim();
-    throw new Error(stderr || (error as Error).message);
-  }
-}
+import { git } from "./exec.ts";
 
 function splitNul(stdout: string): string[] {
   return stdout.split("\0").filter((path) => path !== "");

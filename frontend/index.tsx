@@ -24,5 +24,6 @@ createRoot(rootEl).render(
     relPath={data.relPath}
     entries={data.entries}
     settings={data.settings}
+    changedLines={data.changedLines ?? []}
   />,
 );

@@ -34,6 +34,8 @@ mdecho --git @
 gh pr checkout 123 && mdecho --git main
 ```
 
+`--git` で開いたときは、`<base>` から追加・変更された行の行番号の横に緑の縦棒が付く。削除された行には印を付けない。untrackedのファイルや `<base>` に無かったファイルは全行が新しいので、印を付けない。
+
 ## 設定ファイル
 
 コマンドラインオプションとは別に、ツールバーの歯車アイコンまたは `~/.config/mdecho/config.jsonc` でフォント・改行の扱い・本文の見え方(幅/文字サイズ/行の高さ)を変更できます。詳細は `mdecho docs show configuration` を参照。

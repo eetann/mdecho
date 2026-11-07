@@ -9,6 +9,7 @@ import { AGENT_HINT_TROUBLESHOOTING } from "../agent-hint.ts";
 import { DEFAULT_CONFIG, type LineBreakConfig, type MdechoConfig } from "../config/defaults.ts";
 import { normalizeConfig, resolveLineBreak } from "../config/load.ts";
 import { defaultConfigFile, isWritableConfigFile, saveConfig } from "../config/save.ts";
+import { listChangedLines } from "../git/changed-lines.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "../markdown/render.ts";
 import { PACKAGE_ROOT } from "../package-root.ts";
 import { buildFontCss } from "../styles/font.ts";
@@ -61,6 +62,8 @@ export interface StartServerOptions {
    * gitリポジトリの外のファイルを開いたとき、リンクの解決と配信範囲の基準になる
    */
   cwd?: string;
+  /** `--git`に渡されたbase。指定されていれば、表示するファイルの変更行をガターに示す */
+  gitBase?: string;
 }
 
 /** filePathsは`-f`や位置引数で渡されたファイル。先頭がURLの`/`で開くファイルになる */
@@ -81,6 +84,7 @@ export async function startServer(
     lineBreakOverride = {},
     configFile = defaultConfigFile(),
     cwd = process.cwd(),
+    gitBase,
   } = options;
   // 設定モーダルからの保存で変わるため、リクエストごとではなく保存時に組み立て直す。
   let currentConfig = config;
@@ -232,6 +236,11 @@ export async function startServer(
             resolveLinkUrl(doc.root, doc.absPath, path, { mode: currentConfig.link.base, kind }),
         },
       );
+      // リポジトリの外のファイルなど、差分を取れないときは印を付けないだけにする。
+      const changedLines =
+        gitBase === undefined
+          ? undefined
+          : await listChangedLines(gitBase, doc.absPath).catch(() => []);
       const title = extractTitle(source) ?? basename(doc.absPath, extname(doc.absPath));
       const html = renderShell(clientTemplate, {
         title,
@@ -240,6 +249,7 @@ export async function startServer(
         filePath: doc.displayPath,
         relPath: doc.relPath,
         entries: await buildShellEntries(),
+        changedLines,
         headCss,
         settings: {
           font: currentConfig.font,

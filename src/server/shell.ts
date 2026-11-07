@@ -40,6 +40,12 @@ export interface ShellEntry {
   hash: string;
 }
 
+/** 変更後のファイルでの行範囲(1始まり、両端を含む) */
+export interface ChangedLineRange {
+  start: number;
+  end: number;
+}
+
 export interface ShellData {
   title: string;
   bodyHtml: string;
@@ -52,6 +58,8 @@ export interface ShellData {
   /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
   entries: ShellEntry[];
   settings: ShellSettings;
+  /** `--git`のbaseから追加・変更された行。`--git`でなければ省略する */
+  changedLines?: ChangedLineRange[];
   /** <head>の末尾に差し込む追加CSS(ユーザー設定のフォント指定など)。空なら注入しない */
   headCss?: string;
 }
@@ -82,11 +90,12 @@ function toInlineJson(value: unknown): string {
  * 属性/タグ名をアンカーにした正規表現で置換する。
  */
 export function renderShell(clientTemplate: string, data: ShellData): string {
-  const { title, bodyHtml, source, filePath, relPath, entries, settings, headCss } = data;
+  const { title, bodyHtml, source, filePath, relPath, entries, settings, changedLines, headCss } =
+    data;
   const withData = clientTemplate.replace(
     DATA_SCRIPT_PATTERN,
     (_match, open: string, _oldContent: string, close: string) =>
-      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings })}${close}`,
+      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings, changedLines })}${close}`,
   );
   const withTitle = withData.replace(
     TITLE_TAG_PATTERN,

@@ -15,7 +15,7 @@ import { useLiveReload } from "./hooks/useLiveReload.ts";
 import { useMermaid } from "./hooks/useMermaid.ts";
 import { useSettings } from "./hooks/useSettings.ts";
 import { useTableTools } from "./hooks/useTableTools.ts";
-import type { EntryFile, MdechoSettings } from "./lib/types.ts";
+import type { ChangedLineRange, EntryFile, MdechoSettings } from "./lib/types.ts";
 
 export function App({
   bodyHtml,
@@ -24,6 +24,7 @@ export function App({
   relPath,
   entries,
   settings,
+  changedLines,
 }: {
   bodyHtml: string;
   source: string;
@@ -31,6 +32,7 @@ export function App({
   relPath: string;
   entries: EntryFile[];
   settings: MdechoSettings;
+  changedLines: ChangedLineRange[];
 }) {
   useLiveReload();
   const markdownBodyRef = useRef<HTMLElement | null>(null);
@@ -65,6 +67,7 @@ export function App({
               comments={commentsApi.comments}
               editing={commentsApi.editing}
               activeKey={commentsApi.activeKey}
+              changedLines={changedLines}
             />
             <MarkdownBody ref={markdownBodyRef} html={bodyHtml} />
           </div>

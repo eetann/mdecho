@@ -79,6 +79,12 @@ export interface EntryFile {
   hash: string;
 }
 
+/** 変更後のファイルでの行範囲(src/server/shell.tsのChangedLineRangeと対応する) */
+export interface ChangedLineRange {
+  start: number;
+  end: number;
+}
+
 export interface MdechoInitialData {
   title: string;
   bodyHtml: string;
@@ -91,6 +97,8 @@ export interface MdechoInitialData {
   /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
   entries: EntryFile[];
   settings: MdechoSettings;
+  /** `--git`のbaseから追加・変更された行。`--git`でなければ無い */
+  changedLines?: ChangedLineRange[];
 }
 
 /** GET /api/fonts のレスポンス(src/system/fonts.tsのSystemFontと対応する) */

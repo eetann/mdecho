@@ -137,6 +137,7 @@ $ mdecho docs list`,
       // 未指定の項目はundefinedのまま渡し、設定ファイルの値を使わせる。
       lineBreakOverride: { splitSentences, singleNewline },
       configFile,
+      gitBase: git,
     });
     console.log(`Listening on ${url}`);
 
