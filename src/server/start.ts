@@ -69,6 +69,8 @@ export interface StartServerOptions {
   cwd?: string;
   /** `--git`に渡されたbase。指定されていれば、表示するファイルの変更行をガターに示す */
   gitBase?: string;
+  /** `--read`が指定されたか。画面で切り替えるまでは読み取りモードで開く */
+  readMode?: boolean;
 }
 
 /** filePathsは`-f`や位置引数で渡されたファイル。先頭がURLの`/`で開くファイルになる */
@@ -90,6 +92,7 @@ export async function startServer(
     configFile = defaultConfigFile(),
     cwd = process.cwd(),
     gitBase,
+    readMode,
   } = options;
   // 設定モーダルからの保存で変わるため、リクエストごとではなく保存時に組み立て直す。
   let currentConfig = config;
@@ -263,6 +266,7 @@ export async function startServer(
         entries: await buildShellEntries(),
         changedLines: diff?.ranges,
         change: diff && toChange(diff),
+        readMode,
         headCss,
         settings: {
           font: currentConfig.font,

@@ -1,4 +1,16 @@
-import { Check, Copy, House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Copy,
+  House,
+  Keyboard,
+  MessageSquare,
+  Monitor,
+  Moon,
+  Settings,
+  Sun,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import type { ClipboardFormat } from "../../src/config/defaults.ts";
 import type { ThemeMode } from "../../src/styles/theme.ts";
@@ -52,6 +64,8 @@ export function Toolbar({
   setThemeMode,
   changedLines,
   change,
+  readMode,
+  toggleReadMode,
 }: {
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
@@ -74,6 +88,9 @@ export function Toolbar({
   changedLines: readonly ChangedLineRange[];
   /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
   change: FileChange | undefined;
+  /** 読み取りモード(コメントを書き始める操作を止めている)か */
+  readMode: boolean;
+  toggleReadMode: () => void;
 }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const [pathCopyState, setPathCopyState] = useState<CopyState>("idle");
@@ -83,6 +100,7 @@ export function Toolbar({
   const entryRelPath = entry?.relPath ?? "";
   const isEntry = relPath === entryRelPath;
   const ThemeIcon = THEME_MODE_ICONS[themeMode];
+  const ReadModeIcon = readMode ? BookOpen : MessageSquare;
   const changedMarks = useChangedMarks(changedLines);
   // まるごと新しいファイルは変更が1つの塊なので、行き来する先が無い
   const canNavigateChanges = change?.status === "modified" && changedMarks.length > 0;
@@ -191,6 +209,22 @@ export function Toolbar({
         onClick={() => setConfirmingDeleteAll(true)}
       >
         <Trash2 className="size-[1.1em]" />
+      </button>
+      {/* 配色ボタンと同じく、いまの状態をアイコンで、押すとどうなるかをtitleで伝える。 */}
+      <button
+        type="button"
+        id="mdecho-read-mode-button"
+        className={`btn btn-sm btn-ghost ${readMode ? "btn-active" : ""}`}
+        aria-label="read mode"
+        aria-pressed={readMode}
+        title={
+          readMode
+            ? "読み取りモード: ダブルクリックで単語を選べます(押すとコメントモードへ / r)"
+            : "コメントモード: ダブルクリックやEnterでコメントを書けます(押すと読み取りモードへ / r)"
+        }
+        onClick={toggleReadMode}
+      >
+        <ReadModeIcon className="size-[1.1em]" />
       </button>
       {/* 1クリックで切り替えたいので、3つの状態を巡回するボタンにする。
           いま何が選ばれているかはアイコンで、次に何になるかはtitleで伝える。 */}

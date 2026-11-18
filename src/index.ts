@@ -28,6 +28,9 @@ $ mdecho --git @
 # PRで変更されたMarkdownをまとめて読む(mainとのmerge-baseから比べる)
 $ gh pr checkout 123 && mdecho --git main
 
+# コメントを書かずに読むだけ(ダブルクリックで単語を選んでコピーできる)
+$ mdecho -f runbook.md --read
+
 # ブラウザを自動で開かない
 $ mdecho -f review.md --no-open
 
@@ -53,6 +56,11 @@ $ mdecho docs list`,
       description:
         "<base>とHEADのmerge-baseから作業ツリーまでに変更・追加されたMarkdownを開く(untrackedも含む)。未コミットの変更だけなら@、PRならmainのように指定する",
     },
+    read: {
+      type: "boolean",
+      description:
+        "読み取りモードで開く。ダブルクリックやEnterでコメントを書き始めなくなり、単語を選んでコピーできる(画面のボタンやrキーで切り替えられる)",
+    },
     open: {
       type: "boolean",
       default: true,
@@ -75,7 +83,7 @@ $ mdecho docs list`,
     },
   },
   run: async (ctx) => {
-    const { file = [], files = [], git, open, splitSentences, singleNewline } = ctx.values;
+    const { file = [], files = [], git, read, open, splitSentences, singleNewline } = ctx.values;
     const filePaths = [...file, ...files];
 
     if (git !== undefined) {
@@ -138,6 +146,7 @@ $ mdecho docs list`,
       lineBreakOverride: { splitSentences, singleNewline },
       configFile,
       gitBase: git,
+      readMode: read,
     });
     console.log(`Listening on ${url}`);
 

@@ -14,6 +14,7 @@ import { useComments } from "./hooks/useComments.ts";
 import { CursorLineProvider } from "./hooks/useCursorLine.tsx";
 import { useLiveReload } from "./hooks/useLiveReload.ts";
 import { useMermaid } from "./hooks/useMermaid.ts";
+import { useReadMode } from "./hooks/useReadMode.ts";
 import { useSettings } from "./hooks/useSettings.ts";
 import { useTableTools } from "./hooks/useTableTools.ts";
 import type { ChangedLineRange, EntryFile, FileChange, MdechoSettings } from "./lib/types.ts";
@@ -27,6 +28,7 @@ export function App({
   settings,
   changedLines,
   change,
+  cliReadMode,
 }: {
   bodyHtml: string;
   source: string;
@@ -37,12 +39,15 @@ export function App({
   changedLines: ChangedLineRange[];
   /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
   change: FileChange | undefined;
+  /** `--read`で起動したか。まだ画面で切り替えていなければ、これで読み取りモードを始める */
+  cliReadMode: boolean;
 }) {
   useLiveReload();
   const markdownBodyRef = useRef<HTMLElement | null>(null);
   const commentsApi = useComments(relPath, filePath, source, entries);
   const tables = useTableTools(markdownBodyRef, bodyHtml);
   const settingsApi = useSettings(settings);
+  const { readMode, toggleReadMode } = useReadMode(cliReadMode);
   // 図の色はmermaid側のテーマが持っているので、本文の配色に合わせて描き直す
   useMermaid(markdownBodyRef, bodyHtml, settingsApi.resolvedTheme);
 
@@ -65,6 +70,8 @@ export function App({
             setThemeMode={settingsApi.setThemeMode}
             changedLines={changedLines}
             change={change}
+            readMode={readMode}
+            toggleReadMode={toggleReadMode}
           />
           {change && <ChangeBanner change={change} changedLines={changedLines} />}
           <div className="mdecho-content mb-1 flex">
@@ -75,6 +82,7 @@ export function App({
               editing={commentsApi.editing}
               activeKey={commentsApi.activeKey}
               changedLines={changedLines}
+              readMode={readMode}
             />
             <MarkdownBody ref={markdownBodyRef} html={bodyHtml} />
           </div>
@@ -87,6 +95,7 @@ export function App({
             cancelEditing={commentsApi.cancelEditing}
             save={commentsApi.save}
             deleteComment={commentsApi.deleteComment}
+            readMode={readMode}
           />
           <OutdatedComments
             comments={commentsApi.outdatedComments}

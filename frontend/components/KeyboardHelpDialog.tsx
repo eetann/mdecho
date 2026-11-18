@@ -32,6 +32,7 @@ const SECTIONS: ShortcutSection[] = [
       { keys: [["Enter"]], description: "カーソル行にコメントを書く" },
       { keys: [["Ctrl / ⌘", "Enter"]], description: "書きかけのコメントを保存" },
       { keys: [["Esc"]], description: "コメントの編集をやめる" },
+      { keys: [["r"]], description: "読み取りモードを切り替える" },
     ],
   },
   {

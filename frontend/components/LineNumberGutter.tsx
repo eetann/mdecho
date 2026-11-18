@@ -62,6 +62,7 @@ export function LineNumberGutter({
   editing,
   activeKey,
   changedLines,
+  readMode,
 }: {
   markdownBodyRef: RefObject<HTMLElement | null>;
   openEditor: (startLine: number, endLine: number, sentenceIndex?: number) => void;
@@ -70,6 +71,8 @@ export function LineNumberGutter({
   activeKey: string | null;
   /** `--git`のbaseから追加・変更された行。空なら印を付けない */
   changedLines: ChangedLineRange[];
+  /** 読み取りモード中は、コメントを書き始める吹き出しを出さない */
+  readMode: boolean;
 }) {
   const cursor = useCursorLine();
   const { targets, setCursorToElement } = cursor;
@@ -221,20 +224,22 @@ export function LineNumberGutter({
               >
                 {entry.line}
               </span>
-              <button
-                type="button"
-                // ホバーしないと見えないボタンなので、キーボード移動の邪魔にならないよう外す
-                // (キーボードからはカーソル行でEnterを押すとコメントを開始できる)
-                tabIndex={-1}
-                aria-label={`${entry.line}行目にコメントする`}
-                title="クリックでコメント / 上下にドラッグで複数行を選択"
-                className={`mdecho-comment-handle shrink-0 cursor-pointer touch-none transition ${
-                  showHandle ? "opacity-100" : "opacity-0"
-                } ${inRange ? "text-primary" : "text-base-content/50 hover:text-primary"}`}
-                onPointerDown={(event) => handle.startDrag(event, index)}
-              >
-                <MessageSquarePlus className="size-[1.1em]" />
-              </button>
+              {!readMode && (
+                <button
+                  type="button"
+                  // ホバーしないと見えないボタンなので、キーボード移動の邪魔にならないよう外す
+                  // (キーボードからはカーソル行でEnterを押すとコメントを開始できる)
+                  tabIndex={-1}
+                  aria-label={`${entry.line}行目にコメントする`}
+                  title="クリックでコメント / 上下にドラッグで複数行を選択"
+                  className={`mdecho-comment-handle shrink-0 cursor-pointer touch-none transition ${
+                    showHandle ? "opacity-100" : "opacity-0"
+                  } ${inRange ? "text-primary" : "text-base-content/50 hover:text-primary"}`}
+                  onPointerDown={(event) => handle.startDrag(event, index)}
+                >
+                  <MessageSquarePlus className="size-[1.1em]" />
+                </button>
+              )}
             </div>
           </div>
         );

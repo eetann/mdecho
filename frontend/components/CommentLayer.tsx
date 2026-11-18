@@ -58,6 +58,7 @@ export function CommentLayer({
   cancelEditing,
   save,
   deleteComment,
+  readMode,
 }: {
   comments: Map<string, Comment>;
   editing: Map<string, string>;
@@ -72,6 +73,8 @@ export function CommentLayer({
   cancelEditing: (key: string) => void;
   save: (key: string, text: string) => void;
   deleteComment: (key: string) => void;
+  /** 読み取りモード中は、コメントを書き始める操作をすべて止める */
+  readMode: boolean;
 }) {
   const cursor = useCursorLine();
 
@@ -95,7 +98,7 @@ export function CommentLayer({
 
       const viewEl = eventTarget?.closest(".mdecho-comment-view");
       if (viewEl) {
-        if (hasActiveTextSelection()) return;
+        if (readMode || hasActiveTextSelection()) return;
         const slot = viewEl.closest("[data-mdecho-comment-slot]");
         const key = slot?.getAttribute("data-mdecho-comment-slot");
         if (!key) return;
@@ -114,6 +117,8 @@ export function CommentLayer({
     }
 
     function handleDocumentDoubleClick(event: MouseEvent) {
+      // 読み取りモードでは、ブラウザ標準の単語選択をそのまま残してコピーできるようにする
+      if (readMode) return;
       const eventTarget = event.target as Element | null;
       if (eventTarget?.closest(".mdecho-comment-view")) return;
       if (isUiTarget(eventTarget)) return;
@@ -137,6 +142,7 @@ export function CommentLayer({
       if (isEditableTarget(document.activeElement)) return;
       if (isDialogOpen()) return;
       if (event.key !== "Enter") return;
+      if (readMode) return;
       const target = cursor.getCurrentTarget();
       if (!target) return;
       // 表の拡大中は、その表の行にだけ反応する。外の行はモーダルの裏でエディタが開くだけになる。
@@ -149,6 +155,10 @@ export function CommentLayer({
     }
 
     function handleSelectionChange() {
+      if (readMode) {
+        setPendingSelection(null);
+        return;
+      }
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
         setPendingSelection(null);
@@ -197,7 +207,12 @@ export function CommentLayer({
       document.removeEventListener("keydown", handleGlobalKeydown);
       document.removeEventListener("selectionchange", handleSelectionChange);
     };
-  }, [cursor, openEditor]);
+  }, [cursor, openEditor, readMode]);
+
+  // 選択したままモードを切り替えたときに、引用ボタンが出しっぱなしにならないようにする
+  useEffect(() => {
+    if (readMode) setPendingSelection(null);
+  }, [readMode]);
 
   function handleQuoteClick() {
     if (!pendingSelection) return;

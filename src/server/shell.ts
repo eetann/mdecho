@@ -65,6 +65,8 @@ export interface ShellData {
   changedLines?: ChangedLineRange[];
   /** 表示中のファイルの`--git`のbaseからの変わり方。changedLinesと同じく省略しうる */
   change?: FileChange;
+  /** `--read`で起動したときtrue。画面で切り替えるまでは読み取りモードで開く */
+  readMode?: boolean;
   /** <head>の末尾に差し込む追加CSS(ユーザー設定のフォント指定など)。空なら注入しない */
   headCss?: string;
 }
@@ -105,12 +107,13 @@ export function renderShell(clientTemplate: string, data: ShellData): string {
     settings,
     changedLines,
     change,
+    readMode,
     headCss,
   } = data;
   const withData = clientTemplate.replace(
     DATA_SCRIPT_PATTERN,
     (_match, open: string, _oldContent: string, close: string) =>
-      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings, changedLines, change })}${close}`,
+      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings, changedLines, change, readMode })}${close}`,
   );
   const withTitle = withData.replace(
     TITLE_TAG_PATTERN,

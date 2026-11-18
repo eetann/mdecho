@@ -103,6 +103,8 @@ export interface MdechoInitialData {
   changedLines?: ChangedLineRange[];
   /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
   change?: FileChange;
+  /** `--read`で起動したときtrue。指定が無ければ無い */
+  readMode?: boolean;
 }
 
 /** GET /api/fonts のレスポンス(src/system/fonts.tsのSystemFontと対応する) */

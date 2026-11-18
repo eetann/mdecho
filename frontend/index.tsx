@@ -26,5 +26,6 @@ createRoot(rootEl).render(
     settings={data.settings}
     changedLines={data.changedLines ?? []}
     change={data.change}
+    cliReadMode={data.readMode ?? false}
   />,
 );
