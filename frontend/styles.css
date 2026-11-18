@@ -506,6 +506,13 @@ body {
   width: 100%;
 }
 
+/* 空行の.lineは中身が無いinline-blockなので高さ0になり、行の下端に潰れてしまう。
+   すると行番号ガターで次の行の番号と重なるため、ゼロ幅スペースで1行ぶんの高さを持たせる。
+   擬似要素なのでコピーした文字列には混ざらない。 */
+.markdown-body pre .line:empty::before {
+  content: "\200b";
+}
+
 /* Shikiには2テーマ分の色をCSS変数として持たせてある(src/markdown/render.tsのdefaultColor: false)。
    どちらを使うかをここで決めるので、配色を切り替えてもサーバーでHTMLを作り直さずに済む。
    背景(--shiki-*-bg)はあえて使わない。透かしてページの地の色を出すことで、

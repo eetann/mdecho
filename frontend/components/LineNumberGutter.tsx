@@ -40,7 +40,14 @@ function measureFirstLineCenter(target: Element): number | null {
         : NodeFilter.FILTER_REJECT,
   });
   const text = walker.nextNode();
-  if (!text) return null;
+  if (!text) {
+    // コードブロックの空行は文字が無いが1行ぶんの高さがあるので、その中心に揃える
+    if (target.matches("pre .line")) {
+      const rect = target.getBoundingClientRect();
+      return rect.height === 0 ? null : rect.top + rect.height / 2;
+    }
+    return null;
+  }
   const range = document.createRange();
   range.selectNodeContents(text);
   const rect = range.getClientRects()[0];
