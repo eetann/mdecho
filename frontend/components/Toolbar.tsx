@@ -1,4 +1,4 @@
-import { House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-react";
+import { Check, Copy, House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ClipboardFormat } from "../../src/config/defaults.ts";
 import type { ThemeMode } from "../../src/styles/theme.ts";
@@ -76,6 +76,7 @@ export function Toolbar({
   change: FileChange | undefined;
 }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const [pathCopyState, setPathCopyState] = useState<CopyState>("idle");
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
   const [entry] = entries;
@@ -113,6 +114,24 @@ export function Toolbar({
     setTimeout(() => setCopyState("idle"), COPIED_LABEL_DURATION_MS);
   }
 
+  // AIエージェントへ「このファイル」と伝えるときに貼れるよう、コメントのコピーと同じ書き方のパスを載せる
+  async function handlePathCopyClick() {
+    try {
+      await navigator.clipboard.writeText(filePath);
+      setPathCopyState("copied");
+    } catch {
+      setPathCopyState("failed");
+    }
+    setTimeout(() => setPathCopyState("idle"), COPIED_LABEL_DURATION_MS);
+  }
+  const PathCopyIcon = pathCopyState === "copied" ? Check : Copy;
+  const pathCopyTitle =
+    pathCopyState === "copied"
+      ? "コピーしました"
+      : pathCopyState === "failed"
+        ? "コピーに失敗しました"
+        : `${filePath} をコピー`;
+
   return (
     <div className="mdecho-toolbar navbar sticky top-0 z-20 gap-4 bg-base-100 px-0 py-3">
       {entries.length < 2 ? (
@@ -132,12 +151,25 @@ export function Toolbar({
         // 複数のファイルを指定したときは、戻る先もファイル一覧から選ぶ
         <div id={TOOLBAR_FILES_SLOT_ID} className="relative empty:hidden" />
       )}
-      <span
-        className="mdecho-file-path min-w-0 flex-1 truncate text-sm text-base-content/60"
-        title={filePath}
-      >
-        {relPath}
-      </span>
+      {/* ボタンはパスの直後に置きたいので、伸びる役は外側のdivに持たせる */}
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <span
+          className="mdecho-file-path min-w-0 truncate text-sm text-base-content/60"
+          title={filePath}
+        >
+          {relPath}
+        </span>
+        <button
+          type="button"
+          id="mdecho-copy-path-button"
+          className={`btn btn-xs btn-square btn-ghost shrink-0 ${pathCopyState === "failed" ? "text-error" : "text-base-content/60"}`}
+          aria-label="copy file path"
+          title={pathCopyTitle}
+          onClick={handlePathCopyClick}
+        >
+          <PathCopyIcon className="size-[1.1em]" />
+        </button>
+      </div>
       {canNavigateChanges && <ChangeNavigator marks={changedMarks} />}
       <button
         type="button"
