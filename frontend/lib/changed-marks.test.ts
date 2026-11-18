@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { findChangedMarks } from "./changed-marks.ts";
+import { changePosition, findChangeJump, findChangedMarks } from "./changed-marks.ts";
 
 describe("findChangedMarks", () => {
   test("変更行にかかるガター行を、連続するものはまとめて返す", () => {
@@ -56,5 +56,46 @@ describe("findChangedMarks", () => {
     expect(findChangedMarks(spans, [{ start: 1, end: 1 }])).toEqual([
       { startIndex: 0, endIndex: 1 },
     ]);
+  });
+});
+
+describe("findChangeJump", () => {
+  const marks = [
+    { startIndex: 2, endIndex: 4 },
+    { startIndex: 8, endIndex: 8 },
+  ];
+
+  test("次の変更の先頭へ進む", () => {
+    expect(findChangeJump(marks, 0, 1)).toBe(2);
+    expect(findChangeJump(marks, 2, 1)).toBe(8);
+    expect(findChangeJump(marks, 3, 1)).toBe(8);
+    expect(findChangeJump(marks, 8, 1)).toBeNull();
+  });
+
+  test("前の変更の先頭へ戻る。変更の途中からならその先頭へ", () => {
+    expect(findChangeJump(marks, 10, -1)).toBe(8);
+    expect(findChangeJump(marks, 8, -1)).toBe(2);
+    expect(findChangeJump(marks, 3, -1)).toBe(2);
+    expect(findChangeJump(marks, 2, -1)).toBeNull();
+  });
+
+  test("変更が無ければnull", () => {
+    expect(findChangeJump([], 0, 1)).toBeNull();
+    expect(findChangeJump([], 0, -1)).toBeNull();
+  });
+});
+
+describe("changePosition", () => {
+  const marks = [
+    { startIndex: 2, endIndex: 4 },
+    { startIndex: 8, endIndex: 8 },
+  ];
+
+  test("カーソルがいる、または直前にある変更の番号を返す", () => {
+    expect(changePosition(marks, 0)).toBe(0);
+    expect(changePosition(marks, 2)).toBe(1);
+    expect(changePosition(marks, 5)).toBe(1);
+    expect(changePosition(marks, 8)).toBe(2);
+    expect(changePosition(marks, 20)).toBe(2);
   });
 });

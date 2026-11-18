@@ -2,6 +2,7 @@ import { FolderOpen, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMediaQuery } from "../hooks/useMediaQuery.ts";
+import { formatChangeBadge } from "../lib/change-label.ts";
 import type { EntryFile } from "../lib/types.ts";
 import { isViewed, loadViewed, saveViewed, toggleViewed } from "../lib/viewed-store.ts";
 import { TOOLBAR_FILES_SLOT_ID } from "./Toolbar.tsx";
@@ -89,6 +90,8 @@ export function FileList({
         const isCurrent = entry.relPath === relPath;
         const entryViewed = isViewed(viewed, entry.relPath, entry.hash);
         const commentCount = commentCounts.get(entry.relPath) ?? 0;
+        const { change } = entry;
+        const changeBadge = change && formatChangeBadge(change);
         // 長いパスは末尾から切れて肝心のファイル名が見えなくなるため、ファイル名とディレクトリを分けて出す
         const slash = entry.filePath.lastIndexOf("/");
         const name = entry.filePath.slice(slash + 1);
@@ -132,6 +135,20 @@ export function FileList({
                 </span>
               )}
             </a>
+            {change && changeBadge && (
+              <span
+                className={`mdecho-file-list-change badge badge-sm badge-soft mt-0.5 shrink-0 tabular-nums ${
+                  change.status === "added" ? "badge-success" : "badge-warning"
+                }`}
+                title={
+                  change.status === "added"
+                    ? `新規ファイル(${change.added}行)`
+                    : `${change.added}行追加、${change.deleted}行削除`
+                }
+              >
+                {changeBadge}
+              </span>
+            )}
             {commentCount > 0 && (
               <span
                 className="mdecho-file-list-comment-count badge badge-sm badge-primary badge-soft mt-0.5 shrink-0"

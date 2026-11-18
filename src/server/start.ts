@@ -9,7 +9,7 @@ import { AGENT_HINT_TROUBLESHOOTING } from "../agent-hint.ts";
 import { DEFAULT_CONFIG, type LineBreakConfig, type MdechoConfig } from "../config/defaults.ts";
 import { normalizeConfig, resolveLineBreak } from "../config/load.ts";
 import { defaultConfigFile, isWritableConfigFile, saveConfig } from "../config/save.ts";
-import { listChangedLines } from "../git/changed-lines.ts";
+import { diffFile, type FileChange, type FileDiff } from "../git/changed-lines.ts";
 import { extractTitle, renderCommentMarkdown, renderMarkdown } from "../markdown/render.ts";
 import { PACKAGE_ROOT } from "../package-root.ts";
 import { buildFontCss } from "../styles/font.ts";
@@ -29,6 +29,11 @@ import { hostGuard } from "./host-guard.ts";
 import { createLiveReloadHub } from "./live-reload.ts";
 import { type ShellEntry, renderNotFoundPage, renderShell } from "./shell.ts";
 import { resolveServableAsset, STATIC_ASSET_HEADERS } from "./static-asset.ts";
+
+/** 行範囲を除いた、一覧やバナーに出す分だけの要約 */
+function toChange({ status, added, deleted }: FileDiff): FileChange {
+  return { status, added, deleted };
+}
 
 const CLIENT_TEMPLATE_PATH = join(PACKAGE_ROOT, "dist", "client", "index.html");
 
@@ -118,11 +123,22 @@ export async function startServer(
   const buildShellEntries = (): Promise<ShellEntry[]> =>
     Promise.all(
       entryLinks.map(async ({ absPath, ...link }) => {
-        const content = await readFile(absPath).catch(() => undefined);
+        const [content, diff] = await Promise.all([
+          readFile(absPath).catch(() => undefined),
+          diffOf(absPath),
+        ]);
         const hash = content === undefined ? "" : createHash("sha1").update(content).digest("hex");
-        return { ...link, hash };
+        return diff === undefined ? { ...link, hash } : { ...link, hash, change: toChange(diff) };
       }),
     );
+  /**
+   * `--git`のbaseからの差分。一覧に新規か変更かを出すため、ページを返すたびに取り直す。
+   * リポジトリの外のファイルなど、差分を取れないときはundefinedにして印を付けないだけにする。
+   */
+  function diffOf(absPath: string): Promise<FileDiff | undefined> {
+    if (gitBase === undefined) return Promise.resolve(undefined);
+    return diffFile(gitBase, absPath).catch(() => undefined);
+  }
 
   const liveReload = createLiveReloadHub({
     onIdle: () => {
@@ -236,11 +252,7 @@ export async function startServer(
             resolveLinkUrl(doc.root, doc.absPath, path, { mode: currentConfig.link.base, kind }),
         },
       );
-      // リポジトリの外のファイルなど、差分を取れないときは印を付けないだけにする。
-      const changedLines =
-        gitBase === undefined
-          ? undefined
-          : await listChangedLines(gitBase, doc.absPath).catch(() => []);
+      const diff = await diffOf(doc.absPath);
       const title = extractTitle(source) ?? basename(doc.absPath, extname(doc.absPath));
       const html = renderShell(clientTemplate, {
         title,
@@ -249,7 +261,8 @@ export async function startServer(
         filePath: doc.displayPath,
         relPath: doc.relPath,
         entries: await buildShellEntries(),
-        changedLines,
+        changedLines: diff?.ranges,
+        change: diff && toChange(diff),
         headCss,
         settings: {
           font: currentConfig.font,

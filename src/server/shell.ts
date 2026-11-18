@@ -1,4 +1,5 @@
 import type { ClipboardConfig, LinkConfig } from "../config/defaults.ts";
+import type { FileChange } from "../git/changed-lines.ts";
 import { buildThemeBootScript, type ThemeConfig } from "../styles/theme.ts";
 
 export interface ShellSettings {
@@ -38,6 +39,8 @@ export interface ShellEntry {
   filePath: string;
   /** ファイルの内容のハッシュ。変わったら「見た」チェックを外す。読めなければ空文字 */
   hash: string;
+  /** `--git`のbaseからの変わり方。`--git`でないときや差分を取れないときは省略する */
+  change?: FileChange;
 }
 
 /** 変更後のファイルでの行範囲(1始まり、両端を含む) */
@@ -60,6 +63,8 @@ export interface ShellData {
   settings: ShellSettings;
   /** `--git`のbaseから追加・変更された行。`--git`でなければ省略する */
   changedLines?: ChangedLineRange[];
+  /** 表示中のファイルの`--git`のbaseからの変わり方。changedLinesと同じく省略しうる */
+  change?: FileChange;
   /** <head>の末尾に差し込む追加CSS(ユーザー設定のフォント指定など)。空なら注入しない */
   headCss?: string;
 }
@@ -90,12 +95,22 @@ function toInlineJson(value: unknown): string {
  * 属性/タグ名をアンカーにした正規表現で置換する。
  */
 export function renderShell(clientTemplate: string, data: ShellData): string {
-  const { title, bodyHtml, source, filePath, relPath, entries, settings, changedLines, headCss } =
-    data;
+  const {
+    title,
+    bodyHtml,
+    source,
+    filePath,
+    relPath,
+    entries,
+    settings,
+    changedLines,
+    change,
+    headCss,
+  } = data;
   const withData = clientTemplate.replace(
     DATA_SCRIPT_PATTERN,
     (_match, open: string, _oldContent: string, close: string) =>
-      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings, changedLines })}${close}`,
+      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings, changedLines, change })}${close}`,
   );
   const withTitle = withData.replace(
     TITLE_TAG_PATTERN,

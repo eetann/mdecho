@@ -77,6 +77,8 @@ export interface EntryFile {
   filePath: string;
   /** ファイルの内容のハッシュ。変わったら「見た」チェックを外す。読めなければ空文字 */
   hash: string;
+  /** `--git`のbaseからの変わり方。`--git`でないときや差分を取れないときは無い */
+  change?: FileChange;
 }
 
 /** 変更後のファイルでの行範囲(src/server/shell.tsのChangedLineRangeと対応する) */
@@ -99,10 +101,22 @@ export interface MdechoInitialData {
   settings: MdechoSettings;
   /** `--git`のbaseから追加・変更された行。`--git`でなければ無い */
   changedLines?: ChangedLineRange[];
+  /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
+  change?: FileChange;
 }
 
 /** GET /api/fonts のレスポンス(src/system/fonts.tsのSystemFontと対応する) */
 export interface SystemFont {
   name: string;
   aliases: string[];
+}
+
+/** src/git/changed-lines.tsのFileChangeと対応する */
+export interface FileChange {
+  /** added: baseに無かった、modified: 中身が変わった、unchanged: 変わっていない */
+  status: "added" | "modified" | "unchanged";
+  /** 追加された行数(変更された行も追加として数える) */
+  added: number;
+  /** 削除された行数(変更された行も削除として数える) */
+  deleted: number;
 }

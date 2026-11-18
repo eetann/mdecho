@@ -40,3 +40,26 @@ export function findChangedMarks(
   });
   return marks;
 }
+
+/**
+ * カーソル位置(targetsのindex)から、次(direction=1)または前(direction=-1)の変更の先頭を返す。
+ * 無ければnull。カーソルが変更の途中にいるときに前へ戻ると、その変更の先頭へ行く。
+ */
+export function findChangeJump(
+  marks: readonly ChangedMark[],
+  cursorIndex: number,
+  direction: 1 | -1,
+): number | null {
+  if (direction === 1) {
+    return marks.find((mark) => mark.startIndex > cursorIndex)?.startIndex ?? null;
+  }
+  return marks.findLast((mark) => mark.startIndex < cursorIndex)?.startIndex ?? null;
+}
+
+/**
+ * カーソルが何番目の変更にいるか(1始まり)。最初の変更より前なら0。
+ * 変更と変更の間にいるときは、直前の変更の番号にする(「次へ」で番号が1つ進むように)。
+ */
+export function changePosition(marks: readonly ChangedMark[], cursorIndex: number): number {
+  return marks.filter((mark) => mark.startIndex <= cursorIndex).length;
+}

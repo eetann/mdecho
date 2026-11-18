@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { ChangeBanner } from "./components/ChangeBanner.tsx";
 import { CommentLayer } from "./components/CommentLayer.tsx";
 import { FileList } from "./components/FileList.tsx";
 import { LineNumberGutter } from "./components/LineNumberGutter.tsx";
@@ -15,7 +16,7 @@ import { useLiveReload } from "./hooks/useLiveReload.ts";
 import { useMermaid } from "./hooks/useMermaid.ts";
 import { useSettings } from "./hooks/useSettings.ts";
 import { useTableTools } from "./hooks/useTableTools.ts";
-import type { ChangedLineRange, EntryFile, MdechoSettings } from "./lib/types.ts";
+import type { ChangedLineRange, EntryFile, FileChange, MdechoSettings } from "./lib/types.ts";
 
 export function App({
   bodyHtml,
@@ -25,6 +26,7 @@ export function App({
   entries,
   settings,
   changedLines,
+  change,
 }: {
   bodyHtml: string;
   source: string;
@@ -33,6 +35,8 @@ export function App({
   entries: EntryFile[];
   settings: MdechoSettings;
   changedLines: ChangedLineRange[];
+  /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
+  change: FileChange | undefined;
 }) {
   useLiveReload();
   const markdownBodyRef = useRef<HTMLElement | null>(null);
@@ -59,7 +63,10 @@ export function App({
             openSettings={settingsApi.openDialog}
             themeMode={settingsApi.themeMode}
             setThemeMode={settingsApi.setThemeMode}
+            changedLines={changedLines}
+            change={change}
           />
+          {change && <ChangeBanner change={change} changedLines={changedLines} />}
           <div className="mdecho-content mb-1 flex">
             <LineNumberGutter
               markdownBodyRef={markdownBodyRef}

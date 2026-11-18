@@ -3,7 +3,9 @@ import { useState } from "react";
 import type { ClipboardFormat } from "../../src/config/defaults.ts";
 import type { ThemeMode } from "../../src/styles/theme.ts";
 import { buildClipboardText, type CommentGroup } from "../lib/clipboard-text.ts";
-import type { EntryFile } from "../lib/types.ts";
+import { useChangedMarks } from "../hooks/useChangeNavigation.ts";
+import type { ChangedLineRange, EntryFile, FileChange } from "../lib/types.ts";
+import { ChangeNavigator } from "./ChangeNavigator.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { KeyboardHelpDialog } from "./KeyboardHelpDialog.tsx";
 
@@ -48,6 +50,8 @@ export function Toolbar({
   openSettings,
   themeMode,
   setThemeMode,
+  changedLines,
+  change,
 }: {
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
@@ -66,6 +70,10 @@ export function Toolbar({
   /** いま選ばれている配色の指定(system/light/dark) */
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  /** `--git`のbaseから追加・変更された行 */
+  changedLines: readonly ChangedLineRange[];
+  /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
+  change: FileChange | undefined;
 }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
@@ -74,6 +82,9 @@ export function Toolbar({
   const entryRelPath = entry?.relPath ?? "";
   const isEntry = relPath === entryRelPath;
   const ThemeIcon = THEME_MODE_ICONS[themeMode];
+  const changedMarks = useChangedMarks(changedLines);
+  // まるごと新しいファイルは変更が1つの塊なので、行き来する先が無い
+  const canNavigateChanges = change?.status === "modified" && changedMarks.length > 0;
 
   const totalCount = commentGroups.reduce(
     (total, group) => total + Array.from(group.comments).length,
@@ -127,6 +138,7 @@ export function Toolbar({
       >
         {relPath}
       </span>
+      {canNavigateChanges && <ChangeNavigator marks={changedMarks} />}
       <button
         type="button"
         id="mdecho-copy-button"

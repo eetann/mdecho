@@ -32,6 +32,8 @@ export interface CursorLineApi {
   getSentenceIndex: (el: Element) => number;
   getTargetForElement: (el: Element | null) => Element | null;
   setCursorToElement: (el: Element) => void;
+  /** targetsのindex番目へカーソルを移し、画面の中央に寄せる(離れた変更箇所へ飛ぶときに使う) */
+  jumpToIndex: (index: number) => void;
   /** カーソルがtargetsの何番目にいるかを読む。まだ決まっていなければ-1 */
   getCursorIndex: () => number;
   /** カーソルが動いたときに呼ばれるリスナーを登録する。戻り値で解除する */
@@ -40,7 +42,7 @@ export interface CursorLineApi {
 
 const CursorLineContext = createContext<CursorLineApi | null>(null);
 
-function isEditableTarget(el: Element | null): boolean {
+export function isEditableTarget(el: Element | null): boolean {
   if (!el) return false;
   const tag = el.tagName;
   return (
@@ -272,6 +274,8 @@ export function CursorLineProvider({
     },
     [setCursor],
   );
+  // 画面外へ飛ぶと"nearest"では端に張り付いて前後が見えないため、中央に寄せる
+  const jumpToIndex = useCallback((index: number) => setCursor(index, "center"), [setCursor]);
   const getCursorIndex = useCallback(() => cursorIndexRef.current, []);
   const subscribeCursorIndex = useCallback((listener: () => void) => {
     const listeners = cursorListenersRef.current;
@@ -290,6 +294,7 @@ export function CursorLineProvider({
       getSentenceIndex,
       getTargetForElement,
       setCursorToElement,
+      jumpToIndex,
       getCursorIndex,
       subscribeCursorIndex,
     }),
@@ -301,6 +306,7 @@ export function CursorLineProvider({
       getSentenceIndex,
       getTargetForElement,
       setCursorToElement,
+      jumpToIndex,
       getCursorIndex,
       subscribeCursorIndex,
     ],
