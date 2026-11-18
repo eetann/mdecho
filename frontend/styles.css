@@ -498,6 +498,47 @@ body {
   line-height: 1.45;
 }
 
+/* useCodeBlocksがpreを .mdecho-code-wrap で包み、右上にコピーボタンを載せる。
+   preは横スクロールするので、ボタンはpreではなく外枠に対して置く。 */
+.mdecho-code-wrap {
+  position: relative;
+}
+
+.mdecho-code-tools {
+  position: absolute;
+  top: 0.375rem;
+  right: 0.375rem;
+}
+
+/* 普段は隠し、コードブロックにマウスを乗せたときやキーボードで辿ったときだけ出す。
+   押した直後の「コピーしました」は、マウスが外れても見えるよう出したままにする。 */
+.mdecho-code-copy {
+  opacity: 0;
+  background: var(--color-base-100);
+  transition: opacity 0.15s;
+}
+
+.mdecho-code-wrap:hover .mdecho-code-copy,
+.mdecho-code-copy:focus-visible,
+.mdecho-code-copy:not([data-state="idle"]) {
+  opacity: 1;
+}
+
+.mdecho-code-copy[data-state="copied"] {
+  color: var(--color-success);
+}
+
+.mdecho-code-copy[data-state="failed"] {
+  color: var(--color-error);
+}
+
+/* ホバーできない端末(タッチ)では常に出しておく */
+@media (hover: none) {
+  .mdecho-code-copy {
+    opacity: 1;
+  }
+}
+
 .markdown-body pre code {
   display: block;
   padding: 0;

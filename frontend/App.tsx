@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { ChangeBanner } from "./components/ChangeBanner.tsx";
+import { CodeCopyButtons } from "./components/CodeCopyButtons.tsx";
 import { CommentLayer } from "./components/CommentLayer.tsx";
 import { FileList } from "./components/FileList.tsx";
 import { LineNumberGutter } from "./components/LineNumberGutter.tsx";
@@ -10,6 +11,7 @@ import { TableOfContents } from "./components/TableOfContents.tsx";
 import { TableTools } from "./components/TableTools.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
 import { Toolbar } from "./components/Toolbar.tsx";
+import { useCodeBlocks } from "./hooks/useCodeBlocks.ts";
 import { useComments } from "./hooks/useComments.ts";
 import { CursorLineProvider } from "./hooks/useCursorLine.tsx";
 import { useLiveReload } from "./hooks/useLiveReload.ts";
@@ -46,6 +48,7 @@ export function App({
   const markdownBodyRef = useRef<HTMLElement | null>(null);
   const commentsApi = useComments(relPath, filePath, source, entries);
   const tables = useTableTools(markdownBodyRef, bodyHtml);
+  const codeBlocks = useCodeBlocks(markdownBodyRef, bodyHtml);
   const settingsApi = useSettings(settings);
   const { readMode, toggleReadMode } = useReadMode(cliReadMode);
   // 図の色はmermaid側のテーマが持っているので、本文の配色に合わせて描き直す
@@ -102,6 +105,7 @@ export function App({
             clearOutdated={commentsApi.clearOutdatedComments}
           />
           <TableTools tables={tables} />
+          <CodeCopyButtons codeBlocks={codeBlocks} />
           <SettingsDialog settings={settingsApi} />
           <LinkChoiceDialog markdownBodyRef={markdownBodyRef} />
         </div>
