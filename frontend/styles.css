@@ -116,8 +116,11 @@
      占めるため、本文との間に余白が残るよう14remより広く取る。 */
   --mdecho-toc-column: 16rem;
 
-  /* ファイル一覧のために左側へ空けておく幅。目次と同じく left-8 + w-48 を占める。 */
-  --mdecho-file-list-column: 16rem;
+  /* ファイル一覧の幅。境界のドラッグで変えられ、FileListがこの値を上書きする。 */
+  --mdecho-file-list-width: 12rem;
+  /* ファイル一覧のために左側へ空けておく幅。目次と同じく left-8 + 一覧の幅 を占めるので、
+     目次と同じだけ(2rem余分に)本文との間に余白を残す。 */
+  --mdecho-file-list-column: calc(var(--mdecho-file-list-width) + 4rem);
 }
 
 /* ここから下は、上のテーマが持つ色トークンから導き出す本文用の色。
@@ -188,7 +191,7 @@
   }
 
   /* 複数のファイルを指定したときは、左にファイル一覧が出るので同じように空ける */
-  .mdecho-layout:has(~ .mdecho-file-list) {
+  .mdecho-layout:has(~ .mdecho-file-list-panel) {
     padding-left: var(--mdecho-file-list-column);
   }
 }
