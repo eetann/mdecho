@@ -602,6 +602,88 @@ body {
   font-weight: 600;
 }
 
+/* フロントマター(src/markdown/plugins/remark-frontmatter-card.ts)。
+   ソースの1行を1行として出し、行ごとに「キー｜値」を横に並べて罫線で区切る。
+   キー列は固定幅にして、どんなフロントマターでも値の書き出し位置を揃える。
+   長いキーは省略する(title属性で全体を読める)。 */
+.markdown-body .mdecho-frontmatter {
+  margin: 0 0 1.5em;
+  font-size: 0.9em;
+  border: 1px solid var(--color-base-300);
+  border-radius: 6px;
+}
+
+.markdown-body .mdecho-frontmatter-row {
+  display: grid;
+  grid-template-columns: 9em minmax(0, 1fr);
+  column-gap: 1em;
+  padding: 0.25em 0.75em;
+}
+
+.markdown-body .mdecho-frontmatter > :not(:first-child) {
+  border-top: 1px solid var(--color-base-300);
+}
+
+/* 前の行の続き(複数行の値やリストの要素)は、区切りを弱めて同じ組だと分かるようにする */
+.markdown-body .mdecho-frontmatter > .mdecho-frontmatter-continuation {
+  border-top-style: dashed;
+}
+
+/* 枠の中なので、本文向けのカーソル表示(左へのはみ出し)を打ち消す。
+   角丸も外し、枠の角に接する最初と最後の行だけ下の規則で枠に合わせる */
+.markdown-body .mdecho-frontmatter-row[data-mdecho-cursor] {
+  margin-left: 0;
+  padding-left: 0.75em;
+  border-radius: 0;
+}
+
+.markdown-body .mdecho-frontmatter > :first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.markdown-body .mdecho-frontmatter > :last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.markdown-body .mdecho-frontmatter-key {
+  padding-left: calc(var(--mdecho-frontmatter-depth, 0) * 1em);
+  overflow: hidden;
+  color: var(--mdecho-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.markdown-body .mdecho-frontmatter-value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body .mdecho-frontmatter-comment {
+  display: block;
+  color: var(--mdecho-muted);
+  font-family: var(--font-mono);
+}
+
+.markdown-body .mdecho-frontmatter-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  white-space: normal;
+}
+
+.markdown-body .mdecho-frontmatter-chip {
+  padding: 0 0.6em;
+  background: var(--mdecho-code-chip);
+  border-radius: 999px;
+}
+
+.markdown-body .mdecho-frontmatter > .mdecho-comment-slot {
+  margin: 0;
+  padding: 0.5em 0.75em;
+}
+
 .markdown-body .mdecho-sentence {
   display: block;
 }

@@ -19,7 +19,7 @@ import { excludeLinesCoveredBySentences } from "../lib/sentence-cover.ts";
 import { useScrollRestore } from "./useScrollRestore.ts";
 
 const CANDIDATE_SELECTOR =
-  "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr,.mdecho-sentence,.mdecho-mermaid";
+  "h1,h2,h3,h4,h5,h6,p,li,blockquote,tr,pre .line,hr,.mdecho-sentence,.mdecho-mermaid,.mdecho-frontmatter-row";
 const CURSOR_ATTR = "data-mdecho-cursor";
 // ファイルをまたいで読み進められるため、カーソル位置も表示中のファイルごとに分けて持つ。
 const STORAGE_KEY_PREFIX = "mdecho:cursorLine:";

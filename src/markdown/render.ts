@@ -2,6 +2,7 @@ import rehypeShiki from "@shikijs/rehype";
 import type { Heading, PhrasingContent } from "mdast";
 import rehypeStringify from "rehype-stringify";
 import remarkBreaks from "remark-breaks";
+import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
@@ -17,6 +18,7 @@ import {
   rehypeResolveRelativeUrl,
 } from "./plugins/rehype-resolve-relative-url.ts";
 import { remarkDataLine } from "./plugins/remark-data-line.ts";
+import { remarkFrontmatterCard } from "./plugins/remark-frontmatter-card.ts";
 import { remarkMermaid } from "./plugins/remark-mermaid.ts";
 import { remarkSplitSentences } from "./plugins/remark-split-sentences.ts";
 
@@ -72,7 +74,9 @@ function createBodyProcessor(lineBreak: LineBreakConfig) {
   const breakPlugins: PluggableList = lineBreak.singleNewline ? [remarkBreaks] : [];
   return unified()
     .use(remarkParse)
+    .use(remarkFrontmatter)
     .use(remarkGfm)
+    .use(remarkFrontmatterCard)
     .use(sentencePlugins)
     .use(breakPlugins)
     .use(remarkDataLine)
@@ -111,7 +115,8 @@ const commentProcessor = unified()
   .use(rehypeShiki, shikiOptions)
   .use(rehypeStringify);
 
-const titleProcessor = unified().use(remarkParse).use(remarkGfm);
+// フロントマターを見出しと誤認しないよう、本文と同じくremarkFrontmatterを通す。
+const titleProcessor = unified().use(remarkParse).use(remarkFrontmatter).use(remarkGfm);
 
 function phrasingToText(nodes: PhrasingContent[]): string {
   return nodes
