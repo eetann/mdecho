@@ -1,4 +1,5 @@
-import type { LinkConfig } from "../config/defaults.ts";
+import type { ClipboardConfig, LinkConfig } from "../config/defaults.ts";
+import type { FileChange } from "../git/changed-lines.ts";
 import { buildThemeBootScript, type ThemeConfig } from "../styles/theme.ts";
 
 export interface ShellSettings {
@@ -20,10 +21,32 @@ export interface ShellSettings {
   theme: ThemeConfig;
   /** 相対リンク・画像の基準の決め方 */
   link: LinkConfig;
+  /** コメントをコピーするときの書き方 */
+  clipboard: ClipboardConfig;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */
   editable: boolean;
+}
+
+/** ファイル一覧に出す、`-f`や位置引数で指定されたファイル */
+export interface ShellEntry {
+  /** このファイルを開くURLのパス */
+  url: string;
+  /** ResolvedDoc.relPathと同じ形式のパス。表示中のファイルとの突き合わせに使う */
+  relPath: string;
+  /** 指定されたときの表記そのまま。一覧の表示とクリップボードの並び順に使う */
+  filePath: string;
+  /** ファイルの内容のハッシュ。変わったら「見た」チェックを外す。読めなければ空文字 */
+  hash: string;
+  /** `--git`のbaseからの変わり方。`--git`でないときや差分を取れないときは省略する */
+  change?: FileChange;
+}
+
+/** 変更後のファイルでの行範囲(1始まり、両端を含む) */
+export interface ChangedLineRange {
+  start: number;
+  end: number;
 }
 
 export interface ShellData {
@@ -35,9 +58,15 @@ export interface ShellData {
   filePath: string;
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
-  /** 同じ形式で表した`-f`のファイルのパス。ホームへ戻るボタンの表示に使う */
-  entryRelPath: string;
+  /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
+  entries: ShellEntry[];
   settings: ShellSettings;
+  /** `--git`のbaseから追加・変更された行。`--git`でなければ省略する */
+  changedLines?: ChangedLineRange[];
+  /** 表示中のファイルの`--git`のbaseからの変わり方。changedLinesと同じく省略しうる */
+  change?: FileChange;
+  /** `--read`で起動したときtrue。画面で切り替えるまでは読み取りモードで開く */
+  readMode?: boolean;
   /** <head>の末尾に差し込む追加CSS(ユーザー設定のフォント指定など)。空なら注入しない */
   headCss?: string;
 }
@@ -68,11 +97,23 @@ function toInlineJson(value: unknown): string {
  * 属性/タグ名をアンカーにした正規表現で置換する。
  */
 export function renderShell(clientTemplate: string, data: ShellData): string {
-  const { title, bodyHtml, source, filePath, relPath, entryRelPath, settings, headCss } = data;
+  const {
+    title,
+    bodyHtml,
+    source,
+    filePath,
+    relPath,
+    entries,
+    settings,
+    changedLines,
+    change,
+    readMode,
+    headCss,
+  } = data;
   const withData = clientTemplate.replace(
     DATA_SCRIPT_PATTERN,
     (_match, open: string, _oldContent: string, close: string) =>
-      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entryRelPath, settings })}${close}`,
+      `${open}${toInlineJson({ title, bodyHtml, source, filePath, relPath, entries, settings, changedLines, change, readMode })}${close}`,
   );
   const withTitle = withData.replace(
     TITLE_TAG_PATTERN,
@@ -118,7 +159,7 @@ a { color: #2563eb; }
 <main>
 <h1>ファイルが見つかりません</h1>
 <p><code>${escapeHtml(requestPath)}</code> を表示できませんでした。</p>
-<p>mdechoが開けるのは、<code>-f</code>で指定したMarkdownと同じディレクトリの中にあるファイルだけです。</p>
+<p>mdechoが開けるのは、指定したMarkdownと同じディレクトリ(gitリポジトリならそのリポジトリ)の中にあるファイルだけです。</p>
 <p><a href="/">${escapeHtml(entryRelPath)} に戻る</a></p>
 </main>
 </body>

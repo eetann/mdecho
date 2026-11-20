@@ -9,7 +9,7 @@ const ACTIVE_ATTR = "data-mdecho-comment-active";
 export interface CommentMarksApi {
   /** 既存コメント(と編集中のコメント)が占める行範囲。 */
   marks: CommentMark[];
-  /** いま編集中のコメントの行範囲。編集していなければnull。 */
+  /** 最後に触ったエディタのコメントの行範囲。編集していなければnull。 */
   activeMark: CommentMark | null;
 }
 
@@ -21,7 +21,8 @@ export interface CommentMarksApi {
 export function useCommentMarks(
   cursor: CursorLineApi,
   comments: Map<string, Comment>,
-  editingKey: string | null,
+  editing: Map<string, string>,
+  activeKey: string | null,
 ): CommentMarksApi {
   const lines = useMemo(
     () => cursor.targets.map((el) => Number(el.getAttribute("data-line"))),
@@ -31,15 +32,15 @@ export function useCommentMarks(
   const marks = useMemo(() => {
     const keys = new Set(comments.keys());
     // 編集中のコメントはまだ保存されていないことがあるので、キー側から補う
-    if (editingKey !== null) keys.add(editingKey);
+    for (const key of editing.keys()) keys.add(key);
     return Array.from(keys)
       .map((key) => resolveCommentMark(lines, key))
       .filter((mark) => mark !== null);
-  }, [comments, editingKey, lines]);
+  }, [comments, editing, lines]);
 
   const activeMark = useMemo(
-    () => (editingKey === null ? null : (marks.find((mark) => mark.key === editingKey) ?? null)),
-    [marks, editingKey],
+    () => (activeKey === null ? null : (marks.find((mark) => mark.key === activeKey) ?? null)),
+    [marks, activeKey],
   );
 
   useEffect(() => {

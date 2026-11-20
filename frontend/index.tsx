@@ -22,7 +22,10 @@ createRoot(rootEl).render(
     source={data.source}
     filePath={data.filePath}
     relPath={data.relPath}
-    entryRelPath={data.entryRelPath}
+    entries={data.entries}
     settings={data.settings}
+    changedLines={data.changedLines ?? []}
+    change={data.change}
+    cliReadMode={data.readMode ?? false}
   />,
 );

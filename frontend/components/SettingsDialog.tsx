@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { type RefObject, useEffect, useRef, useState } from "react";
-import type { LinkBaseMode } from "../../src/config/defaults.ts";
+import type { ClipboardFormat, LinkBaseMode } from "../../src/config/defaults.ts";
 import { FONT_VARIABLES, type FontKind } from "../../src/styles/font.ts";
 import {
   clampContentWidth,
@@ -244,6 +244,58 @@ function LinkSection({ settings }: { settings: SettingsApi }) {
   );
 }
 
+interface ClipboardFormatItem {
+  format: ClipboardFormat;
+  label: string;
+  example: string;
+}
+
+const CLIPBOARD_FORMAT_ITEMS: ClipboardFormatItem[] = [
+  {
+    format: "grouped",
+    label: "ファイルごとにまとめる",
+    example: "## docs/a.md\n\nL12:\nコメント\n\nL3-5:\nコメント",
+  },
+  {
+    format: "inline",
+    label: "コメントごとにパスを付ける",
+    example: "docs/a.md:L12\nコメント\n\n---\n\ndocs/a.md:L3-L5\nコメント",
+  },
+];
+
+function ClipboardSection({ settings }: { settings: SettingsApi }) {
+  return (
+    <section className="mdecho-clipboard-section">
+      <h3 className="font-semibold">コピーの形式</h3>
+      <p className="mt-1 text-xs text-base-content/60">
+        コピーボタンでクリップボードに載せるテキストの書き方です。
+        まとめる形式はファイルのパスを1回しか書かないので、AIへ渡すときに短く済みます。
+      </p>
+      <ul className="mt-2 flex flex-col gap-2">
+        {CLIPBOARD_FORMAT_ITEMS.map((item) => (
+          <li key={item.format}>
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="radio"
+                name="mdecho-clipboard-format"
+                className="radio radio-sm mt-0.5 shrink-0"
+                checked={settings.clipboardDraft.format === item.format}
+                onChange={() => settings.setClipboardFormat(item.format)}
+              />
+              <span className="min-w-0">
+                <span className="text-sm">{item.label}</span>
+                <pre className="mt-1 rounded bg-base-200 px-2 py-1 text-xs text-base-content/70">
+                  {item.example}
+                </pre>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function ThemeSection({ settings }: { settings: SettingsApi }) {
   return (
     <section className="mdecho-theme-section">
@@ -455,6 +507,8 @@ export function SettingsDialog({ settings }: { settings: SettingsApi }) {
           <LineBreakList settings={settings} />
 
           <LinkSection settings={settings} />
+
+          <ClipboardSection settings={settings} />
 
           <LayoutSection settings={settings} />
 

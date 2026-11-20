@@ -1,7 +1,23 @@
-import { House, Keyboard, Monitor, Moon, Settings, Sun, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Copy,
+  House,
+  Keyboard,
+  MessageSquare,
+  Monitor,
+  Moon,
+  Settings,
+  Sun,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
+import type { ClipboardFormat } from "../../src/config/defaults.ts";
 import type { ThemeMode } from "../../src/styles/theme.ts";
 import { buildClipboardText, type CommentGroup } from "../lib/clipboard-text.ts";
+import { useChangedMarks } from "../hooks/useChangeNavigation.ts";
+import type { ChangedLineRange, EntryFile, FileChange } from "../lib/types.ts";
+import { ChangeNavigator } from "./ChangeNavigator.tsx";
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { KeyboardHelpDialog } from "./KeyboardHelpDialog.tsx";
 
@@ -11,6 +27,9 @@ type CopyState = "idle" | "copied" | "failed";
 
 /** 狭い画面で、目次(TableOfContents)が自分の開閉ボタンを差し込む置き場所 */
 export const TOOLBAR_SLOT_ID = "mdecho-toolbar-toc-slot";
+
+/** 狭い画面で、ファイル一覧(FileList)が自分の開閉ボタンを差し込む置き場所 */
+export const TOOLBAR_FILES_SLOT_ID = "mdecho-toolbar-files-slot";
 
 /** ボタンを押すたびにこの順で巡回する。設定モーダルの「配色」も同じ並び。 */
 export const THEME_MODE_ORDER: ThemeMode[] = ["system", "light", "dark"];
@@ -35,22 +54,29 @@ export function nextThemeMode(mode: ThemeMode): ThemeMode {
 export function Toolbar({
   relPath,
   filePath,
-  entryRelPath,
+  entries,
   commentGroups,
+  clipboardFormat,
   otherFileCount,
   deleteAllComments,
   openSettings,
   themeMode,
   setThemeMode,
+  changedLines,
+  change,
+  readMode,
+  toggleReadMode,
 }: {
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
   /** `-f`に渡したパスと同じ書き方で表した、表示中ファイルのパス(クリップボードに載る) */
   filePath: string;
-  /** 同じ形式で表した`-f`のファイルのパス */
-  entryRelPath: string;
+  /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
+  entries: EntryFile[];
   /** 表示中のファイルと、リンク先で書いたコメントを合わせたコピー対象 */
   commentGroups: CommentGroup[];
+  /** コピーするときの書き方(保存済みの設定) */
+  clipboardFormat: ClipboardFormat;
   /** 表示中のファイル以外に残っているコメントの数 */
   otherFileCount: number;
   deleteAllComments: () => void;
@@ -58,12 +84,26 @@ export function Toolbar({
   /** いま選ばれている配色の指定(system/light/dark) */
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  /** `--git`のbaseから追加・変更された行 */
+  changedLines: readonly ChangedLineRange[];
+  /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
+  change: FileChange | undefined;
+  /** 読み取りモード(コメントを書き始める操作を止めている)か */
+  readMode: boolean;
+  toggleReadMode: () => void;
 }) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
+  const [pathCopyState, setPathCopyState] = useState<CopyState>("idle");
   const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
+  const [entry] = entries;
+  const entryRelPath = entry?.relPath ?? "";
   const isEntry = relPath === entryRelPath;
   const ThemeIcon = THEME_MODE_ICONS[themeMode];
+  const ReadModeIcon = readMode ? BookOpen : MessageSquare;
+  const changedMarks = useChangedMarks(changedLines);
+  // まるごと新しいファイルは変更が1つの塊なので、行き来する先が無い
+  const canNavigateChanges = change?.status === "modified" && changedMarks.length > 0;
 
   const totalCount = commentGroups.reduce(
     (total, group) => total + Array.from(group.comments).length,
@@ -84,7 +124,7 @@ export function Toolbar({
   async function handleCopyClick() {
     if (totalCount === 0) return;
     try {
-      await navigator.clipboard.writeText(buildClipboardText(commentGroups));
+      await navigator.clipboard.writeText(buildClipboardText(commentGroups, clipboardFormat));
       setCopyState("copied");
     } catch {
       setCopyState("failed");
@@ -92,26 +132,63 @@ export function Toolbar({
     setTimeout(() => setCopyState("idle"), COPIED_LABEL_DURATION_MS);
   }
 
+  // AIエージェントへ「このファイル」と伝えるときに貼れるよう、コメントのコピーと同じ書き方のパスを載せる
+  async function handlePathCopyClick() {
+    try {
+      await navigator.clipboard.writeText(filePath);
+      setPathCopyState("copied");
+    } catch {
+      setPathCopyState("failed");
+    }
+    setTimeout(() => setPathCopyState("idle"), COPIED_LABEL_DURATION_MS);
+  }
+  const PathCopyIcon = pathCopyState === "copied" ? Check : Copy;
+  const pathCopyTitle =
+    pathCopyState === "copied"
+      ? "コピーしました"
+      : pathCopyState === "failed"
+        ? "コピーに失敗しました"
+        : `${filePath} をコピー`;
+
   return (
     <div className="mdecho-toolbar navbar sticky top-0 z-20 gap-4 bg-base-100 px-0 py-3">
-      {/* ドキュメント内のリンクを辿った先から、`-f`で開いたファイルへ一度で戻れるようにする */}
-      <a
-        href="/"
-        id="mdecho-home-link"
-        className={`btn btn-sm btn-ghost ${isEntry ? "btn-disabled" : ""}`}
-        aria-label="entry file"
-        aria-disabled={isEntry}
-        tabIndex={isEntry ? -1 : undefined}
-        title={isEntry ? entryRelPath : `${entryRelPath} に戻る`}
-      >
-        <House className="size-[1.1em]" />
-      </a>
-      <span
-        className="mdecho-file-path min-w-0 flex-1 truncate text-sm text-base-content/60"
-        title={filePath}
-      >
-        {relPath}
-      </span>
+      {entries.length < 2 ? (
+        // ドキュメント内のリンクを辿った先から、`-f`で開いたファイルへ一度で戻れるようにする
+        <a
+          href="/"
+          id="mdecho-home-link"
+          className={`btn btn-sm btn-ghost ${isEntry ? "btn-disabled" : ""}`}
+          aria-label="entry file"
+          aria-disabled={isEntry}
+          tabIndex={isEntry ? -1 : undefined}
+          title={isEntry ? entryRelPath : `${entryRelPath} に戻る`}
+        >
+          <House className="size-[1.1em]" />
+        </a>
+      ) : (
+        // 複数のファイルを指定したときは、戻る先もファイル一覧から選ぶ
+        <div id={TOOLBAR_FILES_SLOT_ID} className="relative empty:hidden" />
+      )}
+      {/* ボタンはパスの直後に置きたいので、伸びる役は外側のdivに持たせる */}
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <span
+          className="mdecho-file-path min-w-0 truncate text-sm text-base-content/60"
+          title={filePath}
+        >
+          {relPath}
+        </span>
+        <button
+          type="button"
+          id="mdecho-copy-path-button"
+          className={`btn btn-xs btn-square btn-ghost shrink-0 ${pathCopyState === "failed" ? "text-error" : "text-base-content/60"}`}
+          aria-label="copy file path"
+          title={pathCopyTitle}
+          onClick={handlePathCopyClick}
+        >
+          <PathCopyIcon className="size-[1.1em]" />
+        </button>
+      </div>
+      {canNavigateChanges && <ChangeNavigator marks={changedMarks} />}
       <button
         type="button"
         id="mdecho-copy-button"
@@ -132,6 +209,22 @@ export function Toolbar({
         onClick={() => setConfirmingDeleteAll(true)}
       >
         <Trash2 className="size-[1.1em]" />
+      </button>
+      {/* 配色ボタンと同じく、いまの状態をアイコンで、押すとどうなるかをtitleで伝える。 */}
+      <button
+        type="button"
+        id="mdecho-read-mode-button"
+        className={`btn btn-sm btn-ghost ${readMode ? "btn-active" : ""}`}
+        aria-label="read mode"
+        aria-pressed={readMode}
+        title={
+          readMode
+            ? "読み取りモード: ダブルクリックで単語を選べます(押すとコメントモードへ / r)"
+            : "コメントモード: ダブルクリックやEnterでコメントを書けます(押すと読み取りモードへ / r)"
+        }
+        onClick={toggleReadMode}
+      >
+        <ReadModeIcon className="size-[1.1em]" />
       </button>
       {/* 1クリックで切り替えたいので、3つの状態を巡回するボタンにする。
           いま何が選ばれているかはアイコンで、次に何になるかはtitleで伝える。 */}

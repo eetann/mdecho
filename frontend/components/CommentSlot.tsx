@@ -7,34 +7,37 @@ import { CommentView } from "./CommentView.tsx";
 export function CommentSlot({
   commentKey,
   comment,
-  isEditing,
   editingInitialText,
   pendingQuote,
   onSave,
   onCancel,
   onDelete,
+  onFocus,
 }: {
   commentKey: string;
   comment: Comment | undefined;
-  isEditing: boolean;
-  editingInitialText: string;
+  /** 編集中ならエディタを開いたときの初期テキスト。編集していなければundefined */
+  editingInitialText: string | undefined;
   pendingQuote: PendingQuote | null;
   onSave: (text: string) => void;
   onCancel: () => void;
   onDelete: () => void;
+  onFocus: () => void;
 }) {
   const { startLine, endLine } = parseKey(commentKey);
 
-  if (isEditing) {
+  if (editingInitialText !== undefined) {
     return (
       <CommentEditor
         startLine={startLine}
         endLine={endLine}
         initialText={editingInitialText}
-        pendingQuote={pendingQuote}
+        // 他のエディタ宛ての引用は渡さない
+        pendingQuote={pendingQuote?.key === commentKey ? pendingQuote : null}
         onSave={onSave}
         onCancel={onCancel}
         onDelete={comment ? onDelete : undefined}
+        onFocus={onFocus}
       />
     );
   }

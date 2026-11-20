@@ -38,12 +38,30 @@ export interface LinkConfig {
   base: LinkBaseMode;
 }
 
+/**
+ * コメントをコピーするときの書き方。
+ * - `grouped`: ファイルごとに`## path`の見出しでまとめ、その下に`L12:`とコメントを並べる。
+ *   AIへのプロンプトになるため、同じパスを何度も書かずに済むこちらを既定にする
+ * - `inline`: コメントごとに`path:L12`を付ける。エディタやAIがそのまま開ける参照になる
+ */
+export const CLIPBOARD_FORMATS = ["grouped", "inline"] as const;
+export type ClipboardFormat = (typeof CLIPBOARD_FORMATS)[number];
+
+export function isClipboardFormat(value: unknown): value is ClipboardFormat {
+  return typeof value === "string" && (CLIPBOARD_FORMATS as readonly string[]).includes(value);
+}
+
+export interface ClipboardConfig {
+  format: ClipboardFormat;
+}
+
 export interface MdechoConfig {
   font: FontFamilies;
   lineBreak: LineBreakConfig;
   layout: LayoutConfig;
   theme: ThemeConfig;
   link: LinkConfig;
+  clipboard: ClipboardConfig;
 }
 
 export const DEFAULT_FONT: FontFamilies = { body: [], code: [] };
@@ -54,10 +72,12 @@ export const DEFAULT_LAYOUT: LayoutConfig = {
   lineHeight: DEFAULT_LINE_HEIGHT,
 };
 export const DEFAULT_LINK: LinkConfig = { base: "ask" };
+export const DEFAULT_CLIPBOARD: ClipboardConfig = { format: "grouped" };
 export const DEFAULT_CONFIG: MdechoConfig = {
   font: DEFAULT_FONT,
   lineBreak: DEFAULT_LINE_BREAK,
   layout: DEFAULT_LAYOUT,
   theme: DEFAULT_THEME,
   link: DEFAULT_LINK,
+  clipboard: DEFAULT_CLIPBOARD,
 };

@@ -13,6 +13,7 @@ export interface ResolvedRelativeUrl {
 /**
  * 相対パスを、配信先のURLのパスへ解決する関数。解決できないものはundefinedを返す(書き換えない)。
  * 渡すのは`?`や`#`より前の、パーセントエンコードされたままのパス。
+ * 先頭が`/`のパス(ルート基準)も渡す。
  */
 export type ResolveRelativeUrl = (
   path: string,
@@ -26,9 +27,12 @@ export type ResolveRelativeUrl = (
  */
 export const RESOLVE_RELATIVE_URL_DATA_KEY = "mdechoResolveRelativeUrl";
 
-/** スキームや`/`を持たない、ファイルを指す相対参照か(`#見出し`だけのものは除く) */
-function isRelativePath(url: string): boolean {
-  return !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url) && !url.startsWith("/") && !url.startsWith("#");
+/**
+ * スキームを持たない、同じサーバー上のファイルを指す参照か。
+ * `#見出し`だけのものと、`//host/x`のようなスキーム相対のURLは除く。
+ */
+function isLocalPath(url: string): boolean {
+  return !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url) && !url.startsWith("//") && !url.startsWith("#");
 }
 
 /**
@@ -36,8 +40,9 @@ function isRelativePath(url: string): boolean {
  * 関数が渡されていなければ何もしない(コメント本文のように、基準になるファイルが無い場合)。
  * 行き先の選択肢が返ってきたリンクには、`LINK_CHOICES_ATTRIBUTE`にJSONで載せる。
  *
- * 先頭が`/`のパスは書き換えない。URLの`/`はプロジェクトルートに対応しているため、
- * そのままでGitHubと同じくリポジトリのルート基準として解決される。
+ * 先頭が`/`のパスも関数に渡す。URLの`/`がプロジェクトルートに対応している場合は
+ * そのままでGitHubと同じくリポジトリのルート基準として解決されるので、関数はundefinedを返せばよい。
+ * 複数のルートを配信していて、URLに接頭辞が付くルートでは書き換えが要る。
  *
  * rehypeBlockUnsafeUrlより後に置くこと(弾かれて属性が消えた要素を相手にしないため)。
  */
@@ -51,7 +56,7 @@ export const rehypeResolveRelativeUrl: Plugin<[], Root> = function rehypeResolve
       const attribute = node.tagName === "a" ? "href" : node.tagName === "img" ? "src" : undefined;
       if (attribute === undefined) return;
       const url = node.properties[attribute];
-      if (typeof url !== "string" || url === "" || !isRelativePath(url)) return;
+      if (typeof url !== "string" || url === "" || !isLocalPath(url)) return;
       targets.push({ node, attribute, url });
     });
 

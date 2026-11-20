@@ -20,11 +20,19 @@ const SECTIONS: ShortcutSection[] = [
     ],
   },
   {
+    title: "変更箇所(--git)",
+    shortcuts: [
+      { keys: [["n"]], description: "次の変更へ移動" },
+      { keys: [["N"]], description: "前の変更へ移動" },
+    ],
+  },
+  {
     title: "コメント",
     shortcuts: [
       { keys: [["Enter"]], description: "カーソル行にコメントを書く" },
       { keys: [["Ctrl / ⌘", "Enter"]], description: "書きかけのコメントを保存" },
       { keys: [["Esc"]], description: "コメントの編集をやめる" },
+      { keys: [["r"]], description: "読み取りモードを切り替える" },
     ],
   },
   {

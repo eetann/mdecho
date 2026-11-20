@@ -5,11 +5,15 @@ import { homedir } from "node:os";
 import { extname, join } from "node:path";
 import { type FontFamilies, toFontFamilyToken } from "../styles/font.ts";
 import {
+  CLIPBOARD_FORMATS,
+  type ClipboardConfig,
+  DEFAULT_CLIPBOARD,
   DEFAULT_CONFIG,
   DEFAULT_FONT,
   DEFAULT_LAYOUT,
   DEFAULT_LINE_BREAK,
   DEFAULT_LINK,
+  isClipboardFormat,
   isLinkBaseMode,
   LINK_BASE_MODES,
   type LineBreakConfig,
@@ -44,12 +48,13 @@ import {
   THEME_MODES,
 } from "../styles/theme.ts";
 
-const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout", "theme", "link"]);
+const KNOWN_TOP_LEVEL_KEYS = new Set(["font", "lineBreak", "layout", "theme", "link", "clipboard"]);
 const KNOWN_FONT_KEYS = new Set(["body", "code"]);
 const KNOWN_LINE_BREAK_KEYS = new Set(["splitSentences", "singleNewline"]);
 const KNOWN_LAYOUT_KEYS = new Set(["contentWidth", "fontSize", "lineHeight"]);
 const KNOWN_THEME_KEYS = new Set(["mode", "light", "dark"]);
 const KNOWN_LINK_KEYS = new Set(["base"]);
+const KNOWN_CLIPBOARD_KEYS = new Set(["format"]);
 const THEME_COLOR_KEY_SET: ReadonlySet<string> = new Set(THEME_COLOR_KEYS);
 
 export type WarnFn = (message: string) => void;
@@ -347,6 +352,28 @@ function normalizeLink(raw: unknown, warn: WarnFn): LinkConfig {
   return { base };
 }
 
+function normalizeClipboard(raw: unknown, warn: WarnFn): ClipboardConfig {
+  if (raw === undefined || raw === null) {
+    return DEFAULT_CLIPBOARD;
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    warn("clipboardはオブジェクトで指定してください。この設定は無視します");
+    return DEFAULT_CLIPBOARD;
+  }
+  warnUnknownKeys(raw, KNOWN_CLIPBOARD_KEYS, "clipboard", warn);
+  const format = (raw as { format?: unknown }).format;
+  if (format === undefined || format === null) {
+    return DEFAULT_CLIPBOARD;
+  }
+  if (!isClipboardFormat(format)) {
+    warn(
+      `clipboard.formatは${CLIPBOARD_FORMATS.join(" / ")}のいずれかで指定してください。${DEFAULT_CLIPBOARD.format}として扱います`,
+    );
+    return DEFAULT_CLIPBOARD;
+  }
+  return { format };
+}
+
 /** 設定ファイルから読んだ生の値を検証し、扱いやすい形へ正規化する。 */
 export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): MdechoConfig {
   if (raw === undefined || raw === null) {
@@ -364,6 +391,7 @@ export function normalizeConfig(raw: unknown, warn: WarnFn = defaultWarn): Mdech
     layout: normalizeLayout((raw as { layout?: unknown }).layout, warn),
     theme: normalizeTheme((raw as { theme?: unknown }).theme, warn),
     link: normalizeLink((raw as { link?: unknown }).link, warn),
+    clipboard: normalizeClipboard((raw as { clipboard?: unknown }).clipboard, warn),
   };
 }
 

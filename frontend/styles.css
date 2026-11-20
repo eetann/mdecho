@@ -115,6 +115,12 @@
   /* 目次のために右側へ空けておく幅。目次はfixedで right-8(2rem) + w-48(12rem) を
      占めるため、本文との間に余白が残るよう14remより広く取る。 */
   --mdecho-toc-column: 16rem;
+
+  /* ファイル一覧の幅。境界のドラッグで変えられ、FileListがこの値を上書きする。 */
+  --mdecho-file-list-width: 12rem;
+  /* ファイル一覧のために左側へ空けておく幅。目次と同じく left-8 + 一覧の幅 を占めるので、
+     目次と同じだけ(2rem余分に)本文との間に余白を残す。 */
+  --mdecho-file-list-column: calc(var(--mdecho-file-list-width) + 4rem);
 }
 
 /* ここから下は、上のテーマが持つ色トークンから導き出す本文用の色。
@@ -182,6 +188,11 @@
 @media (min-width: 80rem) {
   .mdecho-layout:has(~ .mdecho-toc) {
     padding-right: var(--mdecho-toc-column);
+  }
+
+  /* 複数のファイルを指定したときは、左にファイル一覧が出るので同じように空ける */
+  .mdecho-layout:has(~ .mdecho-file-list-panel) {
+    padding-left: var(--mdecho-file-list-column);
   }
 }
 
@@ -487,6 +498,47 @@ body {
   line-height: 1.45;
 }
 
+/* useCodeBlocksがpreを .mdecho-code-wrap で包み、右上にコピーボタンを載せる。
+   preは横スクロールするので、ボタンはpreではなく外枠に対して置く。 */
+.mdecho-code-wrap {
+  position: relative;
+}
+
+.mdecho-code-tools {
+  position: absolute;
+  top: 0.375rem;
+  right: 0.375rem;
+}
+
+/* 普段は隠し、コードブロックにマウスを乗せたときやキーボードで辿ったときだけ出す。
+   押した直後の「コピーしました」は、マウスが外れても見えるよう出したままにする。 */
+.mdecho-code-copy {
+  opacity: 0;
+  background: var(--color-base-100);
+  transition: opacity 0.15s;
+}
+
+.mdecho-code-wrap:hover .mdecho-code-copy,
+.mdecho-code-copy:focus-visible,
+.mdecho-code-copy:not([data-state="idle"]) {
+  opacity: 1;
+}
+
+.mdecho-code-copy[data-state="copied"] {
+  color: var(--color-success);
+}
+
+.mdecho-code-copy[data-state="failed"] {
+  color: var(--color-error);
+}
+
+/* ホバーできない端末(タッチ)では常に出しておく */
+@media (hover: none) {
+  .mdecho-code-copy {
+    opacity: 1;
+  }
+}
+
 .markdown-body pre code {
   display: block;
   padding: 0;
@@ -496,6 +548,13 @@ body {
 .markdown-body pre .line {
   display: inline-block;
   width: 100%;
+}
+
+/* 空行の.lineは中身が無いinline-blockなので高さ0になり、行の下端に潰れてしまう。
+   すると行番号ガターで次の行の番号と重なるため、ゼロ幅スペースで1行ぶんの高さを持たせる。
+   擬似要素なのでコピーした文字列には混ざらない。 */
+.markdown-body pre .line:empty::before {
+  content: "\200b";
 }
 
 /* Shikiには2テーマ分の色をCSS変数として持たせてある(src/markdown/render.tsのdefaultColor: false)。
@@ -541,6 +600,88 @@ body {
   color: var(--color-error);
   text-align: left;
   font-weight: 600;
+}
+
+/* フロントマター(src/markdown/plugins/remark-frontmatter-card.ts)。
+   ソースの1行を1行として出し、行ごとに「キー｜値」を横に並べて罫線で区切る。
+   キー列は固定幅にして、どんなフロントマターでも値の書き出し位置を揃える。
+   長いキーは省略する(title属性で全体を読める)。 */
+.markdown-body .mdecho-frontmatter {
+  margin: 0 0 1.5em;
+  font-size: 0.9em;
+  border: 1px solid var(--color-base-300);
+  border-radius: 6px;
+}
+
+.markdown-body .mdecho-frontmatter-row {
+  display: grid;
+  grid-template-columns: 9em minmax(0, 1fr);
+  column-gap: 1em;
+  padding: 0.25em 0.75em;
+}
+
+.markdown-body .mdecho-frontmatter > :not(:first-child) {
+  border-top: 1px solid var(--color-base-300);
+}
+
+/* 前の行の続き(複数行の値やリストの要素)は、区切りを弱めて同じ組だと分かるようにする */
+.markdown-body .mdecho-frontmatter > .mdecho-frontmatter-continuation {
+  border-top-style: dashed;
+}
+
+/* 枠の中なので、本文向けのカーソル表示(左へのはみ出し)を打ち消す。
+   角丸も外し、枠の角に接する最初と最後の行だけ下の規則で枠に合わせる */
+.markdown-body .mdecho-frontmatter-row[data-mdecho-cursor] {
+  margin-left: 0;
+  padding-left: 0.75em;
+  border-radius: 0;
+}
+
+.markdown-body .mdecho-frontmatter > :first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.markdown-body .mdecho-frontmatter > :last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.markdown-body .mdecho-frontmatter-key {
+  padding-left: calc(var(--mdecho-frontmatter-depth, 0) * 1em);
+  overflow: hidden;
+  color: var(--mdecho-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.markdown-body .mdecho-frontmatter-value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body .mdecho-frontmatter-comment {
+  display: block;
+  color: var(--mdecho-muted);
+  font-family: var(--font-mono);
+}
+
+.markdown-body .mdecho-frontmatter-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  white-space: normal;
+}
+
+.markdown-body .mdecho-frontmatter-chip {
+  padding: 0 0.6em;
+  background: var(--mdecho-code-chip);
+  border-radius: 999px;
+}
+
+.markdown-body .mdecho-frontmatter > .mdecho-comment-slot {
+  margin: 0;
+  padding: 0.5em 0.75em;
 }
 
 .markdown-body .mdecho-sentence {

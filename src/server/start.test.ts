@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { $ } from "bun";
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import { startServer, type StartServerResult } from "./start.ts";
 
@@ -12,6 +13,15 @@ const NO_SPLIT = { splitSentences: false };
 // styles.cssのセレクタにも同じ文字列が現れるため、JSON埋め込みされたbodyHtml側の
 // spanだけを見分けられるようにエスケープ後の形で比べる。
 const SENTENCE_SPAN = 'class=\\"mdecho-sentence\\"';
+
+/** ページに埋め込まれた初期データ(id="mdecho-data")を取り出す */
+function readInitialData(html: string): {
+  entries: { [key: string]: string }[];
+  changedLines?: { start: number; end: number }[];
+} {
+  const match = /<script id="mdecho-data"[^>]*>([\s\S]*?)<\/script>/.exec(html);
+  return JSON.parse(match?.[1] ?? "null");
+}
 
 let running: StartServerResult | undefined;
 let dir: string | undefined;
@@ -36,7 +46,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n\n![画像](./pic.png)\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const indexRes = await fetch(running.url);
     const html = await indexRes.text();
@@ -62,7 +72,7 @@ describe("startServer", () => {
     await mkdir(join(dir, "sub"));
     await writeFile(join(dir, "sub", "id_rsa"), "PRIVATE KEY\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     for (const path of [
       "./.env",
@@ -88,7 +98,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# エントリ\n");
     await symlink(join(dir, "secret.md"), join(dir, "docs", "escape.md"));
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const res = await fetch(new URL("./escape.md", running.url));
     expect(res.status).toBe(404);
@@ -103,7 +113,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# エントリ\n");
     await symlink(join(dir, "secret.png"), join(dir, "docs", "escape.png"));
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const res = await fetch(new URL("./escape.png", running.url));
     expect(res.status).toBe(404);
@@ -116,7 +126,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# エントリ\n");
     await writeFile(join(dir, "diagram.svg"), "<svg xmlns='http://www.w3.org/2000/svg'></svg>");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const res = await fetch(new URL("./diagram.svg", running.url));
     expect(res.status).toBe(200);
@@ -130,7 +140,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n");
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       lineBreakOverride: NO_SPLIT,
       config: { ...DEFAULT_CONFIG, font: { body: ["Inter"], code: ["JetBrains Mono"] } },
     });
@@ -149,7 +159,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const html = await (await fetch(running.url)).text();
     expect(html).not.toContain("mdecho-config-style");
@@ -160,7 +170,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n");
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       lineBreakOverride: NO_SPLIT,
       config: {
         ...DEFAULT_CONFIG,
@@ -178,7 +188,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n");
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       lineBreakOverride: NO_SPLIT,
       config: { ...DEFAULT_CONFIG, theme: { mode: "dark", light: {}, dark: {} } },
     });
@@ -195,7 +205,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const html = await (await fetch(running.url)).text();
     expect(html).not.toContain("mdecho-config-style");
@@ -208,7 +218,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# タイトル\n");
     const configFile = join(dir, "config.jsonc");
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       lineBreakOverride: NO_SPLIT,
       config: { ...DEFAULT_CONFIG, font: { body: ["Inter"], code: [] } },
       configFile,
@@ -225,7 +235,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# タイトル\n");
     const configFile = join(dir, "config.jsonc");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, configFile });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, configFile });
 
     const res = await fetch(new URL("./api/config", running.url), {
       method: "POST",
@@ -239,6 +249,7 @@ describe("startServer", () => {
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
       theme: { mode: "system", light: {}, dark: {} },
       link: { base: "ask" },
+      clipboard: { format: "grouped" },
       warnings: [],
     });
     // 色はUIから編集しないため、書き戻されるのはtheme.modeだけ。
@@ -248,6 +259,7 @@ describe("startServer", () => {
       layout: { contentWidth: 1024, fontSize: 16, lineHeight: 1.75 },
       theme: { mode: "system" },
       link: { base: "ask" },
+      clipboard: { format: "grouped" },
     });
 
     const html = await (await fetch(running.url)).text();
@@ -261,7 +273,7 @@ describe("startServer", () => {
     const configFile = join(dir, "config.jsonc");
     const theme = { mode: "system" as const, light: {}, dark: { "base-100": "#000000" } };
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       lineBreakOverride: NO_SPLIT,
       config: { ...DEFAULT_CONFIG, theme },
       configFile,
@@ -290,7 +302,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# タイトル\n");
     const configFile = join(dir, "config.jsonc");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, configFile });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, configFile });
 
     const res = await fetch(new URL("./api/config", running.url), {
       method: "POST",
@@ -307,7 +319,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n");
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       lineBreakOverride: NO_SPLIT,
       configFile: join(dir, "config.yaml"),
     });
@@ -329,7 +341,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# タイトル\n");
     const configFile = join(dir, "config.jsonc");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, configFile });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, configFile });
 
     // プリフライトの要らない単純リクエストの形。Content-Typeを見ずにJSONとして読めてしまう。
     const res = await fetch(new URL("./api/config", running.url), {
@@ -356,7 +368,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# タイトル\n");
     const configFile = join(dir, "config.jsonc");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, configFile });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, configFile });
 
     const res = await fetch(new URL("./api/config", running.url), {
       method: "POST",
@@ -379,7 +391,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "AはBです。そしてBがCなのです。\n");
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       config: { ...DEFAULT_CONFIG, lineBreak: { splitSentences: false, singleNewline: true } },
     });
 
@@ -394,7 +406,7 @@ describe("startServer", () => {
     await writeFile(filePath, "AはBです。そしてBがCなのです。\n");
     const configFile = join(dir, "config.jsonc");
 
-    running = await startServer(filePath, {
+    running = await startServer([filePath], {
       config: { ...DEFAULT_CONFIG, lineBreak: { splitSentences: true, singleNewline: true } },
       lineBreakOverride: NO_SPLIT,
       configFile,
@@ -422,7 +434,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const html = await (await fetch(running.url)).text();
     expect(html).toContain('"lineBreakOverride":{"splitSentences":false}');
@@ -434,7 +446,7 @@ describe("startServer", () => {
     await writeFile(filePath, "AはBです。そしてBがCなのです。\n");
     const configFile = join(dir, "config.jsonc");
 
-    running = await startServer(filePath, { configFile });
+    running = await startServer([filePath], { configFile });
     expect(await (await fetch(running.url)).text()).toContain(SENTENCE_SPAN);
 
     const res = await fetch(new URL("./api/config", running.url), {
@@ -453,7 +465,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# エントリ\n\n[foo](./foo.md)\n");
     await writeFile(join(dir, "foo.md"), "# foo\n\nfooの本文\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const res = await fetch(new URL("./foo.md", running.url));
     expect(res.status).toBe(200);
@@ -470,13 +482,15 @@ describe("startServer", () => {
     await mkdir(join(dir, "sub"));
     await writeFile(join(dir, "sub", "bar.md"), "# bar\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const html = await (await fetch(new URL("./sub/bar.md", running.url))).text();
     // AIエージェントに渡す参照は、-fに渡したパスと同じ書き方のまま表示中ファイルを指す
     expect(html).toContain(JSON.stringify(join(dir, "sub", "bar.md")).slice(1, -1));
     expect(html).toContain('"relPath":"sub/bar.md"');
-    expect(html).toContain('"entryRelPath":"doc.md"');
+    expect(readInitialData(html).entries).toEqual([
+      { url: "/doc.md", relPath: "doc.md", filePath, hash: expect.any(String) },
+    ]);
   });
 
   test("コメントの行番号を付け替えられるよう、原文を初期データに埋め込む", async () => {
@@ -484,7 +498,7 @@ describe("startServer", () => {
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# エントリ\n\n本文\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const html = await (await fetch(running.url)).text();
     expect(html).toContain('"source":"# エントリ\\n\\n本文\\n"');
@@ -497,7 +511,7 @@ describe("startServer", () => {
     const filePath = join(dir, "docs", "doc.md");
     await writeFile(filePath, "# エントリ\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const res = await fetch(new URL("./%2e%2e/secret.md", running.url));
     expect(res.status).toBe(404);
@@ -513,7 +527,7 @@ describe("startServer", () => {
     await writeFile(join(dir, "README.md"), "# readme\n\nREADMEの本文\n");
     await writeFile(join(dir, "assets", "fig.png"), "png");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, cwd: dir });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, cwd: dir });
 
     const html = await (await fetch(running.url)).text();
     expect(html).toContain('href=\\"/README.md\\"');
@@ -534,7 +548,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# 計画\n\n[ガイド](docs/guide.md#使い方)\n\n[無い](nothing.md)\n");
     await writeFile(join(dir, "docs", "guide.md"), "# guide\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, cwd: dir });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, cwd: dir });
 
     const html = await (await fetch(running.url)).text();
     // `#`以降はそのまま残す
@@ -551,7 +565,7 @@ describe("startServer", () => {
     const filePath = join(dir, "docs", "doc.md");
     await writeFile(filePath, "# エントリ\n\n[secret](../secret.md)\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT, cwd: join(dir, "cwd") });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, cwd: join(dir, "cwd") });
 
     const html = await (await fetch(running.url)).text();
     // 範囲外のリンクは書き換えない
@@ -561,12 +575,87 @@ describe("startServer", () => {
     expect(await res.text()).not.toContain("ひみつ");
   });
 
+  test("複数のファイルを指定すると、先頭を`/`で開き、すべてを一覧に載せる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await mkdir(join(dir, "docs"));
+    await writeFile(join(dir, "docs", "a.md"), "# a\n\nAの本文\n");
+    await writeFile(join(dir, "docs", "b.md"), "# b\n\nBの本文\n");
+
+    running = await startServer(["docs/a.md", "docs/b.md"], {
+      lineBreakOverride: NO_SPLIT,
+      cwd: dir,
+    });
+
+    const html = await (await fetch(running.url)).text();
+    expect(html).toContain("Aの本文");
+    const hash = expect.any(String);
+    expect(readInitialData(html).entries).toEqual([
+      { url: "/docs/a.md", relPath: "docs/a.md", filePath: "docs/a.md", hash },
+      { url: "/docs/b.md", relPath: "docs/b.md", filePath: "docs/b.md", hash },
+    ]);
+    const b = await (await fetch(new URL("/docs/b.md", running.url))).text();
+    expect(b).toContain("Bの本文");
+    // 指定したときの書き方のままクリップボードに載る
+    expect(b).toContain('"filePath":"docs/b.md"');
+  });
+
+  test("一覧のハッシュは、ファイルが書き換わると変わる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await writeFile(join(dir, "a.md"), "# a\n");
+    await writeFile(join(dir, "b.md"), "# b\n");
+
+    running = await startServer(["a.md", "b.md"], { lineBreakOverride: NO_SPLIT, cwd: dir });
+
+    const before = readInitialData(await (await fetch(running.url)).text()).entries;
+    await writeFile(join(dir, "b.md"), "# b 直した\n");
+    const after = readInitialData(await (await fetch(running.url)).text()).entries;
+    expect(after[0]?.hash).toBe(before[0]?.hash ?? "");
+    expect(after[1]?.hash).not.toBe(before[1]?.hash ?? "");
+  });
+
+  test("別々の場所のファイルは、それぞれのディレクトリだけを接頭辞付きで配信する", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await mkdir(join(dir, "cwd"));
+    await mkdir(join(dir, "other", "sub"), { recursive: true });
+    await writeFile(join(dir, "secret.md"), "# ひみつ\n");
+    await writeFile(join(dir, "cwd", "a.md"), "# a\n");
+    const other = join(dir, "other", "sub", "b.md");
+    await writeFile(other, "# b\n\n[c](./c.md) [root](/c.md) ![図](fig.png)\n");
+    await writeFile(join(dir, "other", "sub", "c.md"), "# c\n\nCの本文\n");
+    await writeFile(join(dir, "other", "sub", "fig.png"), "png");
+
+    running = await startServer(["a.md", other], {
+      lineBreakOverride: NO_SPLIT,
+      cwd: join(dir, "cwd"),
+    });
+
+    const html = await (await fetch(new URL("/~2/b.md", running.url))).text();
+    expect(html).toContain('"relPath":"~2/b.md"');
+    expect(html).toContain('href=\\"/~2/c.md\\"');
+    // 先頭が`/`のリンクも、そのファイルのルート基準になる
+    expect(html.match(/href=\\"\/~2\/c\.md\\"/g)).toHaveLength(2);
+    expect(html).toContain('img src=\\"/~2/fig.png\\"');
+
+    expect(await (await fetch(new URL("/~2/c.md", running.url))).text()).toContain("Cの本文");
+    expect((await fetch(new URL("/~2/fig.png", running.url))).status).toBe(200);
+    // 2つのディレクトリの共通の祖先は配信しない
+    for (const path of [
+      "/~2/%2e%2e/%2e%2e/secret.md",
+      "/%2e%2e/secret.md",
+      "/~2/../other/sub/c.md",
+    ]) {
+      const res = await fetch(new URL(path, running.url));
+      expect(res.status).toBe(404);
+      expect(await res.text()).not.toContain("ひみつ");
+    }
+  });
+
   test("存在しないパスは404を返す", async () => {
     dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
     const filePath = join(dir, "doc.md");
     await writeFile(filePath, "# タイトル\n\n本文\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     for (const path of ["./not-exist.png", "./not-exist.md"]) {
       const res = await fetch(new URL(path, running.url));
@@ -585,7 +674,7 @@ describe("startServer", () => {
     const linkedPath = join(dir, "foo.md");
     await writeFile(linkedPath, "# foo\n");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
 
     const res = await fetch(new URL("./events?path=%2Ffoo.md", running.url));
     const reader = res.body?.getReader();
@@ -619,7 +708,7 @@ describe("startServer", () => {
     await writeFile(filePath, "# タイトル\n\nひみつ\n");
     await writeFile(join(dir, "pic.png"), "png");
 
-    running = await startServer(filePath, { lineBreakOverride: NO_SPLIT });
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
     const { port } = new URL(running.url);
 
     const getWithHost = (path: string, host: string) =>
@@ -646,5 +735,25 @@ describe("startServer", () => {
       expect(res.status).toBe(200);
       expect(res.body).toContain("ひみつ");
     }
+  });
+
+  test("gitBaseを渡すと、表示するファイルの変更行を初期データに載せる", async () => {
+    dir = await mkdtemp(join(tmpdir(), "mdecho-test-"));
+    await $`git init -q -b main && git config user.email t@example.com && git config user.name t`.cwd(
+      dir,
+    );
+    const filePath = join(dir, "doc.md");
+    await writeFile(filePath, "# タイトル\n\n本文\n");
+    await $`git add -A && git commit -q -m init`.cwd(dir);
+    await writeFile(filePath, "# タイトル\n\n直した本文\n");
+
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT, gitBase: "@" });
+    const withGit = readInitialData(await (await fetch(running.url)).text());
+    expect(withGit.changedLines).toEqual([{ start: 3, end: 3 }]);
+    await running.close();
+
+    running = await startServer([filePath], { lineBreakOverride: NO_SPLIT });
+    const withoutGit = readInitialData(await (await fetch(running.url)).text());
+    expect(withoutGit.changedLines).toBeUndefined();
   });
 });

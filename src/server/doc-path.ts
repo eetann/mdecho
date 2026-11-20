@@ -7,25 +7,43 @@ import type { LinkBase, LinkChoice } from "../markdown/link-choices.ts";
 
 const MARKDOWN_EXTENSION_PATTERN = /\.(?:md|markdown)$/i;
 
-/** URLのパスとファイルを対応づけるための基準。`createDocRoot`で作る。 */
+/**
+ * 配信範囲の1単位。`-f`のファイルごとに決まり、同じディレクトリになったものは1つにまとめる。
+ * 決め方は`createDocSpace`を参照。
+ */
 export interface DocRoot {
-  /**
-   * プロジェクトルート。URLの`/`に対応するディレクトリで、配信してよい範囲の境界でもあり、
-   * ルート基準のリンクの起点でもある。決め方は`createDocRoot`を参照。
-   */
+  /** プロジェクトルート。配信してよい範囲の境界で、ルート基準のリンクの起点でもある。 */
   rootDir: string;
+  /**
+   * このルートを配信するURLの接頭辞。最初の`-f`のファイルのルートは""(URLの`/`がrootDir)で、
+   * それ以外は`/~2`のように番号を付ける。
+   */
+  urlPrefix: string;
+}
+
+/** `-f`に渡されたファイル */
+export interface EntryFile {
   /** `-f`に渡されたパス(表記はそのまま) */
-  entryFilePath: string;
-  /** エントリのファイルの絶対パス */
-  entryAbsPath: string;
+  filePath: string;
+  absPath: string;
+  root: DocRoot;
+}
+
+/** URLのパスとファイルを対応づけるための基準。`createDocSpace`で作る。 */
+export interface DocSpace {
+  /** 配信してよい範囲。各エントリのルートの和集合で、エントリの並びで最初に現れた順 */
+  roots: DocRoot[];
+  /** 指定された順のエントリ(重複は除く)。先頭がURLの`/`に対応する */
+  entries: EntryFile[];
 }
 
 export interface ResolvedDoc {
   /** 実際に読み込むファイルの絶対パス */
   absPath: string;
   /**
-   * `DocRoot.rootDir`を起点にした相対パス。区切りは常に"/"。
-   * URL・ツールバーの表示・コメントの保存キーに使う。
+   * URLのパスから先頭の`/`を除いたもの(デコード済み)。最初のルートなら`DocRoot.rootDir`からの
+   * 相対パスそのもので、それ以外のルートでは`~2/docs/a.md`のように接頭辞が付く。区切りは常に"/"。
+   * ツールバーの表示・コメントの保存キーに使う。
    */
   relPath: string;
   /**
@@ -33,6 +51,8 @@ export interface ResolvedDoc {
    * クリップボードの`path:L9`に載るため、AIエージェントがそのまま開ける形にしておく。
    */
   displayPath: string;
+  /** このファイルが属する配信範囲 */
+  root: DocRoot;
 }
 
 /** `./foo.md`のようなリンク先をmdechoがレンダリングする対象とみなすか */
@@ -93,13 +113,13 @@ export function findGitRoot(startDir: string, home: string = homedir()): string 
   }
 }
 
-export interface CreateDocRootOptions {
+export interface CreateDocSpaceOptions {
   /** プロジェクトルートの探し方。テストで差し替えるためにある */
   findGitRoot?: (startDir: string) => string | undefined;
 }
 
 /**
- * `-f`のファイルとcwdから、URLの基準になるディレクトリ(プロジェクトルート)を決める。
+ * `-f`のファイル1つとcwdから、URLの基準になるディレクトリ(プロジェクトルート)を決める。
  *
  * エントリがgitリポジトリの中ならそのルートにする。AIエージェントはリポジトリのルートから
  * 見たパス(`src/foo.ts`など)で書きがちで、どこで起動しても同じ場所を指してほしいため。
@@ -108,25 +128,50 @@ export interface CreateDocRootOptions {
  * ただし`-f /tmp/x.md`のようにcwdの外のファイルを開いたときまで共通の祖先へ広げると、
  * `/`やホームディレクトリ全体を配信しかねないので、その場合はエントリのディレクトリに留める。
  */
-export function createDocRoot(
-  entryFilePath: string,
-  cwd: string = process.cwd(),
-  options: CreateDocRootOptions = {},
-): DocRoot {
-  const cwdAbs = resolve(cwd);
-  const entryAbsPath = resolve(cwdAbs, entryFilePath);
+function findRootDir(
+  entryAbsPath: string,
+  cwdAbs: string,
+  findRoot: (startDir: string) => string | undefined,
+): string {
   const entryDir = dirname(entryAbsPath);
-  const gitRoot = (options.findGitRoot ?? findGitRoot)(entryDir);
-  return {
-    rootDir: gitRoot ?? (isWithinDir(cwdAbs, entryDir) ? cwdAbs : entryDir),
-    entryFilePath,
-    entryAbsPath,
-  };
+  return findRoot(entryDir) ?? (isWithinDir(cwdAbs, entryDir) ? cwdAbs : entryDir);
+}
+
+/**
+ * `-f`のファイル(複数可)とcwdから、配信範囲とURLの対応を決める。
+ *
+ * ファイルごとに`findRootDir`でルートを決め、その和集合を配信範囲にする。
+ * バラバラの場所にあるファイルを渡されたときに共通の祖先を配信範囲にすると、
+ * 最悪ホームディレクトリ全体が見えてしまうため、ルートどうしを1つへまとめることはしない。
+ * 2つ目以降のルートは`/~2`のような接頭辞の下で配信する。
+ */
+export function createDocSpace(
+  entryFilePaths: string[],
+  cwd: string = process.cwd(),
+  options: CreateDocSpaceOptions = {},
+): DocSpace {
+  const cwdAbs = resolve(cwd);
+  const findRoot = options.findGitRoot ?? findGitRoot;
+  const roots: DocRoot[] = [];
+  const entries: EntryFile[] = [];
+  for (const filePath of entryFilePaths) {
+    const absPath = resolve(cwdAbs, filePath);
+    if (entries.some((entry) => entry.absPath === absPath)) continue;
+    const rootDir = findRootDir(absPath, cwdAbs, findRoot);
+    let root = roots.find((r) => r.rootDir === rootDir);
+    if (!root) {
+      root = { rootDir, urlPrefix: roots.length === 0 ? "" : `/~${roots.length + 1}` };
+      roots.push(root);
+    }
+    entries.push({ filePath, absPath, root });
+  }
+  return { roots, entries };
 }
 
 /** rootDir配下の絶対パスを、そのファイルを指すURLのパスへ変換する */
-function toUrlPath(rootDir: string, absPath: string): string {
-  return `/${relative(rootDir, absPath).split(sep).map(encodeURIComponent).join("/")}`;
+export function toUrlPath(root: DocRoot, absPath: string): string {
+  const encoded = relative(root.rootDir, absPath).split(sep).map(encodeURIComponent).join("/");
+  return `${root.urlPrefix}/${encoded}`;
 }
 
 /** パーセントエンコードされたパスをデコードする。デコードできないものとヌル文字入りはundefined */
@@ -141,41 +186,78 @@ function decodePath(path: string): string | undefined {
   return decoded.includes("\0") ? undefined : decoded;
 }
 
+/** デコード済みのURLのパスが、どのルートのどのパスを指しているか */
+function findRootOf(space: DocSpace, decoded: string): { root: DocRoot; rest: string } | undefined {
+  // 接頭辞の無い最初のルートは何にでも当てはまるため、接頭辞付きのルートを先に見る。
+  for (const root of space.roots) {
+    if (root.urlPrefix === "") continue;
+    if (decoded === root.urlPrefix || decoded.startsWith(`${root.urlPrefix}/`)) {
+      return { root, rest: decoded.slice(root.urlPrefix.length) };
+    }
+  }
+  const [first] = space.roots;
+  return first?.urlPrefix === "" ? { root: first, rest: decoded } : undefined;
+}
+
 /**
- * リクエストされたURLのパスを、`DocRoot.rootDir`配下のファイルへ解決する。
+ * `-f`に渡したパスと同じ書き方で、absPathを表す。
+ * エントリ自身は渡された表記をそのまま保ち(`./doc.md`の`./`を落とさない)、
+ * それ以外は同じルートの最初のエントリからの相対で表す。
+ */
+function toDisplayPath(space: DocSpace, root: DocRoot, absPath: string): string {
+  const self = space.entries.find((entry) => entry.absPath === absPath);
+  if (self) {
+    return self.filePath;
+  }
+  const base = space.entries.find((entry) => entry.root === root);
+  if (!base) {
+    return absPath;
+  }
+  return join(dirname(base.filePath), relative(dirname(base.absPath), absPath));
+}
+
+/**
+ * リクエストされたURLのパスを、配信範囲のファイルへ解決する。
  * その外(`../`など)を指すパスと、デコードできないパスはundefinedを返す。
- * `/`はエントリのファイルを指す。
+ * `/`は最初のエントリのファイルを指す。
  *
  * urlPathはHonoの`c.req.path`と同じくパーセントエンコードされたままの想定で、ここでデコードする。
  */
-export function resolveDoc(root: DocRoot, urlPath: string): ResolvedDoc | undefined {
-  const { rootDir, entryFilePath, entryAbsPath } = root;
+export function resolveDoc(space: DocSpace, urlPath: string): ResolvedDoc | undefined {
   const decoded = decodePath(urlPath);
   if (decoded === undefined) {
     return undefined;
   }
 
-  let absPath = entryAbsPath;
-  if (decoded !== "/") {
-    const requested = decoded.replace(/^\/+/, "");
+  let root: DocRoot;
+  let absPath: string;
+  const [firstEntry] = space.entries;
+  if (decoded === "/" && firstEntry) {
+    root = firstEntry.root;
+    absPath = firstEntry.absPath;
+  } else {
+    const found = findRootOf(space, decoded);
+    if (!found) {
+      return undefined;
+    }
+    root = found.root;
+    const requested = found.rest.replace(/^\/+/, "");
     if (requested === "") {
       return undefined;
     }
-    absPath = resolve(rootDir, `./${requested}`);
-    if (!isWithinDir(rootDir, absPath)) {
+    absPath = resolve(root.rootDir, `./${requested}`);
+    if (!isWithinDir(root.rootDir, absPath)) {
       return undefined;
     }
   }
 
   // `a/../b.md`のような表記を正規化するため、URLではなく解決後の絶対パスから組み立て直す。
+  const prefix = root.urlPrefix === "" ? "" : `${root.urlPrefix.slice(1)}/`;
   return {
     absPath,
-    relPath: relative(rootDir, absPath).split(sep).join("/"),
-    // エントリ自身は`-f`に渡された表記をそのまま保つ(`./doc.md`の`./`を落とさない)。
-    displayPath:
-      absPath === entryAbsPath
-        ? entryFilePath
-        : join(dirname(entryFilePath), relative(dirname(entryAbsPath), absPath)),
+    relPath: `${prefix}${relative(root.rootDir, absPath).split(sep).join("/")}`,
+    displayPath: toDisplayPath(space, root, absPath),
+    root,
   };
 }
 
@@ -213,6 +295,9 @@ export interface ResolvedLinkUrl {
  * ページのURLに任せず絶対URLにしておくのは、エントリを`/`で配信しているため。
  * `docs/plan.md`を`-f`したとき、`./a.png`をブラウザに解決させると`/a.png`になってしまう。
  *
+ * 先頭が`/`のパスはプロジェクトルート基準として扱う。URLの`/`がrootDirに対応している
+ * 最初のルートでは書き換えずにundefinedを返し、接頭辞の付くルートでは接頭辞を足す。
+ *
  * linkPathには`?`や`#`より前の、パーセントエンコードされたままのパスを渡すこと。
  * rootDirの外を指すもの・デコードできないものはundefinedを返す。
  */
@@ -225,6 +310,14 @@ export async function resolveLinkUrl(
   const decoded = decodePath(linkPath);
   if (decoded === undefined || decoded === "") {
     return undefined;
+  }
+
+  if (decoded.startsWith("/")) {
+    if (root.urlPrefix === "") {
+      return undefined;
+    }
+    const absPath = resolve(root.rootDir, `.${decoded}`);
+    return isWithinDir(root.rootDir, absPath) ? { url: toUrlPath(root, absPath) } : undefined;
   }
 
   const byBase: Record<LinkBase, string> = {
@@ -254,7 +347,7 @@ export async function resolveLinkUrl(
   ).filter((candidate) => candidate !== null);
   const toChoice = ({ base, absPath }: (typeof candidates)[number]): LinkChoice => ({
     base,
-    url: toUrlPath(root.rootDir, absPath),
+    url: toUrlPath(root, absPath),
   });
 
   const [first] = existing;

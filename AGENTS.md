@@ -24,6 +24,7 @@ src/
   config/             設定の型と既定値(defaults.ts)、読み込み(load.ts)、保存(save.ts)
                       defaults.tsは設定モーダルの「デフォルトに戻す」からも使うためfrontend/が読む。
                       node依存(c12やnode:fs)を持ち込まないこと
+  git/                git差分からの対象ファイル収集(--git)
   markdown/           MarkdownからHTMLへの変換。remark/rehypeプラグインはplugins/配下
   server/             HTTPサーバー、ライブリロード、HTMLシェル、パス解決
   styles/             <head>へ注入するCSSの組み立て。frontend/からも型と定数を共有する
@@ -64,77 +65,9 @@ test("hello world", () => {
 
 ## Frontend
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+`frontend/`はReact + Tailwind。サーバーはビルド済みの`dist/client/`を配信するだけで、HMRは無い。
 
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+`frontend/`や`src/`を変更したら、作業の最後に必ず`bun run build`を実行すること(`dist/`を更新しないと`mdecho`コマンドに反映されない)。
 
 ## CLI Development
 

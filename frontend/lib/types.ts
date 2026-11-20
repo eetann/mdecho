@@ -1,4 +1,4 @@
-import type { LinkConfig } from "../../src/config/defaults.ts";
+import type { ClipboardConfig, LinkConfig } from "../../src/config/defaults.ts";
 import type { ThemeConfig } from "../../src/styles/theme.ts";
 
 export interface Comment {
@@ -38,6 +38,9 @@ export type ThemeSettings = ThemeConfig;
 /** src/config/defaults.tsのLinkConfigと対応する */
 export type LinkSettings = LinkConfig;
 
+/** src/config/defaults.tsのClipboardConfigと対応する */
+export type ClipboardSettings = ClipboardConfig;
+
 export interface MdechoSettings {
   font: FontSettings;
   /** 設定ファイルに書かれている改行の設定(モーダルが編集する対象) */
@@ -56,10 +59,32 @@ export interface MdechoSettings {
   theme: ThemeSettings;
   /** 相対リンク・画像の基準の決め方 */
   link: LinkSettings;
+  /** コメントをコピーするときの書き方 */
+  clipboard: ClipboardSettings;
   /** 設定モーダルからの保存先(表示用) */
   configFile: string;
   /** UIから保存できるか。JSONC/JSON以外の設定ファイルを使っている場合はfalse */
   editable: boolean;
+}
+
+/** 指定されたファイル(src/server/shell.tsのShellEntryと対応する) */
+export interface EntryFile {
+  /** このファイルを開くURLのパス */
+  url: string;
+  /** relPathと同じ形式のパス。表示中のファイルとの突き合わせに使う */
+  relPath: string;
+  /** 指定されたときの表記そのまま。一覧の表示に使う */
+  filePath: string;
+  /** ファイルの内容のハッシュ。変わったら「見た」チェックを外す。読めなければ空文字 */
+  hash: string;
+  /** `--git`のbaseからの変わり方。`--git`でないときや差分を取れないときは無い */
+  change?: FileChange;
+}
+
+/** 変更後のファイルでの行範囲(src/server/shell.tsのChangedLineRangeと対応する) */
+export interface ChangedLineRange {
+  start: number;
+  end: number;
 }
 
 export interface MdechoInitialData {
@@ -71,13 +96,29 @@ export interface MdechoInitialData {
   filePath: string;
   /** Markdownのあるディレクトリを起点にした、表示中ファイルの相対パス */
   relPath: string;
-  /** 同じ形式で表した`-f`のファイルのパス。ホームへ戻るボタンの表示に使う */
-  entryRelPath: string;
+  /** 指定されたファイルの一覧。先頭がURLの`/`で開くファイル */
+  entries: EntryFile[];
   settings: MdechoSettings;
+  /** `--git`のbaseから追加・変更された行。`--git`でなければ無い */
+  changedLines?: ChangedLineRange[];
+  /** 表示中のファイルの`--git`のbaseからの変わり方。`--git`でなければ無い */
+  change?: FileChange;
+  /** `--read`で起動したときtrue。指定が無ければ無い */
+  readMode?: boolean;
 }
 
 /** GET /api/fonts のレスポンス(src/system/fonts.tsのSystemFontと対応する) */
 export interface SystemFont {
   name: string;
   aliases: string[];
+}
+
+/** src/git/changed-lines.tsのFileChangeと対応する */
+export interface FileChange {
+  /** added: baseに無かった、modified: 中身が変わった、unchanged: 変わっていない */
+  status: "added" | "modified" | "unchanged";
+  /** 追加された行数(変更された行も追加として数える) */
+  added: number;
+  /** 削除された行数(変更された行も削除として数える) */
+  deleted: number;
 }
