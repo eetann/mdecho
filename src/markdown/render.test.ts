@@ -63,6 +63,13 @@ describe("renderMarkdown - sentence split", () => {
     expect(html).toContain("AAA。BBB。CCC。DDD。");
   });
 
+  test("句点の直後が閉じ括弧なら、その句点では分割しない", async () => {
+    const html = await renderMarkdown("「保存しました。」と表示される。次の文。(補足です。)続き。");
+    expect(html.match(/class="mdecho-sentence"/g)?.length).toBe(3);
+    expect(html).toContain(">「保存しました。」と表示される。</span>");
+    expect(html).toContain(">(補足です。)続き。</span>");
+  });
+
   test("句点が1つだけの単文段落は分割されない", async () => {
     const html = await renderMarkdown("Hello world。");
     expect(html).not.toContain("mdecho-sentence");

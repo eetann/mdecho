@@ -22,6 +22,41 @@ function advancePosition(start: Point, text: string, charIndex: number): Point {
   };
 }
 
+// 句点の直後にこれらの閉じ括弧が続く場合、その句点は括弧内の引用(UI文言など)の末尾とみなし分割しない。
+// 例: 「保存しました。」と表示される。 → 1文として扱う
+const CLOSING_BRACKETS = new Set([
+  "」",
+  "』",
+  "）",
+  ")",
+  "】",
+  "〕",
+  "］",
+  "]",
+  "｝",
+  "}",
+  "〉",
+  "》",
+  "”",
+  "’",
+  '"',
+  "'",
+]);
+
+function isFollowedByClosingBracket(
+  value: string,
+  index: number,
+  nextSibling: PhrasingContent | undefined,
+): boolean {
+  const nextChar =
+    index + 1 < value.length
+      ? value[index + 1]
+      : nextSibling?.type === "text"
+        ? nextSibling.value[0]
+        : undefined;
+  return nextChar !== undefined && CLOSING_BRACKETS.has(nextChar);
+}
+
 interface SentenceGroup {
   nodes: PhrasingContent[];
   start: Point;
@@ -32,6 +67,7 @@ interface SentenceGroup {
  * paragraph.childrenをトップレベルで走査し、text内の「。」ごとに文グループへ分割する。
  * strong/link/inlineCode等の非textノードは分割トリガーにせず現在の文グループへそのまま追加する
  * (太字やインラインコード内部の「。」では分割しない)。
+ * 「。」の直後が閉じ括弧の場合(例:「保存しました。」)も分割しない。
  */
 function splitIntoSentenceGroups(children: PhrasingContent[]): SentenceGroup[] {
   const groups: SentenceGroup[] = [];
@@ -45,13 +81,14 @@ function splitIntoSentenceGroups(children: PhrasingContent[]): SentenceGroup[] {
     currentStart = null;
   }
 
-  for (const child of children) {
+  for (const [childIndex, child] of children.entries()) {
     if (child.type === "text" && child.position) {
       const value = child.value;
       const nodeStart = child.position.start;
       let segStart = 0;
       for (let i = 0; i < value.length; i++) {
         if (value[i] !== "。") continue;
+        if (isFollowedByClosingBracket(value, i, children[childIndex + 1])) continue;
         const segEnd = i + 1;
         const segStartPoint = advancePosition(nodeStart, value, segStart);
         const segEndPoint = advancePosition(nodeStart, value, segEnd);
